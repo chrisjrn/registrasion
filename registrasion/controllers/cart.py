@@ -1,9 +1,8 @@
 import datetime
-import itertools
 
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError
-from django.db.models import Avg, Min, Max, Sum
+from django.db.models import Max, Sum
 from django.utils import timezone
 
 from registrasion import models as rego
@@ -33,7 +32,6 @@ class CartController(object):
             existing.save()
         return CartController(existing)
 
-
     def extend_reservation(self):
         ''' Updates the cart's time last updated value, which is used to
         determine whether the cart has reserved the items and discounts it
@@ -55,7 +53,6 @@ class CartController(object):
 
         self.cart.time_last_updated = timezone.now()
         self.cart.reservation_duration = max(reservations)
-
 
     def add_to_cart(self, product, quantity):
         ''' Adds _quantity_ of the given _product_ to the cart. Raises
@@ -91,7 +88,6 @@ class CartController(object):
         self.cart.revision += 1
         self.cart.save()
 
-
     def apply_voucher(self, voucher):
         ''' Applies the given voucher to this cart. '''
 
@@ -110,7 +106,6 @@ class CartController(object):
         self.cart.revision += 1
         self.cart.save()
 
-
     def validate_cart(self):
         ''' Determines whether the status of the current cart is valid;
         this is normally called before generating or paying an invoice '''
@@ -121,13 +116,15 @@ class CartController(object):
 
         items = rego.ProductItem.objects.filter(cart=self.cart)
         for item in items:
-            # per-user limits are tested at add time, and are unliklely to change
+            # NOTE: per-user limits are tested at add time
+            # and are unliklely to change
             prod = ProductController(item.product)
 
             # If the cart is not reserved, we need to see if we can re-reserve
             quantity = 0 if is_reserved else item.quantity
 
-            if not prod.can_add_with_enabling_conditions(self.cart.user, quantity):
+            if not prod.can_add_with_enabling_conditions(
+                    self.cart.user, quantity):
                 raise ValidationError("Products are no longer available")
 
         # Validate the discounts
@@ -139,15 +136,14 @@ class CartController(object):
             if discount in seen_discounts:
                 continue
             seen_discounts.add(discount)
-            real_discount = rego.DiscountBase.objects.get_subclass(pk=discount.pk)
+            real_discount = rego.DiscountBase.objects.get_subclass(
+                pk=discount.pk)
             cond = ConditionController.for_condition(real_discount)
 
             quantity = 0 if is_reserved else discount_item.quantity
 
             if not cond.is_met(self.cart.user, quantity):
                 raise ValidationError("Discounts are no longer available")
-
-
 
     def recalculate_discounts(self):
         ''' Calculates all of the discounts available for this product.
@@ -160,11 +156,10 @@ class CartController(object):
         for item in self.cart.productitem_set.all():
             self._add_discount(item.product, item.quantity)
 
-
     def _add_discount(self, product, quantity):
         ''' Calculates the best available discounts for this product.
-        NB this will be super-inefficient in aggregate because discounts will be
-        re-tested for each product. We should work on that.'''
+        NB this will be super-inefficient in aggregate because discounts will
+        be re-tested for each product. We should work on that.'''
 
         prod = ProductController(product)
         discounts = prod.available_discounts(self.cart.user)

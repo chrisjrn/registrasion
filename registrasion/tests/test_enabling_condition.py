@@ -1,11 +1,6 @@
-import datetime
 import pytz
 
-from decimal import Decimal
-from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
-from django.test import TestCase
-from django.utils import timezone
 
 from registrasion import models as rego
 from registrasion.controllers.cart import CartController
@@ -13,6 +8,7 @@ from registrasion.controllers.cart import CartController
 from test_cart import RegistrationCartTestCase
 
 UTC = pytz.timezone('UTC')
+
 
 class EnablingConditionTestCases(RegistrationCartTestCase):
 
@@ -29,7 +25,6 @@ class EnablingConditionTestCases(RegistrationCartTestCase):
         enabling_condition.enabling_products.add(cls.PROD_2)
         enabling_condition.save()
 
-
     @classmethod
     def add_product_enabling_condition_on_category(cls, mandatory=False):
         ''' Adds a product enabling condition that operates on a category:
@@ -43,7 +38,6 @@ class EnablingConditionTestCases(RegistrationCartTestCase):
         enabling_condition.enabling_products.add(cls.PROD_3)
         enabling_condition.save()
 
-
     def add_category_enabling_condition(cls, mandatory=False):
         ''' Adds a category enabling condition: adding PROD_1 to a cart is
         predicated on adding an item from CAT_2 beforehand.'''
@@ -56,7 +50,6 @@ class EnablingConditionTestCases(RegistrationCartTestCase):
         enabling_condition.products.add(cls.PROD_1)
         enabling_condition.save()
 
-
     def test_product_enabling_condition_enables_product(self):
         self.add_product_enabling_condition()
 
@@ -67,7 +60,6 @@ class EnablingConditionTestCases(RegistrationCartTestCase):
 
         current_cart.add_to_cart(self.PROD_2, 1)
         current_cart.add_to_cart(self.PROD_1, 1)
-
 
     def test_product_enabled_by_product_in_previous_cart(self):
         self.add_product_enabling_condition()
@@ -81,7 +73,6 @@ class EnablingConditionTestCases(RegistrationCartTestCase):
         current_cart = CartController.for_user(self.USER_1)
         current_cart.add_to_cart(self.PROD_1, 1)
 
-
     def test_product_enabling_condition_enables_category(self):
         self.add_product_enabling_condition_on_category()
 
@@ -92,7 +83,6 @@ class EnablingConditionTestCases(RegistrationCartTestCase):
 
         current_cart.add_to_cart(self.PROD_3, 1)
         current_cart.add_to_cart(self.PROD_1, 1)
-
 
     def test_category_enabling_condition_enables_product(self):
         self.add_category_enabling_condition()
@@ -106,7 +96,6 @@ class EnablingConditionTestCases(RegistrationCartTestCase):
         current_cart.add_to_cart(self.PROD_3, 1)
         current_cart.add_to_cart(self.PROD_1, 1)
 
-
     def test_product_enabled_by_category_in_previous_cart(self):
         self.add_category_enabling_condition()
 
@@ -118,7 +107,6 @@ class EnablingConditionTestCases(RegistrationCartTestCase):
         # Create new cart and try to add PROD_1
         current_cart = CartController.for_user(self.USER_1)
         current_cart.add_to_cart(self.PROD_1, 1)
-
 
     def test_multiple_non_mandatory_conditions(self):
         self.add_product_enabling_condition()
@@ -140,7 +128,6 @@ class EnablingConditionTestCases(RegistrationCartTestCase):
         cart_2.add_to_cart(self.PROD_3, 1)
         cart_2.add_to_cart(self.PROD_1, 1)
 
-
     def test_multiple_mandatory_conditions(self):
         self.add_product_enabling_condition(mandatory=True)
         self.add_category_enabling_condition(mandatory=True)
@@ -149,12 +136,11 @@ class EnablingConditionTestCases(RegistrationCartTestCase):
         # Cannot add PROD_1 until both conditions are met
         with self.assertRaises(ValidationError):
             cart_1.add_to_cart(self.PROD_1, 1)
-        cart_1.add_to_cart(self.PROD_2, 1) # Meets the product condition
+        cart_1.add_to_cart(self.PROD_2, 1)  # Meets the product condition
         with self.assertRaises(ValidationError):
             cart_1.add_to_cart(self.PROD_1, 1)
-        cart_1.add_to_cart(self.PROD_3, 1) # Meets the category condition
+        cart_1.add_to_cart(self.PROD_3, 1)  # Meets the category condition
         cart_1.add_to_cart(self.PROD_1, 1)
-
 
     def test_mandatory_conditions_are_mandatory(self):
         self.add_product_enabling_condition(mandatory=False)
@@ -164,8 +150,8 @@ class EnablingConditionTestCases(RegistrationCartTestCase):
         # Cannot add PROD_1 until both conditions are met
         with self.assertRaises(ValidationError):
             cart_1.add_to_cart(self.PROD_1, 1)
-        cart_1.add_to_cart(self.PROD_2, 1) # Meets the product condition
+        cart_1.add_to_cart(self.PROD_2, 1)  # Meets the product condition
         with self.assertRaises(ValidationError):
             cart_1.add_to_cart(self.PROD_1, 1)
-        cart_1.add_to_cart(self.PROD_3, 1) # Meets the category condition
+        cart_1.add_to_cart(self.PROD_3, 1)  # Meets the category condition
         cart_1.add_to_cart(self.PROD_1, 1)

@@ -1,10 +1,11 @@
 from decimal import Decimal
 from django.core.exceptions import ObjectDoesNotExist
-from django.db.models import Avg, Min, Max, Sum
+from django.db.models import Sum
 
 from registrasion import models as rego
 
 from cart import CartController
+
 
 class InvoiceController(object):
 
@@ -22,11 +23,10 @@ class InvoiceController(object):
                 cart=cart, cart_revision=cart.revision)
         except ObjectDoesNotExist:
             cart_controller = CartController(cart)
-            cart_controller.validate_cart() # Raises ValidationError on fail.
+            cart_controller.validate_cart()  # Raises ValidationError on fail.
             invoice = cls._generate(cart)
 
         return InvoiceController(invoice)
-
 
     @classmethod
     def resolve_discount_value(cls, item):
@@ -45,7 +45,6 @@ class InvoiceController(object):
         else:
             value = condition.price
         return value
-
 
     @classmethod
     def _generate(cls, cart):
@@ -89,7 +88,6 @@ class InvoiceController(object):
 
         return invoice
 
-
     def is_valid(self):
         ''' Returns true if the attached invoice is not void and it represents
         a valid cart. '''
@@ -100,11 +98,9 @@ class InvoiceController(object):
                 return False
         return True
 
-
     def void(self):
         ''' Voids the invoice. '''
         self.invoice.void = True
-
 
     def pay(self, reference, amount):
         ''' Pays the invoice by the given amount. If the payment
@@ -113,7 +109,7 @@ class InvoiceController(object):
         '''
         if self.invoice.cart is not None:
             cart = CartController(self.invoice.cart)
-            cart.validate_cart() # Raises ValidationError if invalid
+            cart.validate_cart()  # Raises ValidationError if invalid
 
         ''' Adds a payment '''
         payment = rego.Payment.objects.create(
@@ -127,7 +123,7 @@ class InvoiceController(object):
         agg = payments.aggregate(Sum("amount"))
         total = agg["amount__sum"]
 
-        if total==self.invoice.value:
+        if total == self.invoice.value:
             self.invoice.paid = True
 
             cart = self.invoice.cart

@@ -2,10 +2,7 @@ import datetime
 import pytz
 
 from decimal import Decimal
-from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
-from django.test import TestCase
-from django.utils import timezone
 
 from registrasion import models as rego
 from registrasion.controllers.cart import CartController
@@ -74,7 +71,6 @@ class InvoiceTestCase(RegistrationCartTestCase):
         new_cart = CartController.for_user(self.USER_1)
         self.assertNotEqual(current_cart.cart, new_cart.cart)
 
-
     def test_invoice_includes_discounts(self):
         voucher = rego.Voucher.objects.create(
             recipient="Voucher recipient",
@@ -105,4 +101,6 @@ class InvoiceTestCase(RegistrationCartTestCase):
         line_items = rego.LineItem.objects.filter(invoice=invoice_1.invoice)
         self.assertEqual(2, len(line_items))
         # That invoice should have a value equal to 50% of the cost of PROD_1
-        self.assertEqual(self.PROD_1.price * Decimal("0.5"), invoice_1.invoice.value)
+        self.assertEqual(
+            self.PROD_1.price * Decimal("0.5"),
+            invoice_1.invoice.value)

@@ -6,7 +6,6 @@ import nested_admin
 from registrasion import models as rego
 
 
-
 # Inventory admin
 
 class ProductInline(admin.TabularInline):

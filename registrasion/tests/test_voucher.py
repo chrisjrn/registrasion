@@ -2,10 +2,7 @@ import datetime
 import pytz
 
 from decimal import Decimal
-from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
-from django.test import TestCase
-from django.utils import timezone
 
 from registrasion import models as rego
 from registrasion.controllers.cart import CartController
@@ -41,7 +38,8 @@ class VoucherTestCases(RegistrationCartTestCase):
         with self.assertRaises(ValidationError):
             cart_2.apply_voucher(voucher)
 
-        # After the reservation duration, user 2 should be able to apply voucher
+        # After the reservation duration
+        # user 2 should be able to apply voucher
         self.add_timedelta(rego.Voucher.RESERVATION_DURATION * 2)
         cart_2.apply_voucher(voucher)
         cart_2.cart.active = False
@@ -73,7 +71,6 @@ class VoucherTestCases(RegistrationCartTestCase):
         # Apply the voucher
         current_cart.apply_voucher(voucher)
         current_cart.add_to_cart(self.PROD_1, 1)
-
 
     def test_voucher_enables_discount(self):
         voucher = self.new_voucher()

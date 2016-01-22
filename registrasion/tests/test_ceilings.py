@@ -1,18 +1,14 @@
 import datetime
 import pytz
 
-from decimal import Decimal
-from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
-from django.test import TestCase
-from django.utils import timezone
 
-from registrasion import models as rego
 from registrasion.controllers.cart import CartController
 
 from test_cart import RegistrationCartTestCase
 
 UTC = pytz.timezone('UTC')
+
 
 class CeilingsTestCases(RegistrationCartTestCase):
 
@@ -44,12 +40,11 @@ class CeilingsTestCases(RegistrationCartTestCase):
         # User should be able to add 5 of PROD_2 to the current cart
         current_cart.add_to_cart(self.PROD_2, 4)
 
-
     def test_add_to_cart_ceiling_date_range(self):
-        self.make_ceiling("date range ceiling",
+        self.make_ceiling(
+            "date range ceiling",
             start_time=datetime.datetime(2015, 01, 01, tzinfo=UTC),
-            end_time=datetime.datetime(2015, 02, 01, tzinfo=UTC)
-        )
+            end_time=datetime.datetime(2015, 02, 01, tzinfo=UTC))
 
         current_cart = CartController.for_user(self.USER_1)
 
@@ -73,7 +68,6 @@ class CeilingsTestCases(RegistrationCartTestCase):
         self.set_time(datetime.datetime(2014, 01, 01, minute=01, tzinfo=UTC))
         with self.assertRaises(ValidationError):
             current_cart.add_to_cart(self.PROD_1, 1)
-
 
     def test_add_to_cart_ceiling_limit_reserved_carts(self):
         self.make_ceiling("Limit ceiling", limit=1)
@@ -105,7 +99,6 @@ class CeilingsTestCases(RegistrationCartTestCase):
         self.add_timedelta(self.RESERVATION * 20)
         with self.assertRaises(ValidationError):
             first_cart.add_to_cart(self.PROD_1, 1)
-
 
     def test_validate_cart_fails_product_ceilings(self):
         self.make_ceiling("Limit ceiling", limit=1)

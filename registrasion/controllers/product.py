@@ -2,12 +2,17 @@ import itertools
 
 from collections import namedtuple
 
-from django.db.models import F, Q
+from django.db.models import Q
 from registrasion import models as rego
 
 from conditions import ConditionController
 
-DiscountEnabler = namedtuple("DiscountEnabler", ("discount", "condition", "value"))
+DiscountEnabler = namedtuple(
+    "DiscountEnabler", (
+        "discount",
+        "condition",
+        "value"))
+
 
 class ProductController(object):
 
@@ -19,7 +24,9 @@ class ProductController(object):
         this Product without exceeding _limit_per_user_.'''
 
         carts = rego.Cart.objects.filter(user=user)
-        items = rego.ProductItem.objects.filter(product=self.product, cart=carts)
+        items = rego.ProductItem.objects.filter(
+            product=self.product,
+            cart=carts)
 
         count = 0
         for item in items:
@@ -62,7 +69,6 @@ class ProductController(object):
 
         return True
 
-
     def get_enabler(self, condition):
         if condition.percentage is not None:
             value = condition.percentage * self.product.price
@@ -91,7 +97,8 @@ class ProductController(object):
 
         discounts = []
         for discount in potential_discounts:
-            real_discount = rego.DiscountBase.objects.get_subclass(pk=discount.discount.pk)
+            real_discount = rego.DiscountBase.objects.get_subclass(
+                pk=discount.discount.pk)
             cond = ConditionController.for_condition(real_discount)
             if cond.is_met(user, 0):
                 discounts.append(discount)

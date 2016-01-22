@@ -2,7 +2,6 @@ from __future__ import unicode_literals
 
 import datetime
 
-from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError
 from django.contrib.auth.models import User
 from django.db import models
@@ -11,10 +10,6 @@ from django.utils import timezone
 from django.utils.encoding import python_2_unicode_compatible
 from django.utils.translation import ugettext_lazy as _
 from model_utils.managers import InheritanceManager
-
-
-from symposion.markdown_parser import parse
-from symposion.proposals.models import ProposalBase
 
 
 # User models
@@ -63,9 +58,11 @@ class Category(models.Model):
     ]
 
     name = models.CharField(max_length=65, verbose_name=_("Name"))
-    description = models.CharField(max_length=255, verbose_name=_("Description"))
+    description = models.CharField(max_length=255,
+                                   verbose_name=_("Description"))
     order = models.PositiveIntegerField(verbose_name=("Display order"))
-    render_type = models.IntegerField(choices=CATEGORY_RENDER_TYPES, verbose_name=_("Render type"))
+    render_type = models.IntegerField(choices=CATEGORY_RENDER_TYPES,
+                                      verbose_name=_("Render type"))
 
 
 @python_2_unicode_compatible
@@ -76,10 +73,15 @@ class Product(models.Model):
         return self.name
 
     name = models.CharField(max_length=65, verbose_name=_("Name"))
-    description = models.CharField(max_length=255, verbose_name=_("Description"))
+    description = models.CharField(max_length=255,
+                                   verbose_name=_("Description"))
     category = models.ForeignKey(Category, verbose_name=_("Product category"))
-    price = models.DecimalField(max_digits=8, decimal_places=2, verbose_name=_("Price"))
-    limit_per_user = models.PositiveIntegerField(blank=True, verbose_name=_("Limit per user"))
+    price = models.DecimalField(max_digits=8,
+                                decimal_places=2,
+                                verbose_name=_("Price"))
+    limit_per_user = models.PositiveIntegerField(
+        blank=True,
+        verbose_name=_("Limit per user"))
     reservation_duration = models.DurationField(
         default=datetime.timedelta(hours=1),
         verbose_name=_("Reservation duration"))
@@ -98,7 +100,9 @@ class Voucher(models.Model):
         return "Voucher for %s" % self.recipient
 
     recipient = models.CharField(max_length=64, verbose_name=_("Recipient"))
-    code = models.CharField(max_length=16, unique=True, verbose_name=_("Voucher code"))
+    code = models.CharField(max_length=16,
+                            unique=True,
+                            verbose_name=_("Voucher code"))
     limit = models.PositiveIntegerField(verbose_name=_("Voucher use limit"))
 
 
@@ -107,8 +111,8 @@ class Voucher(models.Model):
 @python_2_unicode_compatible
 class DiscountBase(models.Model):
     ''' Base class for discounts. Each subclass has controller code that
-    determines whether or not the given discount is available to be added to the
-    current cart. '''
+    determines whether or not the given discount is available to be added to
+    the current cart. '''
 
     objects = InheritanceManager()
 
@@ -116,7 +120,7 @@ class DiscountBase(models.Model):
         return "Discount: " + self.description
 
     description = models.CharField(max_length=255,
-        verbose_name=_("Description"))
+                                   verbose_name=_("Description"))
 
 
 @python_2_unicode_compatible
@@ -156,7 +160,10 @@ class DiscountForCategory(models.Model):
 
     discount = models.ForeignKey(DiscountBase, on_delete=models.CASCADE)
     category = models.ForeignKey(Category, on_delete=models.CASCADE)
-    percentage = models.DecimalField(max_digits=4, decimal_places=1, blank=True)
+    percentage = models.DecimalField(
+        max_digits=4,
+        decimal_places=1,
+        blank=True)
     quantity = models.PositiveIntegerField()
 
 
@@ -176,7 +183,9 @@ class VoucherDiscount(DiscountBase):
     ''' Discounts that are enabled when a voucher code is in the current
     cart. '''
 
-    voucher = models.OneToOneField(Voucher, on_delete=models.CASCADE,
+    voucher = models.OneToOneField(
+        Voucher,
+        on_delete=models.CASCADE,
         verbose_name=_("Voucher"))
 
 
@@ -187,14 +196,15 @@ class IncludedProductDiscount(DiscountBase):
     class Meta:
         verbose_name = _("Product inclusion")
 
-    enabling_products = models.ManyToManyField(Product,
+    enabling_products = models.ManyToManyField(
+        Product,
         verbose_name=_("Including product"))
 
 
 class RoleDiscount(object):
     ''' Discounts that are enabled because the active user has a specific
     role. This is for e.g. volunteers who can get a discount ticket. '''
-    ## TODO: implement RoleDiscount
+    # TODO: implement RoleDiscount
     pass
 
 
@@ -253,16 +263,16 @@ class VoucherEnablingCondition(EnablingConditionBase):
     enabling sponsor tickets. '''
 
     def __str__(self):
-        return "Enabled by voucher: %s" % voucher
+        return "Enabled by voucher: %s" % self.voucher
 
     voucher = models.OneToOneField(Voucher)
 
 
-#@python_2_unicode_compatible
+# @python_2_unicode_compatible
 class RoleEnablingCondition(object):
     ''' The condition is met because the active user has a particular Role.
     This is for e.g. enabling Team tickets. '''
-    ## TODO: implement RoleEnablingCondition
+    # TODO: implement RoleEnablingCondition
     pass
 
 
@@ -289,8 +299,9 @@ class Cart(models.Model):
         ''' Gets all carts that are 'reserved' '''
         return Cart.objects.filter(
             (Q(active=True) &
-                Q(time_last_updated__gt=timezone.now()-F('reservation_duration')
-            )) |
+                Q(time_last_updated__gt=(
+                    timezone.now()-F('reservation_duration')
+                                        ))) |
             Q(active=False)
         )
 

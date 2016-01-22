@@ -1,4 +1,4 @@
-from django.db.models import F, Q
+from django.db.models import Q
 from django.db.models import Sum
 from django.utils import timezone
 
@@ -15,22 +15,21 @@ class ConditionController(object):
     @staticmethod
     def for_condition(condition):
         CONTROLLERS = {
-            rego.CategoryEnablingCondition : CategoryConditionController,
-            rego.IncludedProductDiscount : ProductConditionController,
-            rego.ProductEnablingCondition : ProductConditionController,
-            rego.TimeOrStockLimitDiscount :
+            rego.CategoryEnablingCondition: CategoryConditionController,
+            rego.IncludedProductDiscount: ProductConditionController,
+            rego.ProductEnablingCondition: ProductConditionController,
+            rego.TimeOrStockLimitDiscount:
                 TimeOrStockLimitConditionController,
-            rego.TimeOrStockLimitEnablingCondition :
+            rego.TimeOrStockLimitEnablingCondition:
                 TimeOrStockLimitConditionController,
-            rego.VoucherDiscount : VoucherConditionController,
-            rego.VoucherEnablingCondition : VoucherConditionController,
+            rego.VoucherDiscount: VoucherConditionController,
+            rego.VoucherEnablingCondition: VoucherConditionController,
         }
 
         try:
             return CONTROLLERS[type(condition)](condition)
         except KeyError:
             return ConditionController()
-
 
     def is_met(self, user, quantity):
         return True
@@ -48,7 +47,8 @@ class CategoryConditionController(ConditionController):
         carts = rego.Cart.objects.filter(user=user)
         enabling_products = rego.Product.objects.filter(
             category=self.condition.enabling_category)
-        products = rego.ProductItem.objects.filter(cart=carts,
+        products = rego.ProductItem.objects.filter(
+            cart=carts,
             product=enabling_products)
         return len(products) > 0
 
@@ -65,7 +65,8 @@ class ProductConditionController(ConditionController):
         condition in one of their carts '''
 
         carts = rego.Cart.objects.filter(user=user)
-        products = rego.ProductItem.objects.filter(cart=carts,
+        products = rego.ProductItem.objects.filter(
+            cart=carts,
             product=self.condition.enabling_products.all())
         return len(products) > 0
 
@@ -76,7 +77,6 @@ class TimeOrStockLimitConditionController(ConditionController):
 
     def __init__(self, ceiling):
         self.ceiling = ceiling
-
 
     def is_met(self, user, quantity):
         ''' returns True if adding _quantity_ of _product_ will not vioilate
@@ -93,7 +93,6 @@ class TimeOrStockLimitConditionController(ConditionController):
         # All limits have been met
         return True
 
-
     def test_date_range(self):
         now = timezone.now()
 
@@ -106,7 +105,6 @@ class TimeOrStockLimitConditionController(ConditionController):
                 return False
 
         return True
-
 
     def _products(self):
         ''' Abstracts away the product list, becuase enabling conditions
@@ -124,7 +122,6 @@ class TimeOrStockLimitConditionController(ConditionController):
                 Q(discountforproduct__discount=self.ceiling) |
                 Q(category=categories.all())
             )
-
 
     def test_limits(self, quantity):
         if self.ceiling.limit is None:
@@ -155,6 +152,7 @@ class VoucherConditionController(ConditionController):
 
     def is_met(self, user, quantity):
         ''' returns True if the user has the given voucher attached. '''
-        carts = rego.Cart.objects.filter(user=user,
+        carts = rego.Cart.objects.filter(
+            user=user,
             vouchers=self.condition.voucher)
         return len(carts) > 0

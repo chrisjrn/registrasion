@@ -8,7 +8,7 @@ A registration package that sits on top of the Symposion conference management s
 ## Planned features
 
 ### KEY:
-- _(MODEL)_: these have model/controller functionality and needs UI
+- _(MODEL)_: these have model/controller functionality, and tests, and needs UI
 - _(ADMIN)_: these have admin functionality
 
 ### Inventory

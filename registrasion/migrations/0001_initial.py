@@ -168,7 +168,7 @@ class Migration(migrations.Migration):
             name='IncludedProductDiscount',
             fields=[
                 ('discountbase_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='registrasion.DiscountBase')),
-                ('enabling_products', models.ManyToManyField(to='registrasion.Product', verbose_name='Including product')),
+                ('enabling_products', models.ManyToManyField(to=b'registrasion.Product', verbose_name='Including product')),
             ],
             options={
                 'verbose_name': 'Product inclusion',
@@ -179,7 +179,7 @@ class Migration(migrations.Migration):
             name='ProductEnablingCondition',
             fields=[
                 ('enablingconditionbase_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='registrasion.EnablingConditionBase')),
-                ('enabling_products', models.ManyToManyField(to='registrasion.Product')),
+                ('enabling_products', models.ManyToManyField(to=b'registrasion.Product')),
             ],
             bases=('registrasion.enablingconditionbase',),
         ),
@@ -187,9 +187,9 @@ class Migration(migrations.Migration):
             name='TimeOrStockLimitDiscount',
             fields=[
                 ('discountbase_ptr', models.OneToOneField(parent_link=True, auto_created=True, primary_key=True, serialize=False, to='registrasion.DiscountBase')),
-                ('start_time', models.DateTimeField(null=True, verbose_name='Start time')),
-                ('end_time', models.DateTimeField(null=True, verbose_name='End time')),
-                ('limit', models.PositiveIntegerField(null=True, verbose_name='Limit')),
+                ('start_time', models.DateTimeField(null=True, verbose_name='Start time', blank=True)),
+                ('end_time', models.DateTimeField(null=True, verbose_name='End time', blank=True)),
+                ('limit', models.PositiveIntegerField(null=True, verbose_name='Limit', blank=True)),
             ],
             options={
                 'verbose_name': 'Promotional discount',
@@ -225,12 +225,12 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='enablingconditionbase',
             name='categories',
-            field=models.ManyToManyField(to='registrasion.Category'),
+            field=models.ManyToManyField(to=b'registrasion.Category'),
         ),
         migrations.AddField(
             model_name='enablingconditionbase',
             name='products',
-            field=models.ManyToManyField(to='registrasion.Product'),
+            field=models.ManyToManyField(to=b'registrasion.Product'),
         ),
         migrations.AddField(
             model_name='discountitem',
@@ -260,11 +260,26 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='cart',
             name='vouchers',
-            field=models.ManyToManyField(to='registrasion.Voucher', blank=True),
+            field=models.ManyToManyField(to=b'registrasion.Voucher', blank=True),
         ),
         migrations.AddField(
             model_name='badge',
             name='profile',
             field=models.OneToOneField(to='registrasion.Profile'),
+        ),
+        migrations.AlterField(
+            model_name='discountforcategory',
+            name='percentage',
+            field=models.DecimalField(max_digits=4, decimal_places=1),
+        ),
+        migrations.AlterField(
+            model_name='discountforproduct',
+            name='percentage',
+            field=models.DecimalField(null=True, max_digits=4, decimal_places=1, blank=True),
+        ),
+        migrations.AlterField(
+            model_name='discountforproduct',
+            name='price',
+            field=models.DecimalField(null=True, max_digits=8, decimal_places=2, blank=True),
         ),
     ]

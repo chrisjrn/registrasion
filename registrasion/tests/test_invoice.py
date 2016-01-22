@@ -8,8 +8,8 @@ from django.test import TestCase
 from django.utils import timezone
 
 from registrasion import models as rego
-from registrasion.cart import CartController
-from registrasion.invoice import InvoiceController
+from registrasion.controllers.cart import CartController
+from registrasion.controllers.invoice import InvoiceController
 
 from test_cart import RegistrationCartTestCase
 

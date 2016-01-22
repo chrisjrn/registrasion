@@ -9,7 +9,7 @@ from django.utils import timezone
 from registrasion import models as rego
 
 from conditions import ConditionController
-from controllers import ProductController
+from product import ProductController
 
 
 class CartController(object):
@@ -206,5 +206,5 @@ class CartController(object):
                 quantity = ours - allowed
             else:
                 quantity = 0
-                
+
             discount_item.save()

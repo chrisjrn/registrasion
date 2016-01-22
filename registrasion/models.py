@@ -143,10 +143,26 @@ class DiscountForProduct(models.Model):
             raise ValidationError(
                 _("Discount may only have a percentage or only a price."))
 
+        prods = DiscountForProduct.objects.filter(
+            discount=self.discount,
+            product=self.product)
+        cats = DiscountForCategory.objects.filter(
+            discount=self.discount,
+            category=self.product.category)
+        if len(prods) > 1 or self not in prods:
+            raise ValidationError(
+                _("You may only have one discount line per product"))
+        if len(cats) != 0:
+            raise ValidationError(
+                _("You may only have one discount for "
+                "a product or its category"))
+
     discount = models.ForeignKey(DiscountBase, on_delete=models.CASCADE)
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
-    percentage = models.DecimalField(max_digits=4, decimal_places=1, null=True)
-    price = models.DecimalField(max_digits=8, decimal_places=2, null=True)
+    percentage = models.DecimalField(
+        max_digits=4, decimal_places=1, null=True, blank=True)
+    price = models.DecimalField(
+        max_digits=8, decimal_places=2, null=True, blank=True)
     quantity = models.PositiveIntegerField()
 
 
@@ -158,12 +174,26 @@ class DiscountForCategory(models.Model):
     def __str__(self):
         return "%s%% off %s" % (self.percentage, self.category)
 
+    def clean(self):
+        prods = DiscountForProduct.objects.filter(
+            discount=self.discount,
+            product__category=self.category)
+        cats = DiscountForCategory.objects.filter(
+            discount=self.discount,
+            category=self.category)
+        if len(prods) != 0:
+            raise ValidationError(
+                _("You may only have one discount for "
+                "a product or its category"))
+        if len(cats) > 1 or self not in cats:
+            raise ValidationError(
+                _("You may only have one discount line per category"))
+
     discount = models.ForeignKey(DiscountBase, on_delete=models.CASCADE)
     category = models.ForeignKey(Category, on_delete=models.CASCADE)
     percentage = models.DecimalField(
         max_digits=4,
-        decimal_places=1,
-        blank=True)
+        decimal_places=1)
     quantity = models.PositiveIntegerField()
 
 
@@ -174,9 +204,12 @@ class TimeOrStockLimitDiscount(DiscountBase):
     class Meta:
         verbose_name = _("Promotional discount")
 
-    start_time = models.DateTimeField(null=True, verbose_name=_("Start time"))
-    end_time = models.DateTimeField(null=True, verbose_name=_("End time"))
-    limit = models.PositiveIntegerField(null=True, verbose_name=_("Limit"))
+    start_time = models.DateTimeField(
+        null=True, blank=True, verbose_name=_("Start time"))
+    end_time = models.DateTimeField(
+        null=True, blank=True, verbose_name=_("End time"))
+    limit = models.PositiveIntegerField(
+        null=True, blank=True, verbose_name=_("Limit"))
 
 
 class VoucherDiscount(DiscountBase):

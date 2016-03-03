@@ -155,7 +155,7 @@ class DiscountForProduct(models.Model):
         if len(cats) != 0:
             raise ValidationError(
                 _("You may only have one discount for "
-                "a product or its category"))
+                    "a product or its category"))
 
     discount = models.ForeignKey(DiscountBase, on_delete=models.CASCADE)
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
@@ -184,7 +184,7 @@ class DiscountForCategory(models.Model):
         if len(prods) != 0:
             raise ValidationError(
                 _("You may only have one discount for "
-                "a product or its category"))
+                    "a product or its category"))
         if len(cats) > 1 or self not in cats:
             raise ValidationError(
                 _("You may only have one discount line per category"))

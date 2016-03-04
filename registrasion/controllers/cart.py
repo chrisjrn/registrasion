@@ -183,7 +183,12 @@ class CartController(object):
         # Delete the existing entries.
         rego.DiscountItem.objects.filter(cart=self.cart).delete()
 
-        for item in self.cart.productitem_set.all():
+        # The highest-value discounts will apply to the highest-value
+        # products first.
+        product_items = self.cart.productitem_set.all()
+        product_items = product_items.order_by('product__price')
+        product_items = reversed(product_items)
+        for item in product_items:
             self._add_discount(item.product, item.quantity)
 
     def _add_discount(self, product, quantity):
@@ -202,9 +207,7 @@ class CartController(object):
             # Get the count of past uses of this discount condition
             # as this affects the total amount we're allowed to use now.
             past_uses = rego.DiscountItem.objects.filter(
-                cart__active=False,
                 discount=discount.discount,
-                product=product,
             )
             agg = past_uses.aggregate(Sum("quantity"))
             past_uses = agg["quantity__sum"]

@@ -82,7 +82,18 @@ class RegistrationCartTestCase(SetTimeMixin, TestCase):
             limit_per_user=10,
             order=10,
         )
-        cls.PROD_2.save()
+        cls.PROD_3.save()
+
+        cls.PROD_4 = rego.Product.objects.create(
+            name="Product 4",
+            description="This is a test product. It costs $5. "
+                        "A user may have 10 of them.",
+            category=cls.CAT_2,
+            price=Decimal("5.00"),
+            limit_per_user=10,
+            order=10,
+        )
+        cls.PROD_4.save()
 
     @classmethod
     def make_ceiling(cls, name, limit=None, start_time=None, end_time=None):

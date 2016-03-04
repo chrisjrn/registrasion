@@ -29,7 +29,10 @@ class DiscountTestCase(RegistrationCartTestCase):
         return discount
 
     @classmethod
-    def add_discount_prod_1_includes_cat_2(cls, amount=Decimal(100)):
+    def add_discount_prod_1_includes_cat_2(
+            cls,
+            amount=Decimal(100),
+            quantity=2):
         discount = rego.IncludedProductDiscount.objects.create(
             description="PROD_1 includes CAT_2 " + str(amount) + "%",
         )
@@ -40,7 +43,7 @@ class DiscountTestCase(RegistrationCartTestCase):
             discount=discount,
             category=cls.CAT_2,
             percentage=amount,
-            quantity=2
+            quantity=quantity,
         ).save()
         return discount
 
@@ -169,3 +172,31 @@ class DiscountTestCase(RegistrationCartTestCase):
 
         discount_items = list(cart.cart.discountitem_set.all())
         self.assertEqual(2, discount_items[0].quantity)
+
+    def test_category_discount_applies_once_per_category(self):
+        self.add_discount_prod_1_includes_cat_2(quantity=1)
+        cart = CartController.for_user(self.USER_1)
+        cart.add_to_cart(self.PROD_1, 1)
+
+        # Add two items from category 2
+        cart.add_to_cart(self.PROD_3, 1)
+        cart.add_to_cart(self.PROD_4, 1)
+
+        discount_items = list(cart.cart.discountitem_set.all())
+        # There is one discount, and it should apply to one item.
+        self.assertEqual(1, len(discount_items))
+        self.assertEqual(1, discount_items[0].quantity)
+
+    def test_category_discount_applies_to_highest_value(self):
+        self.add_discount_prod_1_includes_cat_2(quantity=1)
+        cart = CartController.for_user(self.USER_1)
+        cart.add_to_cart(self.PROD_1, 1)
+
+        # Add two items from category 2, add the less expensive one first
+        cart.add_to_cart(self.PROD_4, 1)
+        cart.add_to_cart(self.PROD_3, 1)
+
+        discount_items = list(cart.cart.discountitem_set.all())
+        # There is one discount, and it should apply to the more expensive.
+        self.assertEqual(1, len(discount_items))
+        self.assertEqual(self.PROD_3, discount_items[0].product)

@@ -2,6 +2,7 @@ from registrasion import forms
 from registrasion import models as rego
 from registrasion.controllers.cart import CartController
 from registrasion.controllers.invoice import InvoiceController
+from registrasion.controllers.product import ProductController
 
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ObjectDoesNotExist
@@ -42,6 +43,11 @@ def product_category(request, category_id):
         items = rego.ProductItem.objects.filter(product__category=category)
         products = products.order_by("order")
         for product in products:
+            # Only add items that are enabled.
+            prod = ProductController(product)
+            if not prod.can_add_with_enabling_conditions(request.user, 0):
+                continue
+
             try:
                 quantity = items.get(product=product).quantity
             except ObjectDoesNotExist:

@@ -257,8 +257,8 @@ class EnablingConditionBase(models.Model):
 
     description = models.CharField(max_length=255)
     mandatory = models.BooleanField(default=False)
-    products = models.ManyToManyField(Product)
-    categories = models.ManyToManyField(Category)
+    products = models.ManyToManyField(Product, blank=True)
+    categories = models.ManyToManyField(Category, blank=True)
 
 
 class TimeOrStockLimitEnablingCondition(EnablingConditionBase):

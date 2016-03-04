@@ -80,3 +80,15 @@ class VoucherAdmin(nested_admin.NestedAdmin):
         VoucherDiscountInline,
         VoucherEnablingConditionInline,
     ]
+
+
+# Enabling conditions
+@admin.register(rego.ProductEnablingCondition)
+class ProductEnablingConditionAdmin(nested_admin.NestedAdmin):
+    model = rego.ProductEnablingCondition
+
+
+# Enabling conditions
+@admin.register(rego.CategoryEnablingCondition)
+class CategoryEnablingConditionAdmin(nested_admin.NestedAdmin):
+    model = rego.CategoryEnablingCondition

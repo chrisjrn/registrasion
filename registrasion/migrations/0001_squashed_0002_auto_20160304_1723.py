@@ -9,6 +9,8 @@ from django.conf import settings
 
 class Migration(migrations.Migration):
 
+    replaces = [('registrasion', '0001_initial'), ('registrasion', '0002_auto_20160304_1723')]
+
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
@@ -225,12 +227,12 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='enablingconditionbase',
             name='categories',
-            field=models.ManyToManyField(to=b'registrasion.Category'),
+            field=models.ManyToManyField(to=b'registrasion.Category', blank=True),
         ),
         migrations.AddField(
             model_name='enablingconditionbase',
             name='products',
-            field=models.ManyToManyField(to=b'registrasion.Product'),
+            field=models.ManyToManyField(to=b'registrasion.Product', blank=True),
         ),
         migrations.AddField(
             model_name='discountitem',

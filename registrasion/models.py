@@ -149,7 +149,7 @@ class DiscountForProduct(models.Model):
         cats = DiscountForCategory.objects.filter(
             discount=self.discount,
             category=self.product.category)
-        if len(prods) > 1 or self not in prods:
+        if len(prods) > 1:
             raise ValidationError(
                 _("You may only have one discount line per product"))
         if len(cats) != 0:
@@ -185,7 +185,7 @@ class DiscountForCategory(models.Model):
             raise ValidationError(
                 _("You may only have one discount for "
                     "a product or its category"))
-        if len(cats) > 1 or self not in cats:
+        if len(cats) > 1:
             raise ValidationError(
                 _("You may only have one discount line per category"))
 

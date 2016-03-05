@@ -9,12 +9,14 @@
 
   <form method="post" action="">
     {% csrf_token %}
+
     <table>
-        {{ formset }}
+        {{ form }}
     </table>
 
     <input type="submit">
 
   </form>
+
 
 {% endblock %}

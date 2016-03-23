@@ -118,3 +118,18 @@ def invoice(request, invoice_id):
     }
 
     return render(request, "invoice.html", data)
+
+@login_required
+def pay_invoice(request, invoice_id):
+    ''' Marks the invoice with the given invoice id as paid.
+    WORK IN PROGRESS FUNCTION. Must be replaced with real payment workflow.
+
+    '''
+
+    invoice_id = int(invoice_id)
+    inv = rego.Invoice.objects.get(pk=invoice_id)
+    current_invoice = InvoiceController(inv)
+    if not inv.paid and not current_invoice.is_valid():
+        current_invoice.pay("Demo invoice payment", inv.value)
+
+    return redirect("invoice", current_invoice.invoice.id)

@@ -5,4 +5,5 @@ urlpatterns = patterns(
     url(r"^category/([0-9]+)$", "product_category", name="product_category"),
     url(r"^checkout$", "checkout", name="checkout"),
     url(r"^invoice/([0-9]+)$", "invoice", name="invoice"),
+    url(r"^invoice/([0-9]+)/pay$", "pay_invoice", name="pay_invoice"),
 )

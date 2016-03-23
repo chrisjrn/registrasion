@@ -61,5 +61,5 @@ class VoucherForm(forms.Form):
     voucher = forms.CharField(
         label="Voucher code",
         help_text="If you have a voucher code, enter it here",
-        required=True,
+        required=False,
     )

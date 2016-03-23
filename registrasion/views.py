@@ -33,7 +33,7 @@ def product_category(request, category_id):
         cat_form.disable_products_for_user(request.user)
         voucher_form = forms.VoucherForm(request.POST, prefix=VOUCHERS_FORM_PREFIX)
 
-        if voucher_form.is_valid():
+        if voucher_form.is_valid() and voucher_form.cleaned_data["voucher"].strip():
             # Apply voucher
             # leave
             voucher = voucher_form.cleaned_data["voucher"]

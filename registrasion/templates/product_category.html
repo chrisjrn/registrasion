@@ -1,0 +1,28 @@
+<!--- Sample template. Move elsewhere once it's ready to go. -->
+
+{% extends "site_base.html" %}
+{% block body %}
+
+  <h1>Product Category: {{ category.name }}</h1>
+
+  <p>{{ category.description }}</p>
+
+  <form method="post" action="">
+    {% csrf_token %}
+
+    <table>
+        {{ voucher_form }}
+    </table>
+
+    <input type="submit">
+
+    <table>
+        {{ form }}
+    </table>
+
+    <input type="submit">
+
+  </form>
+
+
+{% endblock %}

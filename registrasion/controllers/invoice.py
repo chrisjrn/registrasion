@@ -59,20 +59,23 @@ class InvoiceController(object):
 
         # TODO: calculate line items.
         product_items = rego.ProductItem.objects.filter(cart=cart)
+        product_items = product_items.order_by(
+            "product__category__order", "product__order"
+        )
         discount_items = rego.DiscountItem.objects.filter(cart=cart)
         invoice_value = Decimal()
         for item in product_items:
+            product = item.product
             line_item = rego.LineItem.objects.create(
                 invoice=invoice,
-                description=item.product.name,
+                description="%s - %s" % (product.category.name, product.name),
                 quantity=item.quantity,
-                price=item.product.price,
+                price=product.price,
             )
             line_item.save()
             invoice_value += line_item.quantity * line_item.price
 
         for item in discount_items:
-
             line_item = rego.LineItem.objects.create(
                 invoice=invoice,
                 description=item.discount.description,

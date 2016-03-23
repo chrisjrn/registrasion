@@ -54,57 +54,91 @@ class CartController(object):
         self.cart.time_last_updated = timezone.now()
         self.cart.reservation_duration = max(reservations)
 
-    def add_to_cart(self, product, quantity):
-        ''' Adds _quantity_ of the given _product_ to the cart. Raises
-        ValidationError if constraints are violated.'''
-
-        prod = ProductController(product)
-
-        # TODO: Check enabling conditions for product for user
-
-        if not prod.can_add_with_enabling_conditions(self.cart.user, quantity):
-            raise ValidationError("Not enough of that product left (ec)")
-
-        if not prod.user_can_add_within_limit(self.cart.user, quantity):
-            raise ValidationError("Not enough of that product left (user)")
-
-        try:
-            # Try to update an existing item within this cart if possible.
-            product_item = rego.ProductItem.objects.get(
-                cart=self.cart,
-                product=product)
-            product_item.quantity += quantity
-        except ObjectDoesNotExist:
-            product_item = rego.ProductItem.objects.create(
-                cart=self.cart,
-                product=product,
-                quantity=quantity,
-            )
-        product_item.save()
-
+    def end_batch(self):
+        ''' Performs operations that occur occur at the end of a batch of
+        product changes/voucher applications etc. '''
         self.recalculate_discounts()
 
         self.extend_reservation()
         self.cart.revision += 1
         self.cart.save()
 
-    def apply_voucher(self, voucher):
-        ''' Applies the given voucher to this cart. '''
+    def set_quantity(self, product, quantity, batched=False):
+        ''' Sets the _quantity_ of the given _product_ in the cart to the given
+        _quantity_. '''
+
+        if quantity < 0:
+            raise ValidationError("Cannot have fewer than 0 items in cart.")
+
+        try:
+            product_item = rego.ProductItem.objects.get(
+                cart=self.cart,
+                product=product)
+            old_quantity = product_item.quantity
+
+            if quantity == 0:
+                product_item.delete()
+                return
+        except ObjectDoesNotExist:
+            if quantity == 0:
+                return
+
+            product_item = rego.ProductItem.objects.create(
+                cart=self.cart,
+                product=product,
+                quantity=0,
+            )
+
+            old_quantity = 0
+
+        # Validate the addition to the cart
+        adjustment = quantity - old_quantity
+        prod = ProductController(product)
+
+        if not prod.can_add_with_enabling_conditions(
+                self.cart.user, adjustment):
+            raise ValidationError("Not enough of that product left (ec)")
+
+        if not prod.user_can_add_within_limit(self.cart.user, adjustment):
+            raise ValidationError("Not enough of that product left (user)")
+
+        product_item.quantity = quantity
+        product_item.save()
+
+        if not batched:
+            self.end_batch()
+
+    def add_to_cart(self, product, quantity):
+        ''' Adds _quantity_ of the given _product_ to the cart. Raises
+        ValidationError if constraints are violated.'''
+
+        try:
+            product_item = rego.ProductItem.objects.get(
+                cart=self.cart,
+                product=product)
+            old_quantity = product_item.quantity
+        except ObjectDoesNotExist:
+            old_quantity = 0
+        self.set_quantity(product, old_quantity + quantity)
+
+    def apply_voucher(self, voucher_code):
+        ''' Applies the voucher with the given code to this cart. '''
 
         # TODO: is it valid for a cart to re-add a voucher that they have?
 
         # Is voucher exhausted?
         active_carts = rego.Cart.reserved_carts()
+
+        # Try and find the voucher
+        voucher = rego.Voucher.objects.get(code=voucher_code.upper())
+
         carts_with_voucher = active_carts.filter(vouchers=voucher)
         if len(carts_with_voucher) >= voucher.limit:
             raise ValidationError("This voucher is no longer available")
 
         # If successful...
         self.cart.vouchers.add(voucher)
-
-        self.extend_reservation()
-        self.cart.revision += 1
-        self.cart.save()
+        self.end_batch()
 
     def validate_cart(self):
         ''' Determines whether the status of the current cart is valid;
@@ -153,7 +187,12 @@ class CartController(object):
         # Delete the existing entries.
         rego.DiscountItem.objects.filter(cart=self.cart).delete()
 
-        for item in self.cart.productitem_set.all():
+        # The highest-value discounts will apply to the highest-value
+        # products first.
+        product_items = self.cart.productitem_set.all()
+        product_items = product_items.order_by('product__price')
+        product_items = reversed(product_items)
+        for item in product_items:
             self._add_discount(item.product, item.quantity)
 
     def _add_discount(self, product, quantity):
@@ -172,9 +211,7 @@ class CartController(object):
             # Get the count of past uses of this discount condition
             # as this affects the total amount we're allowed to use now.
             past_uses = rego.DiscountItem.objects.filter(
-                cart__active=False,
                 discount=discount.discount,
-                product=product,
             )
             agg = past_uses.aggregate(Sum("quantity"))
             past_uses = agg["quantity__sum"]

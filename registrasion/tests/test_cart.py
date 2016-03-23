@@ -3,6 +3,7 @@ import pytz
 
 from decimal import Decimal
 from django.contrib.auth.models import User
+from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 
@@ -81,7 +82,18 @@ class RegistrationCartTestCase(SetTimeMixin, TestCase):
             limit_per_user=10,
             order=10,
         )
-        cls.PROD_2.save()
+        cls.PROD_3.save()
+
+        cls.PROD_4 = rego.Product.objects.create(
+            name="Product 4",
+            description="This is a test product. It costs $5. "
+                        "A user may have 10 of them.",
+            category=cls.CAT_2,
+            price=Decimal("5.00"),
+            limit_per_user=10,
+            order=10,
+        )
+        cls.PROD_4.save()
 
     @classmethod
     def make_ceiling(cls, name, limit=None, start_time=None, end_time=None):
@@ -158,6 +170,38 @@ class BasicCartTests(RegistrationCartTestCase):
         self.assertEqual(1, len(items))
         item = items[0]
         self.assertEquals(2, item.quantity)
+
+    def test_set_quantity(self):
+        current_cart = CartController.for_user(self.USER_1)
+
+        def get_item():
+            return rego.ProductItem.objects.get(
+                cart=current_cart.cart,
+                product=self.PROD_1)
+
+        current_cart.set_quantity(self.PROD_1, 1)
+        self.assertEqual(1, get_item().quantity)
+
+        # Setting the quantity to zero should remove the entry from the cart.
+        current_cart.set_quantity(self.PROD_1, 0)
+        with self.assertRaises(ObjectDoesNotExist):
+            get_item()
+
+        current_cart.set_quantity(self.PROD_1, 9)
+        self.assertEqual(9, get_item().quantity)
+
+        with self.assertRaises(ValidationError):
+            current_cart.set_quantity(self.PROD_1, 11)
+
+        self.assertEqual(9, get_item().quantity)
+
+        with self.assertRaises(ValidationError):
+            current_cart.set_quantity(self.PROD_1, -1)
+
+        self.assertEqual(9, get_item().quantity)
+
+        current_cart.set_quantity(self.PROD_1, 2)
+        self.assertEqual(2, get_item().quantity)
 
     def test_add_to_cart_per_user_limit(self):
         current_cart = CartController.for_user(self.USER_1)

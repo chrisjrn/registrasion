@@ -99,6 +99,11 @@ class Voucher(models.Model):
     def __str__(self):
         return "Voucher for %s" % self.recipient
 
+    def save(self, *a, **k):
+        ''' Normalise the voucher code to be uppercase '''
+        self.code = self.code.upper()
+        super(Voucher, self).save(*a, **k)
+
     recipient = models.CharField(max_length=64, verbose_name=_("Recipient"))
     code = models.CharField(max_length=16,
                             unique=True,
@@ -149,13 +154,13 @@ class DiscountForProduct(models.Model):
         cats = DiscountForCategory.objects.filter(
             discount=self.discount,
             category=self.product.category)
-        if len(prods) > 1 or self not in prods:
+        if len(prods) > 1:
             raise ValidationError(
                 _("You may only have one discount line per product"))
         if len(cats) != 0:
             raise ValidationError(
                 _("You may only have one discount for "
-                "a product or its category"))
+                    "a product or its category"))
 
     discount = models.ForeignKey(DiscountBase, on_delete=models.CASCADE)
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
@@ -184,8 +189,8 @@ class DiscountForCategory(models.Model):
         if len(prods) != 0:
             raise ValidationError(
                 _("You may only have one discount for "
-                "a product or its category"))
-        if len(cats) > 1 or self not in cats:
+                    "a product or its category"))
+        if len(cats) > 1:
             raise ValidationError(
                 _("You may only have one discount line per category"))
 
@@ -257,8 +262,8 @@ class EnablingConditionBase(models.Model):
 
     description = models.CharField(max_length=255)
     mandatory = models.BooleanField(default=False)
-    products = models.ManyToManyField(Product)
-    categories = models.ManyToManyField(Category)
+    products = models.ManyToManyField(Product, blank=True)
+    categories = models.ManyToManyField(Category, blank=True)
 
 
 class TimeOrStockLimitEnablingCondition(EnablingConditionBase):

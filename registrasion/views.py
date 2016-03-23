@@ -21,6 +21,7 @@ def product_category(request, category_id):
 
     category_id = int(category_id)  # Routing is [0-9]+
     category = rego.Category.objects.get(pk=category_id)
+    current_cart = CartController.for_user(request.user)
 
     CategoryForm = forms.CategoryForm(category)
 
@@ -30,7 +31,6 @@ def product_category(request, category_id):
     if request.method == "POST":
         cat_form = CategoryForm(request.POST, request.FILES, prefix=PRODUCTS_FORM_PREFIX)
         voucher_form = forms.VoucherForm(request.POST, prefix=VOUCHERS_FORM_PREFIX)
-        current_cart = CartController.for_user(request.user)
 
         if voucher_form.is_valid():
             # Apply voucher
@@ -59,7 +59,10 @@ def product_category(request, category_id):
 
     else:
         # Create initial data for each of products in category
-        items = rego.ProductItem.objects.filter(product__category=category)
+        items = rego.ProductItem.objects.filter(
+            product__category=category,
+            cart=current_cart.cart,
+        )
         quantities = []
         for product in products:
             # Only add items that are enabled.

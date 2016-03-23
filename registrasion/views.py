@@ -13,8 +13,44 @@ from django.shortcuts import render
 
 
 @login_required
+def guided_registration(request, page_id=0):
+    ''' Goes through the registration process in order,
+    making sure user sees all valid categories.
+
+    WORK IN PROGRESS: the finalised version of this view will allow
+    grouping of categories into a specific page. Currently, page_id simply
+    refers to the category_id. Future versions will have pages containing
+    categories.
+    '''
+
+    page_id = int(page_id)
+    if page_id != 0:
+        ret = product_category_inner(request, page_id)
+        if ret is not True:
+            return ret
+
+    # Go to next page in the guided registration
+    cats = rego.Category.objects
+    cats = cats.filter(id__gt=page_id).order_by("order")
+
+    if len(cats) > 0:
+        return redirect("guided_registration", cats[0].id)
+    else:
+        return redirect("dashboard")
+
+@login_required
 def product_category(request, category_id):
-    ''' Registration selections form for a specific category of items '''
+    ret = product_category_inner(request, category_id)
+    if ret is not True:
+        return ret
+    else:
+        return redirect("dashboard")
+
+def product_category_inner(request, category_id):
+    ''' Registration selections form for a specific category of items.
+    It returns a rendered template if this page needs to display stuff,
+    otherwise it returns True.
+    '''
 
     PRODUCTS_FORM_PREFIX = "products"
     VOUCHERS_FORM_PREFIX = "vouchers"
@@ -41,20 +77,11 @@ def product_category(request, category_id):
                 current_cart.apply_voucher(voucher)
             except Exception as e:
                 voucher_form.add_error("voucher", e)
+            # Re-visit current page.
         elif cat_form.is_valid():
             try:
-                with transaction.atomic():
-                    for product_id, quantity, field_name \
-                            in cat_form.product_quantities():
-                        product = rego.Product.objects.get(pk=product_id)
-                        try:
-                            current_cart.set_quantity(
-                                product, quantity, batched=True)
-                        except ValidationError as ve:
-                            cat_form.add_error(field_name, ve)
-                    if cat_form.errors:
-                        raise ValidationError("Cannot add that stuff")
-                    current_cart.end_batch()
+                handle_valid_cat_form(cat_form, current_cart)
+                return True
             except ValidationError as ve:
                 pass
 
@@ -89,6 +116,17 @@ def product_category(request, category_id):
 
     return render(request, "product_category.html", data)
 
+@transaction.atomic
+def handle_valid_cat_form(cat_form, current_cart):
+    for product_id, quantity, field_name in cat_form.product_quantities():
+        product = rego.Product.objects.get(pk=product_id)
+        try:
+            current_cart.set_quantity(product, quantity, batched=True)
+        except ValidationError as ve:
+            cat_form.add_error(field_name, ve)
+    if cat_form.errors:
+        raise ValidationError("Cannot add that stuff")
+    current_cart.end_batch()
 
 @login_required
 def checkout(request):

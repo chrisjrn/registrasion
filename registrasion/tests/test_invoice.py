@@ -91,7 +91,7 @@ class InvoiceTestCase(RegistrationCartTestCase):
         ).save()
 
         current_cart = CartController.for_user(self.USER_1)
-        current_cart.apply_voucher(voucher)
+        current_cart.apply_voucher(voucher.code)
 
         # Should be able to create an invoice after the product is added
         current_cart.add_to_cart(self.PROD_1, 1)

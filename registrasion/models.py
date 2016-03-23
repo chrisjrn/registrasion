@@ -99,6 +99,11 @@ class Voucher(models.Model):
     def __str__(self):
         return "Voucher for %s" % self.recipient
 
+    def save(self, *a, **k):
+        ''' Normalise the voucher code to be uppercase '''
+        self.code = self.code.upper()
+        super(Voucher, self).save(*a, **k)
+
     recipient = models.CharField(max_length=64, verbose_name=_("Recipient"))
     code = models.CharField(max_length=16,
                             unique=True,

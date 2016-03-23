@@ -121,13 +121,17 @@ class CartController(object):
             old_quantity = 0
         self.set_quantity(product, old_quantity + quantity)
 
-    def apply_voucher(self, voucher):
-        ''' Applies the given voucher to this cart. '''
+    def apply_voucher(self, voucher_code):
+        ''' Applies the voucher with the given code to this cart. '''
 
         # TODO: is it valid for a cart to re-add a voucher that they have?
 
         # Is voucher exhausted?
         active_carts = rego.Cart.reserved_carts()
+
+        # Try and find the voucher
+        voucher = rego.Voucher.objects.get(code=voucher_code.upper())
+
         carts_with_voucher = active_carts.filter(vouchers=voucher)
         if len(carts_with_voucher) >= voucher.limit:
             raise ValidationError("This voucher is no longer available")

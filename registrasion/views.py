@@ -16,6 +16,9 @@ from django.shortcuts import render
 def product_category(request, category_id):
     ''' Registration selections form for a specific category of items '''
 
+    PRODUCTS_FORM_PREFIX = "products"
+    VOUCHERS_FORM_PREFIX = "vouchers"
+
     category_id = int(category_id)  # Routing is [0-9]+
     category = rego.Category.objects.get(pk=category_id)
 
@@ -25,9 +28,19 @@ def product_category(request, category_id):
     products = products.order_by("order")
 
     if request.method == "POST":
-        cat_form = CategoryForm(request.POST, request.FILES)
-        if cat_form.is_valid():
-            current_cart = CartController.for_user(request.user)
+        cat_form = CategoryForm(request.POST, request.FILES, prefix=PRODUCTS_FORM_PREFIX)
+        voucher_form = forms.VoucherForm(request.POST, prefix=VOUCHERS_FORM_PREFIX)
+        current_cart = CartController.for_user(request.user)
+
+        if voucher_form.is_valid():
+            # Apply voucher
+            # leave
+            voucher = voucher_form.cleaned_data["voucher"]
+            try:
+                current_cart.apply_voucher(voucher)
+            except Exception as e:
+                voucher_form.add_error("voucher", e)
+        elif cat_form.is_valid():
             try:
                 with transaction.atomic():
                     for product_id, quantity, field_name \
@@ -58,7 +71,9 @@ def product_category(request, category_id):
             quantities.append((product, quantity))
 
         initial = CategoryForm.initial_data(quantities)
-        cat_form = CategoryForm(initial=initial)
+        cat_form = CategoryForm(prefix=PRODUCTS_FORM_PREFIX, initial=initial)
+
+        voucher_form = forms.VoucherForm(prefix=VOUCHERS_FORM_PREFIX)
 
     for product in products:
         # Remove fields that do not have an enabling condition.
@@ -66,9 +81,11 @@ def product_category(request, category_id):
         if not prod.can_add_with_enabling_conditions(request.user, 0):
             cat_form.disable_product(product)
 
+
     data = {
         "category": category,
         "form": cat_form,
+        "voucher_form": voucher_form,
     }
 
     return render(request, "product_category.html", data)

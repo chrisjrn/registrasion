@@ -46,3 +46,10 @@ def CategoryForm(category):
         _CategoryForm.base_fields[field_name(product)] = field
 
     return _CategoryForm
+
+class VoucherForm(forms.Form):
+    voucher = forms.CharField(
+        label="Voucher code",
+        help_text="If you have a voucher code, enter it here",
+        required=True,
+    )

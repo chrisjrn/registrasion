@@ -1,5 +1,7 @@
 import models as rego
 
+from controllers.product import ProductController
+
 from django import forms
 
 
@@ -33,6 +35,14 @@ def CategoryForm(category):
         def disable_product(self, product):
             ''' Removes a given product from this form. '''
             del self.fields[field_name(product)]
+
+        def disable_products_for_user(self, user):
+            for product in products:
+                # Remove fields that do not have an enabling condition.
+                prod = ProductController(product)
+                if not prod.can_add_with_enabling_conditions(user, 0):
+                    self.disable_product(product)
+
 
     products = rego.Product.objects.filter(category=category).order_by("order")
     for product in products:

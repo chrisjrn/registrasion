@@ -30,6 +30,7 @@ def product_category(request, category_id):
 
     if request.method == "POST":
         cat_form = CategoryForm(request.POST, request.FILES, prefix=PRODUCTS_FORM_PREFIX)
+        cat_form.disable_products_for_user(request.user)
         voucher_form = forms.VoucherForm(request.POST, prefix=VOUCHERS_FORM_PREFIX)
 
         if voucher_form.is_valid():
@@ -75,14 +76,9 @@ def product_category(request, category_id):
 
         initial = CategoryForm.initial_data(quantities)
         cat_form = CategoryForm(prefix=PRODUCTS_FORM_PREFIX, initial=initial)
+        cat_form.disable_products_for_user(request.user)
 
         voucher_form = forms.VoucherForm(prefix=VOUCHERS_FORM_PREFIX)
-
-    for product in products:
-        # Remove fields that do not have an enabling condition.
-        prod = ProductController(product)
-        if not prod.can_add_with_enabling_conditions(request.user, 0):
-            cat_form.disable_product(product)
 
 
     data = {

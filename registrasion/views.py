@@ -39,6 +39,15 @@ def guided_registration(request, page_id=0):
         return redirect("dashboard")
 
 @login_required
+def profile(request):
+
+    form = forms.ProfileForm()
+    data = {
+        "form": form,
+    }
+    return render(request, "profile_form.html", data)
+
+@login_required
 def product_category(request, category_id):
     ret = product_category_inner(request, category_id)
     if ret is not True:

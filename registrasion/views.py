@@ -18,25 +18,45 @@ def guided_registration(request, page_id=0):
     making sure user sees all valid categories.
 
     WORK IN PROGRESS: the finalised version of this view will allow
-    grouping of categories into a specific page. Currently, page_id simply
-    refers to the category_id. Future versions will have pages containing
-    categories.
+    grouping of categories into a specific page. Currently, it just goes
+    through each category one by one
     '''
 
-    page_id = int(page_id)
-    if page_id != 0:
-        ret = product_category_inner(request, page_id)
-        if ret is not True:
+    dashboard = redirect("dashboard")
+    next_step = redirect("guided_registration")
+
+    # Step 1: Fill in a badge
+    attendee = rego.Attendee.get_instance(request.user)
+    profile = rego.BadgeAndProfile.get_instance(attendee)
+
+    if profile is None:
+        ret = edit_profile(request)
+        profile_new = rego.BadgeAndProfile.get_instance(attendee)
+        if profile_new is None:
+            # No new profile was created
             return ret
+        else:
+            return next_step
 
-    # Go to next page in the guided registration
+    # Step 2: Go through each of the categories in order
+    category = attendee.highest_complete_category
+
+    # Get the next category
     cats = rego.Category.objects
-    cats = cats.filter(id__gt=page_id).order_by("order")
+    cats = cats.filter(id__gt=category).order_by("order")
 
-    if len(cats) > 0:
-        return redirect("guided_registration", cats[0].id)
+    if len(cats) == 0:
+        # We've filled in every category
+        return dashboard
+
+    ret = product_category(request, cats[0].id)
+    attendee_new = rego.Attendee.get_instance(request.user)
+    if attendee_new.highest_complete_category == category:
+        # We've not yet completed this category
+        return ret
     else:
-        return redirect("dashboard")
+        return next_step
+
 
 @login_required
 def edit_profile(request):
@@ -60,16 +80,7 @@ def edit_profile(request):
 
 @login_required
 def product_category(request, category_id):
-    ret = product_category_inner(request, category_id)
-    if ret is not True:
-        return ret
-    else:
-        return redirect("dashboard")
-
-def product_category_inner(request, category_id):
     ''' Registration selections form for a specific category of items.
-    It returns a rendered template if this page needs to display stuff,
-    otherwise it returns True.
     '''
 
     PRODUCTS_FORM_PREFIX = "products"
@@ -80,6 +91,8 @@ def product_category_inner(request, category_id):
     current_cart = CartController.for_user(request.user)
 
     CategoryForm = forms.CategoryForm(category)
+
+    attendee = rego.Attendee.get_instance(request.user)
 
     products = rego.Product.objects.filter(category=category)
     products = products.order_by("order")
@@ -101,7 +114,10 @@ def product_category_inner(request, category_id):
         elif cat_form.is_valid():
             try:
                 handle_valid_cat_form(cat_form, current_cart)
-                return True
+                if category_id > attendee.highest_complete_category:
+                    attendee.highest_complete_category = category_id
+                    attendee.save()
+                return redirect("dashboard")
             except ValidationError as ve:
                 pass
 

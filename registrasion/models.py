@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 import datetime
 
 from django.core.exceptions import ValidationError
+from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth.models import User
 from django.db import models
 from django.db.models import F, Q
@@ -45,6 +46,15 @@ class BadgeAndProfile(models.Model):
 
     def __str__(self):
         return "Badge for: %s of %s" % (self.name, self.company)
+
+    @staticmethod
+    def get_instance(attendee):
+        ''' Returns either None, or the instance that belongs
+        to this attendee. '''
+        try:
+            return BadgeAndProfile.objects.get(attendee=attendee)
+        except ObjectDoesNotExist:
+            return None
 
     attendee = models.OneToOneField(Attendee, on_delete=models.CASCADE)
 

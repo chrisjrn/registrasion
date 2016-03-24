@@ -122,7 +122,7 @@ class InvoiceController(object):
         )
         payment.save()
 
-        payments = rego.Payment.objects .filter(invoice=self.invoice)
+        payments = rego.Payment.objects.filter(invoice=self.invoice)
         agg = payments.aggregate(Sum("amount"))
         total = agg["amount__sum"]
 

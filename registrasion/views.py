@@ -217,7 +217,7 @@ def pay_invoice(request, invoice_id):
     invoice_id = int(invoice_id)
     inv = rego.Invoice.objects.get(pk=invoice_id)
     current_invoice = InvoiceController(inv)
-    if not inv.paid and not current_invoice.is_valid():
+    if not inv.paid and current_invoice.is_valid():
         current_invoice.pay("Demo invoice payment", inv.value)
 
     return redirect("invoice", current_invoice.invoice.id)

@@ -114,12 +114,30 @@ def product_category(request, category_id):
         elif cat_form.is_valid():
             try:
                 handle_valid_cat_form(cat_form, current_cart)
+            except ValidationError as ve:
+                pass
+
+            # If category is required, the user must have at least one
+            # in an active+valid cart
+
+            if category.required:
+                carts = rego.Cart.reserved_carts()
+                carts = carts.filter(user=request.user)
+                items = rego.ProductItem.objects.filter(
+                    product__category=category,
+                    cart=carts,
+                )
+                if len(items) == 0:
+                    cat_form.add_error(
+                        None,
+                        "You must have at least one item from this category",
+                    )
+
+            if not cat_form.errors:
                 if category_id > attendee.highest_complete_category:
                     attendee.highest_complete_category = category_id
                     attendee.save()
                 return redirect("dashboard")
-            except ValidationError as ve:
-                pass
 
     else:
         # Create initial data for each of products in category

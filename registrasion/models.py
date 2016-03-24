@@ -132,6 +132,7 @@ class Category(models.Model):
     name = models.CharField(max_length=65, verbose_name=_("Name"))
     description = models.CharField(max_length=255,
                                    verbose_name=_("Description"))
+    required = models.BooleanField(blank=True)
     order = models.PositiveIntegerField(verbose_name=("Display order"))
     render_type = models.IntegerField(choices=CATEGORY_RENDER_TYPES,
                                       verbose_name=_("Render type"))

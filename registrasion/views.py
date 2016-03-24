@@ -39,9 +39,20 @@ def guided_registration(request, page_id=0):
         return redirect("dashboard")
 
 @login_required
-def profile(request):
+def edit_profile(request):
+    attendee = rego.Attendee.get_instance(request.user)
 
-    form = forms.ProfileForm()
+    try:
+        profile = rego.BadgeAndProfile.objects.get(attendee=attendee)
+    except ObjectDoesNotExist:
+        profile = None
+
+    form = forms.ProfileForm(request.POST or None, instance=profile)
+
+    if request.POST and form.is_valid():
+        form.instance.attendee = attendee
+        form.save()
+
     data = {
         "form": form,
     }

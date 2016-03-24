@@ -21,6 +21,18 @@ class Attendee(models.Model):
     def __str__(self):
         return "%s" % self.user
 
+    @staticmethod
+    def get_instance(user):
+        ''' Returns the instance of attendee for the given user, or creates
+        a new one. '''
+        attendees = Attendee.objects.filter(user=user)
+        if len(attendees) > 0:
+            return attendees[0]
+        else:
+            attendee = Attendee(user=user)
+            attendee.save()
+            return attendee
+
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     # Badge/profile is linked
     completed_registration = models.BooleanField(default=False)

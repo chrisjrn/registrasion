@@ -3,7 +3,9 @@ import pytz
 from decimal import Decimal
 
 from registrasion import models as rego
+from registrasion.controllers import discount
 from registrasion.controllers.cart import CartController
+from registrasion.controllers.invoice import InvoiceController
 
 from test_cart import RegistrationCartTestCase
 
@@ -13,7 +15,11 @@ UTC = pytz.timezone('UTC')
 class DiscountTestCase(RegistrationCartTestCase):
 
     @classmethod
-    def add_discount_prod_1_includes_prod_2(cls, amount=Decimal(100)):
+    def add_discount_prod_1_includes_prod_2(
+            cls,
+            amount=Decimal(100),
+            quantity=2,
+            ):
         discount = rego.IncludedProductDiscount.objects.create(
             description="PROD_1 includes PROD_2 " + str(amount) + "%",
         )
@@ -24,7 +30,7 @@ class DiscountTestCase(RegistrationCartTestCase):
             discount=discount,
             product=cls.PROD_2,
             percentage=amount,
-            quantity=2
+            quantity=quantity,
         ).save()
         return discount
 
@@ -32,7 +38,8 @@ class DiscountTestCase(RegistrationCartTestCase):
     def add_discount_prod_1_includes_cat_2(
             cls,
             amount=Decimal(100),
-            quantity=2):
+            quantity=2,
+            ):
         discount = rego.IncludedProductDiscount.objects.create(
             description="PROD_1 includes CAT_2 " + str(amount) + "%",
         )
@@ -42,6 +49,33 @@ class DiscountTestCase(RegistrationCartTestCase):
         rego.DiscountForCategory.objects.create(
             discount=discount,
             category=cls.CAT_2,
+            percentage=amount,
+            quantity=quantity,
+        ).save()
+        return discount
+
+    @classmethod
+    def add_discount_prod_1_includes_prod_3_and_prod_4(
+            cls,
+            amount=Decimal(100),
+            quantity=2,
+            ):
+        discount = rego.IncludedProductDiscount.objects.create(
+            description="PROD_1 includes PROD_3 and PROD_4 " +
+                        str(amount) + "%",
+        )
+        discount.save()
+        discount.enabling_products.add(cls.PROD_1)
+        discount.save()
+        rego.DiscountForProduct.objects.create(
+            discount=discount,
+            product=cls.PROD_3,
+            percentage=amount,
+            quantity=quantity,
+        ).save()
+        rego.DiscountForProduct.objects.create(
+            discount=discount,
+            product=cls.PROD_4,
             percentage=amount,
             quantity=quantity,
         ).save()
@@ -214,3 +248,132 @@ class DiscountTestCase(RegistrationCartTestCase):
             discount_items = list(cart.cart.discountitem_set.all())
             # The discount is applied.
             self.assertEqual(1, len(discount_items))
+
+    # Tests for the discount.available_discounts enumerator
+    def test_enumerate_no_discounts_for_no_input(self):
+        discounts = discount.available_discounts(self.USER_1, [], [])
+        self.assertEqual(0, len(discounts))
+
+    def test_enumerate_no_discounts_if_condition_not_met(self):
+        self.add_discount_prod_1_includes_cat_2(quantity=1)
+
+        discounts = discount.available_discounts(
+            self.USER_1,
+            [],
+            [self.PROD_3],
+        )
+        self.assertEqual(0, len(discounts))
+
+        discounts = discount.available_discounts(self.USER_1, [self.CAT_2], [])
+        self.assertEqual(0, len(discounts))
+
+    def test_category_discount_appears_once_if_met_twice(self):
+        self.add_discount_prod_1_includes_cat_2(quantity=1)
+
+        cart = CartController.for_user(self.USER_1)
+        cart.add_to_cart(self.PROD_1, 1)  # Enable the discount
+
+        discounts = discount.available_discounts(
+            self.USER_1,
+            [self.CAT_2],
+            [self.PROD_3],
+        )
+        self.assertEqual(1, len(discounts))
+
+    def test_category_discount_appears_with_category(self):
+        self.add_discount_prod_1_includes_cat_2(quantity=1)
+
+        cart = CartController.for_user(self.USER_1)
+        cart.add_to_cart(self.PROD_1, 1)  # Enable the discount
+
+        discounts = discount.available_discounts(self.USER_1, [self.CAT_2], [])
+        self.assertEqual(1, len(discounts))
+
+    def test_category_discount_appears_with_product(self):
+        self.add_discount_prod_1_includes_cat_2(quantity=1)
+
+        cart = CartController.for_user(self.USER_1)
+        cart.add_to_cart(self.PROD_1, 1)  # Enable the discount
+
+        discounts = discount.available_discounts(
+            self.USER_1,
+            [],
+            [self.PROD_3],
+        )
+        self.assertEqual(1, len(discounts))
+
+    def test_category_discount_appears_once_with_two_valid_product(self):
+        self.add_discount_prod_1_includes_cat_2(quantity=1)
+
+        cart = CartController.for_user(self.USER_1)
+        cart.add_to_cart(self.PROD_1, 1)  # Enable the discount
+
+        discounts = discount.available_discounts(
+            self.USER_1,
+            [],
+            [self.PROD_3, self.PROD_4]
+        )
+        self.assertEqual(1, len(discounts))
+
+    def test_product_discount_appears_with_product(self):
+        self.add_discount_prod_1_includes_prod_2(quantity=1)
+
+        cart = CartController.for_user(self.USER_1)
+        cart.add_to_cart(self.PROD_1, 1)  # Enable the discount
+
+        discounts = discount.available_discounts(
+            self.USER_1,
+            [],
+            [self.PROD_2],
+        )
+        self.assertEqual(1, len(discounts))
+
+    def test_product_discount_does_not_appear_with_category(self):
+        self.add_discount_prod_1_includes_prod_2(quantity=1)
+
+        cart = CartController.for_user(self.USER_1)
+        cart.add_to_cart(self.PROD_1, 1)  # Enable the discount
+
+        discounts = discount.available_discounts(self.USER_1, [self.CAT_1], [])
+        self.assertEqual(0, len(discounts))
+
+    def test_discount_quantity_is_correct_before_first_purchase(self):
+        self.add_discount_prod_1_includes_cat_2(quantity=2)
+
+        cart = CartController.for_user(self.USER_1)
+        cart.add_to_cart(self.PROD_1, 1)  # Enable the discount
+        cart.add_to_cart(self.PROD_3, 1)  # Exhaust the quantity
+
+        discounts = discount.available_discounts(self.USER_1, [self.CAT_2], [])
+        self.assertEqual(2, discounts[0].quantity)
+        inv = InvoiceController.for_cart(cart.cart)
+        inv.pay("Dummy reference", inv.invoice.value)
+        self.assertTrue(inv.invoice.paid)
+
+    def test_discount_quantity_is_correct_after_first_purchase(self):
+        self.test_discount_quantity_is_correct_before_first_purchase()
+
+        cart = CartController.for_user(self.USER_1)
+        cart.add_to_cart(self.PROD_3, 1)  # Exhaust the quantity
+
+        discounts = discount.available_discounts(self.USER_1, [self.CAT_2], [])
+        self.assertEqual(1, discounts[0].quantity)
+        inv = InvoiceController.for_cart(cart.cart)
+        inv.pay("Dummy reference", inv.invoice.value)
+        self.assertTrue(inv.invoice.paid)
+
+    def test_discount_is_gone_after_quantity_exhausted(self):
+        self.test_discount_quantity_is_correct_after_first_purchase()
+        discounts = discount.available_discounts(self.USER_1, [self.CAT_2], [])
+        self.assertEqual(0, len(discounts))
+
+    def test_product_discount_enabled_twice_appears_twice(self):
+        self.add_discount_prod_1_includes_prod_3_and_prod_4(quantity=2)
+        cart = CartController.for_user(self.USER_1)
+        cart.add_to_cart(self.PROD_1, 1)  # Enable the discount
+        discounts = discount.available_discounts(
+            self.USER_1,
+            [],
+            [self.PROD_3, self.PROD_4],
+        )
+        self.assertEqual(2, len(discounts))

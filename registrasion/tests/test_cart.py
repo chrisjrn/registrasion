@@ -37,6 +37,7 @@ class RegistrationCartTestCase(SetTimeMixin, TestCase):
             description="This is a test category",
             order=10,
             render_type=rego.Category.RENDER_TYPE_RADIO,
+            required=False,
         )
         cls.CAT_1.save()
 
@@ -45,6 +46,7 @@ class RegistrationCartTestCase(SetTimeMixin, TestCase):
             description="This is a test category",
             order=10,
             render_type=rego.Category.RENDER_TYPE_RADIO,
+            required=False,
         )
         cls.CAT_2.save()
 

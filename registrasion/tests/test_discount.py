@@ -200,3 +200,17 @@ class DiscountTestCase(RegistrationCartTestCase):
         # There is one discount, and it should apply to the more expensive.
         self.assertEqual(1, len(discount_items))
         self.assertEqual(self.PROD_3, discount_items[0].product)
+
+    def test_discount_quantity_is_per_user(self):
+        self.add_discount_prod_1_includes_cat_2(quantity=1)
+
+        # Both users should be able to apply the same discount
+        # in the same way
+        for user in (self.USER_1, self.USER_2):
+            cart = CartController.for_user(user)
+            cart.add_to_cart(self.PROD_1, 1) # Enable the discount
+            cart.add_to_cart(self.PROD_3, 1)
+
+            discount_items = list(cart.cart.discountitem_set.all())
+            # The discount is applied.
+            self.assertEqual(1, len(discount_items))

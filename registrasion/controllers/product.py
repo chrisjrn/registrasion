@@ -1,17 +1,7 @@
-import itertools
-
-from collections import namedtuple
-
 from django.db.models import Q
 from registrasion import models as rego
 
 from conditions import ConditionController
-
-DiscountEnabler = namedtuple(
-    "DiscountEnabler", (
-        "discount",
-        "condition",
-        "value"))
 
 
 class ProductController(object):
@@ -68,39 +58,3 @@ class ProductController(object):
             return False
 
         return True
-
-    def get_enabler(self, condition):
-        if condition.percentage is not None:
-            value = condition.percentage * self.product.price
-        else:
-            value = condition.price
-        return DiscountEnabler(
-            discount=condition.discount,
-            condition=condition,
-            value=value
-        )
-
-    def available_discounts(self, user):
-        ''' Returns the set of available discounts for this user, for this
-        product. '''
-
-        product_discounts = rego.DiscountForProduct.objects.filter(
-            product=self.product)
-        category_discounts = rego.DiscountForCategory.objects.filter(
-            category=self.product.category
-        )
-
-        potential_discounts = set(itertools.chain(
-            (self.get_enabler(i) for i in product_discounts),
-            (self.get_enabler(i) for i in category_discounts),
-        ))
-
-        discounts = []
-        for discount in potential_discounts:
-            real_discount = rego.DiscountBase.objects.get_subclass(
-                pk=discount.discount.pk)
-            cond = ConditionController.for_condition(real_discount)
-            if cond.is_met(user, 0):
-                discounts.append(discount)
-
-        return discounts

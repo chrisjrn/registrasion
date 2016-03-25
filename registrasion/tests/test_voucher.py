@@ -95,13 +95,13 @@ class VoucherTestCases(RegistrationCartTestCase):
         self.assertEqual(1, len(current_cart.cart.discountitem_set.all()))
 
     def test_voucher_codes_unique(self):
-        voucher1 = self.new_voucher(code="VOUCHER")
+        self.new_voucher(code="VOUCHER")
         with self.assertRaises(IntegrityError):
-            voucher2 = self.new_voucher(code="VOUCHER")
+            self.new_voucher(code="VOUCHER")
 
     def test_multiple_vouchers_work(self):
-        voucher1 = self.new_voucher(code="VOUCHER1")
-        voucher2 = self.new_voucher(code="VOUCHER2")
+        self.new_voucher(code="VOUCHER1")
+        self.new_voucher(code="VOUCHER2")
 
     def test_vouchers_case_insensitive(self):
         voucher = self.new_voucher(code="VOUCHeR")

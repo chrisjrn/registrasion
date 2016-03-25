@@ -2,7 +2,6 @@ from registrasion import forms
 from registrasion import models as rego
 from registrasion.controllers.cart import CartController
 from registrasion.controllers.invoice import InvoiceController
-from registrasion.controllers.product import ProductController
 
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ObjectDoesNotExist
@@ -83,6 +82,7 @@ def edit_profile(request):
     }
     return render(request, "profile_form.html", data)
 
+
 @login_required
 def product_category(request, category_id):
     ''' Registration selections form for a specific category of items.
@@ -103,11 +103,17 @@ def product_category(request, category_id):
     products = products.order_by("order")
 
     if request.method == "POST":
-        cat_form = CategoryForm(request.POST, request.FILES, prefix=PRODUCTS_FORM_PREFIX)
+        cat_form = CategoryForm(
+            request.POST,
+            request.FILES,
+            prefix=PRODUCTS_FORM_PREFIX)
         cat_form.disable_products_for_user(request.user)
-        voucher_form = forms.VoucherForm(request.POST, prefix=VOUCHERS_FORM_PREFIX)
+        voucher_form = forms.VoucherForm(
+            request.POST,
+            prefix=VOUCHERS_FORM_PREFIX)
 
-        if voucher_form.is_valid() and voucher_form.cleaned_data["voucher"].strip():
+        if (voucher_form.is_valid() and
+                voucher_form.cleaned_data["voucher"].strip()):
             # Apply voucher
             # leave
             voucher = voucher_form.cleaned_data["voucher"]
@@ -119,7 +125,7 @@ def product_category(request, category_id):
         elif cat_form.is_valid():
             try:
                 handle_valid_cat_form(cat_form, current_cart)
-            except ValidationError as ve:
+            except ValidationError:
                 pass
 
             # If category is required, the user must have at least one
@@ -153,7 +159,6 @@ def product_category(request, category_id):
         quantities = []
         for product in products:
             # Only add items that are enabled.
-            prod = ProductController(product)
             try:
                 quantity = items.get(product=product).quantity
             except ObjectDoesNotExist:
@@ -166,7 +171,6 @@ def product_category(request, category_id):
 
         voucher_form = forms.VoucherForm(prefix=VOUCHERS_FORM_PREFIX)
 
-
     data = {
         "category": category,
         "form": cat_form,
@@ -174,6 +178,7 @@ def product_category(request, category_id):
     }
 
     return render(request, "product_category.html", data)
+
 
 @transaction.atomic
 def handle_valid_cat_form(cat_form, current_cart):
@@ -186,6 +191,7 @@ def handle_valid_cat_form(cat_form, current_cart):
     if cat_form.errors:
         raise ValidationError("Cannot add that stuff")
     current_cart.end_batch()
+
 
 @login_required
 def checkout(request):
@@ -211,6 +217,7 @@ def invoice(request, invoice_id):
     }
 
     return render(request, "invoice.html", data)
+
 
 @login_required
 def pay_invoice(request, invoice_id):

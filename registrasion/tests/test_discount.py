@@ -208,7 +208,7 @@ class DiscountTestCase(RegistrationCartTestCase):
         # in the same way
         for user in (self.USER_1, self.USER_2):
             cart = CartController.for_user(user)
-            cart.add_to_cart(self.PROD_1, 1) # Enable the discount
+            cart.add_to_cart(self.PROD_1, 1)  # Enable the discount
             cart.add_to_cart(self.PROD_3, 1)
 
             discount_items = list(cart.cart.discountitem_set.all())

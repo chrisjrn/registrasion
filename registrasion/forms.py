@@ -43,7 +43,6 @@ def CategoryForm(category):
                 if not prod.can_add_with_enabling_conditions(user, 0):
                     self.disable_product(product)
 
-
     products = rego.Product.objects.filter(category=category).order_by("order")
     for product in products:
 

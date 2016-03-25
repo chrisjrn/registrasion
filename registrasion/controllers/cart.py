@@ -211,6 +211,7 @@ class CartController(object):
             # Get the count of past uses of this discount condition
             # as this affects the total amount we're allowed to use now.
             past_uses = rego.DiscountItem.objects.filter(
+                cart__user=self.cart.user,
                 discount=discount.discount,
             )
             agg = past_uses.aggregate(Sum("quantity"))

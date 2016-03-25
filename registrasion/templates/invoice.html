@@ -33,5 +33,19 @@
   </tr>
 </table>
 
+<table>
+  <tr>
+    <th>Payment time</th>
+    <th>Reference</th>
+    <th>Amount</th>
+  </tr>
+  {% for payment in invoice.payment_set.all %}
+    <tr>
+      <td>{{payment.time}}</td>
+      <td>{{payment.reference}}</td>
+      <td>{{payment.amount}}</td>
+    </tr>
+  {% endfor %}
+</table>
 
 {% endblock %}

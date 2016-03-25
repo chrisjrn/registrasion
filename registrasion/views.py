@@ -25,8 +25,11 @@ def guided_registration(request, page_id=0):
     dashboard = redirect("dashboard")
     next_step = redirect("guided_registration")
 
-    # Step 1: Fill in a badge
     attendee = rego.Attendee.get_instance(request.user)
+    if attendee.completed_registration:
+        return dashboard
+
+    # Step 1: Fill in a badge
     profile = rego.BadgeAndProfile.get_instance(attendee)
 
     if profile is None:
@@ -47,6 +50,8 @@ def guided_registration(request, page_id=0):
 
     if len(cats) == 0:
         # We've filled in every category
+        attendee.completed_registration = True
+        attendee.save()
         return dashboard
 
     ret = product_category(request, cats[0].id)

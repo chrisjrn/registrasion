@@ -1,3 +1,5 @@
+import itertools
+
 from django.db.models import Q
 from registrasion import models as rego
 
@@ -8,6 +10,29 @@ class ProductController(object):
 
     def __init__(self, product):
         self.product = product
+
+    @classmethod
+    def available_products(cls, user, category=None, products=None):
+        ''' Returns a list of all of the products that are available per
+        enabling conditions from the given categories.
+        TODO: refactor so that all conditions are tested here and
+        can_add_with_enabling_conditions calls this method. '''
+        if category is None and products is None:
+            raise ValueError("You must provide products or a category")
+
+        if category is not None:
+            all_products = rego.Product.objects.filter(category=category)
+        else:
+            all_products = []
+
+        if products is not None:
+            all_products = itertools.chain(all_products, products)
+
+        return [
+            product
+            for product in all_products
+            if cls(product).can_add_with_enabling_conditions(user, 0)
+        ]
 
     def user_can_add_within_limit(self, user, quantity):
         ''' Return true if the user is able to add _quantity_ to their count of

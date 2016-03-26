@@ -1,8 +1,9 @@
 import datetime
+import discount
 
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError
-from django.db.models import Max, Sum
+from django.db.models import Max
 from django.utils import timezone
 
 from registrasion import models as rego
@@ -187,38 +188,47 @@ class CartController(object):
         # Delete the existing entries.
         rego.DiscountItem.objects.filter(cart=self.cart).delete()
 
+        product_items = self.cart.productitem_set.all()
+
+        products = [i.product for i in product_items]
+        discounts = discount.available_discounts(self.cart.user, [], products)
+
         # The highest-value discounts will apply to the highest-value
         # products first.
         product_items = self.cart.productitem_set.all()
         product_items = product_items.order_by('product__price')
         product_items = reversed(product_items)
         for item in product_items:
-            self._add_discount(item.product, item.quantity)
+            self._add_discount(item.product, item.quantity, discounts)
 
-    def _add_discount(self, product, quantity):
-        ''' Calculates the best available discounts for this product.
-        NB this will be super-inefficient in aggregate because discounts will
-        be re-tested for each product. We should work on that.'''
+    def _add_discount(self, product, quantity, discounts):
+        ''' Applies the best discounts on the given product, from the given
+        discounts.'''
 
-        prod = ProductController(product)
-        discounts = prod.available_discounts(self.cart.user)
-        discounts.sort(key=lambda discount: discount.value)
+        def matches(discount):
+            ''' Returns True if and only if the given discount apples to
+            our product. '''
+            if isinstance(discount.clause, rego.DiscountForCategory):
+                return discount.clause.category == product.category
+            else:
+                return discount.clause.product == product
 
-        for discount in reversed(discounts):
+        def value(discount):
+            ''' Returns the value of this discount clause
+            as applied to this product '''
+            if discount.clause.percentage is not None:
+                return discount.clause.percentage * product.price
+            else:
+                return discount.clause.price
+
+        discounts = [i for i in discounts if matches(i)]
+        discounts.sort(key=value)
+
+        for candidate in reversed(discounts):
             if quantity == 0:
                 break
-
-            # Get the count of past uses of this discount condition
-            # as this affects the total amount we're allowed to use now.
-            past_uses = rego.DiscountItem.objects.filter(
-                cart__user=self.cart.user,
-                discount=discount.discount,
-            )
-            agg = past_uses.aggregate(Sum("quantity"))
-            past_uses = agg["quantity__sum"]
-            if past_uses is None:
-                past_uses = 0
-            if past_uses == discount.condition.quantity:
+            elif candidate.quantity == 0:
+                # This discount clause has been exhausted by this cart
                 continue
 
             # Get a provisional instance for this DiscountItem
@@ -226,18 +236,20 @@ class CartController(object):
             discount_item = rego.DiscountItem.objects.create(
                 product=product,
                 cart=self.cart,
-                discount=discount.discount,
+                discount=candidate.discount,
                 quantity=quantity,
             )
 
             # Truncate the quantity for this DiscountItem if we exceed quantity
             ours = discount_item.quantity
-            allowed = discount.condition.quantity - past_uses
+            allowed = candidate.quantity
             if ours > allowed:
                 discount_item.quantity = allowed
                 # Update the remaining quantity.
                 quantity = ours - allowed
             else:
                 quantity = 0
+
+            candidate.quantity -= discount_item.quantity
 
             discount_item.save()

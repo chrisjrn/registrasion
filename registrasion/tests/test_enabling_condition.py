@@ -4,6 +4,7 @@ from django.core.exceptions import ValidationError
 
 from registrasion import models as rego
 from registrasion.controllers.cart import CartController
+from registrasion.controllers.product import ProductController
 
 from test_cart import RegistrationCartTestCase
 
@@ -155,3 +156,80 @@ class EnablingConditionTestCases(RegistrationCartTestCase):
             cart_1.add_to_cart(self.PROD_1, 1)
         cart_1.add_to_cart(self.PROD_3, 1)  # Meets the category condition
         cart_1.add_to_cart(self.PROD_1, 1)
+
+    def test_available_products_works_with_no_conditions_set(self):
+        prods = ProductController.available_products(
+            self.USER_1,
+            category=self.CAT_1,
+        )
+
+        self.assertTrue(self.PROD_1 in prods)
+        self.assertTrue(self.PROD_2 in prods)
+
+        prods = ProductController.available_products(
+            self.USER_1,
+            category=self.CAT_2,
+        )
+
+        self.assertTrue(self.PROD_3 in prods)
+        self.assertTrue(self.PROD_4 in prods)
+
+        prods = ProductController.available_products(
+            self.USER_1,
+            products=[self.PROD_1, self.PROD_2, self.PROD_3, self.PROD_4],
+        )
+
+        self.assertTrue(self.PROD_1 in prods)
+        self.assertTrue(self.PROD_2 in prods)
+        self.assertTrue(self.PROD_3 in prods)
+        self.assertTrue(self.PROD_4 in prods)
+
+    def test_available_products_on_category_works_when_condition_not_met(self):
+        self.add_product_enabling_condition(mandatory=False)
+
+        prods = ProductController.available_products(
+            self.USER_1,
+            category=self.CAT_1,
+        )
+
+        self.assertTrue(self.PROD_1 not in prods)
+        self.assertTrue(self.PROD_2 in prods)
+
+    def test_available_products_on_category_works_when_condition_is_met(self):
+        self.add_product_enabling_condition(mandatory=False)
+
+        cart_1 = CartController.for_user(self.USER_1)
+        cart_1.add_to_cart(self.PROD_2, 1)
+
+        prods = ProductController.available_products(
+            self.USER_1,
+            category=self.CAT_1,
+        )
+
+        self.assertTrue(self.PROD_1 in prods)
+        self.assertTrue(self.PROD_2 in prods)
+
+    def test_available_products_on_products_works_when_condition_not_met(self):
+        self.add_product_enabling_condition(mandatory=False)
+
+        prods = ProductController.available_products(
+            self.USER_1,
+            products=[self.PROD_1, self.PROD_2],
+        )
+
+        self.assertTrue(self.PROD_1 not in prods)
+        self.assertTrue(self.PROD_2 in prods)
+
+    def test_available_products_on_products_works_when_condition_is_met(self):
+        self.add_product_enabling_condition(mandatory=False)
+
+        cart_1 = CartController.for_user(self.USER_1)
+        cart_1.add_to_cart(self.PROD_2, 1)
+
+        prods = ProductController.available_products(
+            self.USER_1,
+            products=[self.PROD_1, self.PROD_2],
+        )
+
+        self.assertTrue(self.PROD_1 in prods)
+        self.assertTrue(self.PROD_2 in prods)

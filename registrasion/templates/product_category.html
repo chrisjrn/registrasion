@@ -5,8 +5,6 @@
 
   <h1>Product Category: {{ category.name }}</h1>
 
-  <p>{{ category.description }}</p>
-
   <form method="post" action="">
     {% csrf_token %}
 
@@ -14,13 +12,37 @@
         {{ voucher_form }}
     </table>
 
-    <input type="submit">
+    <p><input type="submit"></p>
 
+    {% if discounts %}
+      <h3>Available Discounts</h3>
+      <ul>
+        {% for discount in discounts %}
+          <li>{{ discount.quantity }} x
+            {% if discount.clause.percentage %}
+              {{ discount.clause.percentage|floatformat:"2" }}%
+            {% else %}
+              ${{ discount.clause.price|floatformat:"2" }}
+            {% endif %}
+            off
+            {% if discount.clause.category %}
+              {{ discount.clause.category }}
+            {% else %}
+              {{ discount.clause.product.category }}
+              - {{ discount.clause.product }}
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+
+    <h3>Available Products</h3>
+    <p>{{ category.description }}</p>
     <table>
         {{ form }}
     </table>
 
-    <input type="submit">
+    <p><input type="submit"></p>
 
   </form>
 

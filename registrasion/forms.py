@@ -1,21 +1,26 @@
 import models as rego
 
-from controllers.product import ProductController
-
 from django import forms
 
 
-def CategoryForm(category):
+def ProductsForm(products):
 
     PREFIX = "product_"
 
     def field_name(product):
         return PREFIX + ("%d" % product.id)
 
-    class _CategoryForm(forms.Form):
+    class _ProductsForm(forms.Form):
 
-        @staticmethod
-        def initial_data(product_quantities):
+        def __init__(self, *a, **k):
+            if "product_quantities" in k:
+                initial = _ProductsForm.initial_data(k["product_quantities"])
+                k["initial"] = initial
+                del k["product_quantities"]
+            super(_ProductsForm, self).__init__(*a, **k)
+
+        @classmethod
+        def initial_data(cls, product_quantities):
             ''' Prepares initial data for an instance of this form.
             product_quantities is a sequence of (product,quantity) tuples '''
             initial = {}
@@ -32,18 +37,6 @@ def CategoryForm(category):
                     product_id = int(name[len(PREFIX):])
                     yield (product_id, value, name)
 
-        def disable_product(self, product):
-            ''' Removes a given product from this form. '''
-            del self.fields[field_name(product)]
-
-        def disable_products_for_user(self, user):
-            for product in products:
-                # Remove fields that do not have an enabling condition.
-                prod = ProductController(product)
-                if not prod.can_add_with_enabling_conditions(user, 0):
-                    self.disable_product(product)
-
-    products = rego.Product.objects.filter(category=category).order_by("order")
     for product in products:
 
         help_text = "$%d -- %s" % (product.price, product.description)
@@ -52,9 +45,9 @@ def CategoryForm(category):
             label=product.name,
             help_text=help_text,
         )
-        _CategoryForm.base_fields[field_name(product)] = field
+        _ProductsForm.base_fields[field_name(product)] = field
 
-    return _CategoryForm
+    return _ProductsForm
 
 
 class ProfileForm(forms.ModelForm):

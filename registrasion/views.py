@@ -2,6 +2,7 @@ from registrasion import forms
 from registrasion import models as rego
 from registrasion.controllers.cart import CartController
 from registrasion.controllers.invoice import InvoiceController
+from registrasion.controllers.product import ProductController
 
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ObjectDoesNotExist
@@ -95,19 +96,21 @@ def product_category(request, category_id):
     category = rego.Category.objects.get(pk=category_id)
     current_cart = CartController.for_user(request.user)
 
-    CategoryForm = forms.CategoryForm(category)
-
     attendee = rego.Attendee.get_instance(request.user)
 
     products = rego.Product.objects.filter(category=category)
     products = products.order_by("order")
+    products = ProductController.available_products(
+        request.user,
+        products=products,
+    )
+    ProductsForm = forms.ProductsForm(products)
 
     if request.method == "POST":
-        cat_form = CategoryForm(
+        cat_form = ProductsForm(
             request.POST,
             request.FILES,
             prefix=PRODUCTS_FORM_PREFIX)
-        cat_form.disable_products_for_user(request.user)
         voucher_form = forms.VoucherForm(
             request.POST,
             prefix=VOUCHERS_FORM_PREFIX)
@@ -165,9 +168,10 @@ def product_category(request, category_id):
                 quantity = 0
             quantities.append((product, quantity))
 
-        initial = CategoryForm.initial_data(quantities)
-        cat_form = CategoryForm(prefix=PRODUCTS_FORM_PREFIX, initial=initial)
-        cat_form.disable_products_for_user(request.user)
+        cat_form = ProductsForm(
+            prefix=PRODUCTS_FORM_PREFIX,
+            product_quantities=quantities,
+        )
 
         voucher_form = forms.VoucherForm(prefix=VOUCHERS_FORM_PREFIX)
 

@@ -1,5 +1,6 @@
 from registrasion import forms
 from registrasion import models as rego
+from registrasion.controllers import discount
 from registrasion.controllers.cart import CartController
 from registrasion.controllers.invoice import InvoiceController
 from registrasion.controllers.product import ProductController
@@ -175,8 +176,10 @@ def product_category(request, category_id):
 
         voucher_form = forms.VoucherForm(prefix=VOUCHERS_FORM_PREFIX)
 
+    discounts = discount.available_discounts(request.user, [], products)
     data = {
         "category": category,
+        "discounts": discounts,
         "form": cat_form,
         "voucher_form": voucher_form,
     }

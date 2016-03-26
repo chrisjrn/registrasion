@@ -98,25 +98,49 @@ def product_category(request, category_id):
     v = handle_voucher(request, VOUCHERS_FORM_PREFIX)
     voucher_form, voucher_handled = v
 
-    # Handle the products form
     category_id = int(category_id)  # Routing is [0-9]+
     category = rego.Category.objects.get(pk=category_id)
-    current_cart = CartController.for_user(request.user)
 
-    attendee = rego.Attendee.get_instance(request.user)
-
-    products = rego.Product.objects.filter(category=category)
-    products = products.order_by("order")
     products = ProductController.available_products(
         request.user,
-        products=products,
+        category=category,
     )
+
+    p = handle_products(request, category, products, PRODUCTS_FORM_PREFIX)
+    products_form, discounts, products_handled = p
+
+    if request.POST and not voucher_handled and not products_form.errors:
+        # Only return to the dashboard if we didn't add a voucher code
+        # and if there's no errors in the products form
+
+        attendee = rego.Attendee.get_instance(request.user)
+        if category_id > attendee.highest_complete_category:
+            attendee.highest_complete_category = category_id
+            attendee.save()
+        return redirect("dashboard")
+
+    data = {
+        "category": category,
+        "discounts": discounts,
+        "form": products_form,
+        "voucher_form": voucher_form,
+    }
+
+    return render(request, "product_category.html", data)
+
+
+def handle_products(request, category, products, prefix):
+    ''' Handles a products list form in the given request. Returns the
+    form instance, the discounts applicable to this form, and whether the
+    contents were handled. '''
+
+    current_cart = CartController.for_user(request.user)
 
     ProductsForm = forms.ProductsForm(products)
 
     # Create initial data for each of products in category
     items = rego.ProductItem.objects.filter(
-        product__category=category,
+        product__in=products,
         cart=current_cart.cart,
     )
     quantities = []
@@ -128,65 +152,48 @@ def product_category(request, category_id):
             quantity = 0
         quantities.append((product, quantity))
 
-    cat_form = ProductsForm(
+    products_form = ProductsForm(
         request.POST or None,
         product_quantities=quantities,
-        prefix=PRODUCTS_FORM_PREFIX,
+        prefix=prefix,
     )
 
-    if (
-        not voucher_handled and
-        request.method == "POST" and
-        cat_form.is_valid()):
-
+    if request.method == "POST" and products_form.is_valid():
         try:
-            if cat_form.has_changed():
-                handle_valid_cat_form(cat_form, current_cart)
+            if products_form.has_changed():
+                set_quantities_from_products_form(products_form, current_cart)
         except ValidationError:
+            # There were errors, but they've already been added to the form.
             pass
 
         # If category is required, the user must have at least one
         # in an active+valid cart
-
         if category.required:
-            carts = rego.Cart.reserved_carts().filter(user=request.user)
+            carts = rego.Cart.objects.filter(user=request.user)
             items = rego.ProductItem.objects.filter(
                 product__category=category,
                 cart=carts,
             )
             if len(items) == 0:
-                cat_form.add_error(
+                products_form.add_error(
                     None,
                     "You must have at least one item from this category",
                 )
-
-        if not cat_form.errors:
-            if category_id > attendee.highest_complete_category:
-                attendee.highest_complete_category = category_id
-                attendee.save()
-            return redirect("dashboard")
+    handled = False if products_form.errors else True
 
     discounts = discount.available_discounts(request.user, [], products)
 
-    data = {
-        "category": category,
-        "discounts": discounts,
-        "form": cat_form,
-        "voucher_form": voucher_form,
-    }
-
-    return render(request, "product_category.html", data)
-
+    return products_form, discounts, handled
 
 @transaction.atomic
-def handle_valid_cat_form(cat_form, current_cart):
-    for product_id, quantity, field_name in cat_form.product_quantities():
+def set_quantities_from_products_form(products_form, current_cart):
+    for product_id, quantity, field_name in products_form.product_quantities():
         product = rego.Product.objects.get(pk=product_id)
         try:
             current_cart.set_quantity(product, quantity, batched=True)
         except ValidationError as ve:
-            cat_form.add_error(field_name, ve)
-    if cat_form.errors:
+            products_form.add_error(field_name, ve)
+    if products_form.errors:
         raise ValidationError("Cannot add that stuff")
     current_cart.end_batch()
 

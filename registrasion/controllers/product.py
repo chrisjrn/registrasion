@@ -28,11 +28,13 @@ class ProductController(object):
         if products is not None:
             all_products = itertools.chain(all_products, products)
 
-        return [
+        out = [
             product
             for product in all_products
             if cls(product).can_add_with_enabling_conditions(user, 0)
         ]
+        out.sort(key=lambda product: product.order)
+        return out
 
     def user_can_add_within_limit(self, user, quantity):
         ''' Return true if the user is able to add _quantity_ to their count of

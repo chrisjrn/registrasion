@@ -99,12 +99,20 @@ def product_category(request, category_id):
 
     attendee = rego.Attendee.get_instance(request.user)
 
+    # Handle the voucher form *before* listing products.
+    v = handle_voucher(request, VOUCHERS_FORM_PREFIX)
+    voucher_form, voucher_handled = v
+    if voucher_handled:
+        # Do not handle product form
+        pass
+
     products = rego.Product.objects.filter(category=category)
     products = products.order_by("order")
     products = ProductController.available_products(
         request.user,
         products=products,
     )
+
     ProductsForm = forms.ProductsForm(products)
 
     if request.method == "POST":
@@ -112,20 +120,10 @@ def product_category(request, category_id):
             request.POST,
             request.FILES,
             prefix=PRODUCTS_FORM_PREFIX)
-        voucher_form = forms.VoucherForm(
-            request.POST,
-            prefix=VOUCHERS_FORM_PREFIX)
 
-        if (voucher_form.is_valid() and
-                voucher_form.cleaned_data["voucher"].strip()):
-            # Apply voucher
-            # leave
-            voucher = voucher_form.cleaned_data["voucher"]
-            try:
-                current_cart.apply_voucher(voucher)
-            except Exception as e:
-                voucher_form.add_error("voucher", e)
-            # Re-visit current page.
+        if voucher_handled:
+            # The voucher form was handled here.
+            pass
         elif cat_form.is_valid():
             try:
                 handle_valid_cat_form(cat_form, current_cart)
@@ -174,8 +172,6 @@ def product_category(request, category_id):
             product_quantities=quantities,
         )
 
-        voucher_form = forms.VoucherForm(prefix=VOUCHERS_FORM_PREFIX)
-
     discounts = discount.available_discounts(request.user, [], products)
     data = {
         "category": category,
@@ -199,6 +195,33 @@ def handle_valid_cat_form(cat_form, current_cart):
         raise ValidationError("Cannot add that stuff")
     current_cart.end_batch()
 
+def handle_voucher(request, prefix):
+    ''' Handles a voucher form in the given request. Returns the voucher
+    form instance, and whether the voucher code was handled. '''
+
+    voucher_form = forms.VoucherForm(request.POST or None, prefix=prefix)
+    current_cart = CartController.for_user(request.user)
+
+    if (voucher_form.is_valid() and
+            voucher_form.cleaned_data["voucher"].strip()):
+
+        voucher = voucher_form.cleaned_data["voucher"]
+        voucher = rego.Voucher.normalise_code(voucher)
+
+        if len(current_cart.cart.vouchers.filter(code=voucher)) > 0:
+            # This voucher has already been applied to this cart.
+            # Do not apply code
+            handled = False
+        else:
+            try:
+                current_cart.apply_voucher(voucher)
+            except Exception as e:
+                voucher_form.add_error("voucher", e)
+            handled = True
+    else:
+        handled = False
+
+    return (voucher_form, handled)
 
 @login_required
 def checkout(request):

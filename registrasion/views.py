@@ -93,18 +93,17 @@ def product_category(request, category_id):
     PRODUCTS_FORM_PREFIX = "products"
     VOUCHERS_FORM_PREFIX = "vouchers"
 
+    # Handle the voucher form *before* listing products.
+    # Products can change as vouchers are entered.
+    v = handle_voucher(request, VOUCHERS_FORM_PREFIX)
+    voucher_form, voucher_handled = v
+
+    # Handle the products form
     category_id = int(category_id)  # Routing is [0-9]+
     category = rego.Category.objects.get(pk=category_id)
     current_cart = CartController.for_user(request.user)
 
     attendee = rego.Attendee.get_instance(request.user)
-
-    # Handle the voucher form *before* listing products.
-    v = handle_voucher(request, VOUCHERS_FORM_PREFIX)
-    voucher_form, voucher_handled = v
-    if voucher_handled:
-        # Do not handle product form
-        pass
 
     products = rego.Product.objects.filter(category=category)
     products = products.order_by("order")
@@ -115,64 +114,60 @@ def product_category(request, category_id):
 
     ProductsForm = forms.ProductsForm(products)
 
-    if request.method == "POST":
-        cat_form = ProductsForm(
-            request.POST,
-            request.FILES,
-            prefix=PRODUCTS_FORM_PREFIX)
+    # Create initial data for each of products in category
+    items = rego.ProductItem.objects.filter(
+        product__category=category,
+        cart=current_cart.cart,
+    )
+    quantities = []
+    for product in products:
+        # Only add items that are enabled.
+        try:
+            quantity = items.get(product=product).quantity
+        except ObjectDoesNotExist:
+            quantity = 0
+        quantities.append((product, quantity))
 
-        if voucher_handled:
-            # The voucher form was handled here.
-            pass
-        elif cat_form.is_valid():
-            try:
+    cat_form = ProductsForm(
+        request.POST or None,
+        product_quantities=quantities,
+        prefix=PRODUCTS_FORM_PREFIX,
+    )
+
+    if (
+        not voucher_handled and
+        request.method == "POST" and
+        cat_form.is_valid()):
+
+        try:
+            if cat_form.has_changed():
                 handle_valid_cat_form(cat_form, current_cart)
-            except ValidationError:
-                pass
+        except ValidationError:
+            pass
 
-            # If category is required, the user must have at least one
-            # in an active+valid cart
+        # If category is required, the user must have at least one
+        # in an active+valid cart
 
-            if category.required:
-                carts = rego.Cart.reserved_carts()
-                carts = carts.filter(user=request.user)
-                items = rego.ProductItem.objects.filter(
-                    product__category=category,
-                    cart=carts,
+        if category.required:
+            carts = rego.Cart.reserved_carts().filter(user=request.user)
+            items = rego.ProductItem.objects.filter(
+                product__category=category,
+                cart=carts,
+            )
+            if len(items) == 0:
+                cat_form.add_error(
+                    None,
+                    "You must have at least one item from this category",
                 )
-                if len(items) == 0:
-                    cat_form.add_error(
-                        None,
-                        "You must have at least one item from this category",
-                    )
 
-            if not cat_form.errors:
-                if category_id > attendee.highest_complete_category:
-                    attendee.highest_complete_category = category_id
-                    attendee.save()
-                return redirect("dashboard")
-
-    else:
-        # Create initial data for each of products in category
-        items = rego.ProductItem.objects.filter(
-            product__category=category,
-            cart=current_cart.cart,
-        )
-        quantities = []
-        for product in products:
-            # Only add items that are enabled.
-            try:
-                quantity = items.get(product=product).quantity
-            except ObjectDoesNotExist:
-                quantity = 0
-            quantities.append((product, quantity))
-
-        cat_form = ProductsForm(
-            prefix=PRODUCTS_FORM_PREFIX,
-            product_quantities=quantities,
-        )
+        if not cat_form.errors:
+            if category_id > attendee.highest_complete_category:
+                attendee.highest_complete_category = category_id
+                attendee.save()
+            return redirect("dashboard")
 
     discounts = discount.available_discounts(request.user, [], products)
+
     data = {
         "category": category,
         "discounts": discounts,

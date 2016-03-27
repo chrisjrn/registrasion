@@ -413,6 +413,7 @@ class Cart(models.Model):
     reservation_duration = models.DurationField()
     revision = models.PositiveIntegerField(default=1)
     active = models.BooleanField(default=True)
+    released = models.BooleanField(default=False)  # Refunds etc
 
     @classmethod
     def reserved_carts(cls):

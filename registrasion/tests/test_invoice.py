@@ -127,8 +127,45 @@ class InvoiceTestCase(RegistrationCartTestCase):
 
         # Viewing invoice_1's invoice should show it as void
         invoice_1_new = InvoiceController(invoice_1.invoice)
-        self.assertTrue(invoice_1.invoice.void)
+        self.assertTrue(invoice_1_new.invoice.void)
 
         # Viewing invoice_2's invoice should *not* show it as void
         invoice_2_new = InvoiceController(invoice_2.invoice)
-        self.assertFalse(invoice_2.invoice.void)
+        self.assertFalse(invoice_2_new.invoice.void)
+
+    def test_voiding_invoice_creates_new_invoice(self):
+        current_cart = CartController.for_user(self.USER_1)
+
+        # Should be able to create an invoice after the product is added
+        current_cart.add_to_cart(self.PROD_1, 1)
+        invoice_1 = InvoiceController.for_cart(current_cart.cart)
+
+        self.assertFalse(invoice_1.invoice.void)
+        invoice_1.void()
+
+        invoice_2 = InvoiceController.for_cart(current_cart.cart)
+        self.assertNotEqual(invoice_1.invoice, invoice_2.invoice)
+
+    def test_cannot_pay_void_invoice(self):
+        current_cart = CartController.for_user(self.USER_1)
+
+        # Should be able to create an invoice after the product is added
+        current_cart.add_to_cart(self.PROD_1, 1)
+        invoice_1 = InvoiceController.for_cart(current_cart.cart)
+
+        invoice_1.void()
+
+        with self.assertRaises(ValidationError):
+            invoice_1.pay("Reference", invoice_1.invoice.value)
+
+    def test_cannot_void_paid_invoice(self):
+        current_cart = CartController.for_user(self.USER_1)
+
+        # Should be able to create an invoice after the product is added
+        current_cart.add_to_cart(self.PROD_1, 1)
+        invoice_1 = InvoiceController.for_cart(current_cart.cart)
+
+        invoice_1.pay("Reference", invoice_1.invoice.value)
+
+        with self.assertRaises(ValidationError):
+            invoice_1.void()

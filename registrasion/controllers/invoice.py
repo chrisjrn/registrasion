@@ -1,5 +1,6 @@
 from decimal import Decimal
 from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import ValidationError
 from django.db.models import Sum
 
 from registrasion import models as rego
@@ -11,7 +12,7 @@ class InvoiceController(object):
 
     def __init__(self, invoice):
         self.invoice = invoice
-        self.update_validity() # Make sure this invoice is up-to-date
+        self.update_validity()  # Make sure this invoice is up-to-date
 
     @classmethod
     def for_cart(cls, cart):
@@ -21,13 +22,16 @@ class InvoiceController(object):
 
         try:
             invoice = rego.Invoice.objects.get(
-                cart=cart, cart_revision=cart.revision)
+                cart=cart,
+                cart_revision=cart.revision,
+                void=False,
+            )
         except ObjectDoesNotExist:
             cart_controller = CartController(cart)
             cart_controller.validate_cart()  # Raises ValidationError on fail.
 
             # Void past invoices for this cart
-            invoices = rego.Invoice.objects.filter(cart=cart).update(void=True)
+            rego.Invoice.objects.filter(cart=cart).update(void=True)
 
             invoice = cls._generate(cart)
 
@@ -104,7 +108,10 @@ class InvoiceController(object):
                 self.void()
 
     def void(self):
-        ''' Voids the invoice. '''
+        ''' Voids the invoice if it is valid to do so. '''
+        if self.invoice.paid:
+            raise ValidationError("Paid invoices cannot be voided, "
+                                  "only refunded.")
         self.invoice.void = True
         self.invoice.save()
 
@@ -116,6 +123,12 @@ class InvoiceController(object):
         if self.invoice.cart is not None:
             cart = CartController(self.invoice.cart)
             cart.validate_cart()  # Raises ValidationError if invalid
+
+        if self.invoice.void:
+            raise ValidationError("Void invoices cannot be paid")
+
+        if self.invoice.paid:
+            raise ValidationError("Paid invoices cannot be paid again")
 
         ''' Adds a payment '''
         payment = rego.Payment.objects.create(

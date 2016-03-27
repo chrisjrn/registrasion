@@ -126,3 +126,20 @@ class VoucherTestCases(RegistrationCartTestCase):
 
         with self.assertRaises(ValidationError):
             current_cart.apply_voucher(voucher.code)
+
+        return current_cart
+
+    def test_refund_releases_used_vouchers(self):
+        voucher = self.new_voucher(limit=2)
+        current_cart = CartController.for_user(self.USER_1)
+        current_cart.apply_voucher(voucher.code)
+
+        inv = InvoiceController.for_cart(current_cart.cart)
+        inv.pay("Hello!", inv.invoice.value)
+
+        current_cart = CartController.for_user(self.USER_1)
+        with self.assertRaises(ValidationError):
+            current_cart.apply_voucher(voucher.code)
+
+        inv.refund("Hello!", inv.invoice.value)
+        current_cart.apply_voucher(voucher.code)

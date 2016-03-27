@@ -44,7 +44,7 @@ class CategoryConditionController(ConditionController):
         ''' returns True if the user has a product from a category that invokes
         this condition in one of their carts '''
 
-        carts = rego.Cart.objects.filter(user=user)
+        carts = rego.Cart.objects.filter(user=user, released=False)
         enabling_products = rego.Product.objects.filter(
             category=self.condition.enabling_category)
         products = rego.ProductItem.objects.filter(
@@ -64,7 +64,7 @@ class ProductConditionController(ConditionController):
         ''' returns True if the user has a product that invokes this
         condition in one of their carts '''
 
-        carts = rego.Cart.objects.filter(user=user)
+        carts = rego.Cart.objects.filter(user=user, released=False)
         products = rego.ProductItem.objects.filter(
             cart=carts,
             product=self.condition.enabling_products.all())

@@ -132,3 +132,21 @@ class CeilingsTestCases(RegistrationCartTestCase):
         self.add_timedelta(self.RESERVATION + datetime.timedelta(seconds=1))
         with self.assertRaises(ValidationError):
             first_cart.validate_cart()
+
+    def test_items_released_from_ceiling_by_refund(self):
+        self.make_ceiling("Limit ceiling", limit=1)
+
+        first_cart = CartController.for_user(self.USER_1)
+        first_cart.add_to_cart(self.PROD_1, 1)
+
+        first_cart.cart.active = False
+        first_cart.cart.save()
+
+        second_cart = CartController.for_user(self.USER_2)
+        with self.assertRaises(ValidationError):
+            second_cart.add_to_cart(self.PROD_1, 1)
+
+        first_cart.cart.released = True
+        first_cart.cart.save()
+
+        second_cart.add_to_cart(self.PROD_1, 1)

@@ -1,6 +1,7 @@
 from decimal import Decimal
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.db.models import Sum
 
 from registrasion import models as rego
@@ -115,12 +116,13 @@ class InvoiceController(object):
         self.invoice.void = True
         self.invoice.save()
 
+    @transaction.atomic
     def pay(self, reference, amount):
         ''' Pays the invoice by the given amount. If the payment
         equals the total on the invoice, finalise the invoice.
         (NB should be transactional.)
         '''
-        if self.invoice.cart is not None:
+        if self.invoice.cart:
             cart = CartController(self.invoice.cart)
             cart.validate_cart()  # Raises ValidationError if invalid
 
@@ -145,8 +147,36 @@ class InvoiceController(object):
         if total == self.invoice.value:
             self.invoice.paid = True
 
-            cart = self.invoice.cart
-            cart.active = False
-            cart.save()
+            if self.invoice.cart:
+                cart = self.invoice.cart
+                cart.active = False
+                cart.save()
 
             self.invoice.save()
+
+    @transaction.atomic
+    def refund(self, reference, amount):
+        ''' Refunds the invoice by the given amount. The invoice is
+        marked as unpaid, and the underlying cart is marked as released.
+        '''
+
+        if self.invoice.void:
+            raise ValidationError("Void invoices cannot be refunded")
+
+        ''' Adds a payment '''
+        payment = rego.Payment.objects.create(
+            invoice=self.invoice,
+            reference=reference,
+            amount=0 - amount,
+        )
+        payment.save()
+
+        self.invoice.paid = False
+        self.invoice.void = True
+
+        if self.invoice.cart:
+            cart = self.invoice.cart
+            cart.released = True
+            cart.save()
+
+        self.invoice.save()

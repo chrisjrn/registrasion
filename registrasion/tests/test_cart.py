@@ -52,7 +52,7 @@ class RegistrationCartTestCase(SetTimeMixin, TestCase):
         cls.products = []
         for i in xrange(4):
             prod = rego.Product.objects.create(
-                name="Product 1",
+                name="Product " + str(i + 1),
                 description="This is a test product.",
                 category=cls.categories[i / 2],  # 2 products per category
                 price=Decimal("10.00"),

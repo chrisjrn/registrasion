@@ -12,6 +12,11 @@ class DiscountAndQuantity(object):
         self.clause = clause
         self.quantity = quantity
 
+    def __repr__(self):
+        print "(discount=%s, clause=%s, quantity=%d)" % (
+            self.discount, self.clause, self.quantity,
+        )
+
 
 def available_discounts(user, categories, products):
     ''' Returns all discounts available to this user for the given categories
@@ -57,6 +62,7 @@ def available_discounts(user, categories, products):
         past_uses = rego.DiscountItem.objects.filter(
             cart__user=user,
             cart__active=False,  # Only past carts count
+            cart__released=False,  # You can reuse refunded discounts
             discount=discount.discount,
         )
         agg = past_uses.aggregate(Sum("quantity"))

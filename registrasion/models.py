@@ -423,7 +423,7 @@ class Cart(models.Model):
                 Q(time_last_updated__gt=(
                     timezone.now()-F('reservation_duration')
                                         ))) |
-            Q(active=False)
+            (Q(active=False) & Q(released=False))
         )
 
 

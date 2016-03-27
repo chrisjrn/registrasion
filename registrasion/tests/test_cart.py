@@ -32,69 +32,46 @@ class RegistrationCartTestCase(SetTimeMixin, TestCase):
             email='test2@example.com',
             password='top_secret')
 
-        cls.CAT_1 = rego.Category.objects.create(
-            name="Category 1",
-            description="This is a test category",
-            order=10,
-            render_type=rego.Category.RENDER_TYPE_RADIO,
-            required=False,
-        )
-        cls.CAT_1.save()
-
-        cls.CAT_2 = rego.Category.objects.create(
-            name="Category 2",
-            description="This is a test category",
-            order=10,
-            render_type=rego.Category.RENDER_TYPE_RADIO,
-            required=False,
-        )
-        cls.CAT_2.save()
-
         cls.RESERVATION = datetime.timedelta(hours=1)
 
-        cls.PROD_1 = rego.Product.objects.create(
-            name="Product 1",
-            description="This is a test product. It costs $10. "
-                        "A user may have 10 of them.",
-            category=cls.CAT_1,
-            price=Decimal("10.00"),
-            reservation_duration=cls.RESERVATION,
-            limit_per_user=10,
-            order=10,
-        )
-        cls.PROD_1.save()
+        cls.categories = []
+        for i in xrange(3):
+            cat = rego.Category.objects.create(
+                name="Category " + str(i + 1),
+                description="This is a test category",
+                order=i,
+                render_type=rego.Category.RENDER_TYPE_RADIO,
+                required=False,
+            )
+            cat.save()
+            cls.categories.append(cat)
 
-        cls.PROD_2 = rego.Product.objects.create(
-            name="Product 2",
-            description="This is a test product. It costs $10. "
-                        "A user may have 10 of them.",
-            category=cls.CAT_1,
-            price=Decimal("10.00"),
-            limit_per_user=10,
-            order=10,
-        )
-        cls.PROD_2.save()
+        cls.CAT_1 = cls.categories[0]
+        cls.CAT_2 = cls.categories[1]
+        cls.CAT_3 = cls.categories[2]
 
-        cls.PROD_3 = rego.Product.objects.create(
-            name="Product 3",
-            description="This is a test product. It costs $10. "
-                        "A user may have 10 of them.",
-            category=cls.CAT_2,
-            price=Decimal("10.00"),
-            limit_per_user=10,
-            order=10,
-        )
-        cls.PROD_3.save()
+        cls.products = []
+        for i in xrange(6):
+            prod = rego.Product.objects.create(
+                name="Product 1",
+                description="This is a test product."
+                category=cls.categories[i / 2],  # 2 products per category
+                price=Decimal("10.00"),
+                reservation_duration=cls.RESERVATION,
+                limit_per_user=10,
+                order=1,
+            )
+            prod.save()
+            cls.products.append(prod)
 
-        cls.PROD_4 = rego.Product.objects.create(
-            name="Product 4",
-            description="This is a test product. It costs $5. "
-                        "A user may have 10 of them.",
-            category=cls.CAT_2,
-            price=Decimal("5.00"),
-            limit_per_user=10,
-            order=10,
-        )
+        cls.PROD_1 = cls.products[0]
+        cls.PROD_2 = cls.products[1]
+        cls.PROD_3 = cls.products[2]
+        cls.PROD_4 = cls.products[3]
+        cls.PROD_5 = cls.products[4]
+        cls.PROD_6 = cls.products[5]
+
+        cls.PROD_4.price = Decimal("5.00")
         cls.PROD_4.save()
 
     @classmethod
@@ -205,7 +182,7 @@ class BasicCartTests(RegistrationCartTestCase):
         current_cart.set_quantity(self.PROD_1, 2)
         self.assertEqual(2, get_item().quantity)
 
-    def test_add_to_cart_per_user_limit(self):
+    def test_add_to_cart_product_per_user_limit(self):
         current_cart = CartController.for_user(self.USER_1)
 
         # User should be able to add 1 of PROD_1 to the current cart.

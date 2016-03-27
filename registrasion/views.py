@@ -136,7 +136,7 @@ def handle_products(request, category, products, prefix):
 
     current_cart = CartController.for_user(request.user)
 
-    ProductsForm = forms.ProductsForm(products)
+    ProductsForm = forms.ProductsForm(category, products)
 
     # Create initial data for each of products in category
     items = rego.ProductItem.objects.filter(

@@ -1,6 +1,7 @@
 import itertools
 
 from django.db.models import Q
+from django.db.models import Sum
 from registrasion import models as rego
 
 from conditions import ConditionController
@@ -42,17 +43,25 @@ class ProductController(object):
 
         carts = rego.Cart.objects.filter(user=user)
         items = rego.ProductItem.objects.filter(
-            product=self.product,
-            cart=carts)
+            cart=carts,
+        )
 
-        count = 0
-        for item in items:
-            count += item.quantity
+        prod_items = items.filter(product=self.product)
+        cat_items = items.filter(product__category=self.product.category)
 
-        if quantity + count > self.product.limit_per_user:
-            return False
-        else:
+        prod_count = prod_items.aggregate(Sum("quantity"))["quantity__sum"]
+        cat_count = cat_items.aggregate(Sum("quantity"))["quantity__sum"]
+
+        prod_limit = self.product.limit_per_user
+        prod_met = prod_limit is None or quantity + prod_count <= prod_limit
+
+        cat_limit = self.product.category.limit_per_user
+        cat_met = cat_limit is None or quantity + cat_count <= cat_limit
+
+        if prod_met and cat_met:
             return True
+        else:
+            return False
 
     def can_add_with_enabling_conditions(self, user, quantity):
         ''' Returns true if the user is able to add _quantity_ to their count

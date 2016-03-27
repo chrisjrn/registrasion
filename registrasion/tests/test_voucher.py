@@ -7,6 +7,7 @@ from django.db import IntegrityError
 
 from registrasion import models as rego
 from registrasion.controllers.cart import CartController
+from registrasion.controllers.invoice import InvoiceController
 
 from test_cart import RegistrationCartTestCase
 
@@ -16,11 +17,11 @@ UTC = pytz.timezone('UTC')
 class VoucherTestCases(RegistrationCartTestCase):
 
     @classmethod
-    def new_voucher(self, code="VOUCHER"):
+    def new_voucher(self, code="VOUCHER", limit=1):
         voucher = rego.Voucher.objects.create(
             recipient="Voucher recipient",
             code=code,
-            limit=1
+            limit=limit,
         )
         voucher.save()
         return voucher
@@ -107,3 +108,21 @@ class VoucherTestCases(RegistrationCartTestCase):
         voucher = self.new_voucher(code="VOUCHeR")
         current_cart = CartController.for_user(self.USER_1)
         current_cart.apply_voucher(voucher.code.lower())
+
+    def test_voucher_can_only_be_applied_once(self):
+        voucher = self.new_voucher(limit=2)
+        current_cart = CartController.for_user(self.USER_1)
+        current_cart.apply_voucher(voucher.code)
+        with self.assertRaises(ValidationError):
+            current_cart.apply_voucher(voucher.code)
+
+    def test_voucher_can_only_be_applied_once_across_multiple_carts(self):
+        voucher = self.new_voucher(limit=2)
+        current_cart = CartController.for_user(self.USER_1)
+        current_cart.apply_voucher(voucher.code)
+
+        inv = InvoiceController.for_cart(current_cart.cart)
+        inv.pay("Hello!", inv.invoice.value)
+
+        with self.assertRaises(ValidationError):
+            current_cart.apply_voucher(voucher.code)

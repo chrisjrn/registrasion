@@ -132,6 +132,10 @@ class Category(models.Model):
     name = models.CharField(max_length=65, verbose_name=_("Name"))
     description = models.CharField(max_length=255,
                                    verbose_name=_("Description"))
+    limit_per_user = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name=_("Limit per user"))
     required = models.BooleanField(blank=True)
     order = models.PositiveIntegerField(verbose_name=("Display order"))
     render_type = models.IntegerField(choices=CATEGORY_RENDER_TYPES,
@@ -153,6 +157,7 @@ class Product(models.Model):
                                 decimal_places=2,
                                 verbose_name=_("Price"))
     limit_per_user = models.PositiveIntegerField(
+        null=True,
         blank=True,
         verbose_name=_("Limit per user"))
     reservation_duration = models.DurationField(
@@ -172,9 +177,13 @@ class Voucher(models.Model):
     def __str__(self):
         return "Voucher for %s" % self.recipient
 
+    @classmethod
+    def normalise_code(cls, code):
+        return code.upper()
+
     def save(self, *a, **k):
         ''' Normalise the voucher code to be uppercase '''
-        self.code = self.code.upper()
+        self.code = self.normalise_code(self.code)
         super(Voucher, self).save(*a, **k)
 
     recipient = models.CharField(max_length=64, verbose_name=_("Recipient"))

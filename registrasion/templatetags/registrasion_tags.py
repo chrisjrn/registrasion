@@ -8,15 +8,18 @@ register = template.Library()
 
 ProductAndQuantity = namedtuple("ProductAndQuantity", ["product", "quantity"])
 
+
 @register.assignment_tag(takes_context=True)
 def available_categories(context):
     ''' Returns all of the available product categories '''
     return rego.Category.objects.all()
 
+
 @register.assignment_tag(takes_context=True)
 def invoices(context):
     ''' Returns all of the invoices that this user has. '''
     return rego.Invoice.objects.filter(cart__user=context.request.user)
+
 
 @register.assignment_tag(takes_context=True)
 def items_pending(context):
@@ -28,6 +31,7 @@ def items_pending(context):
         cart__active=True,
     )
     return all_items
+
 
 @register.assignment_tag(takes_context=True)
 def items_purchased(context):

@@ -32,69 +32,43 @@ class RegistrationCartTestCase(SetTimeMixin, TestCase):
             email='test2@example.com',
             password='top_secret')
 
-        cls.CAT_1 = rego.Category.objects.create(
-            name="Category 1",
-            description="This is a test category",
-            order=10,
-            render_type=rego.Category.RENDER_TYPE_RADIO,
-            required=False,
-        )
-        cls.CAT_1.save()
-
-        cls.CAT_2 = rego.Category.objects.create(
-            name="Category 2",
-            description="This is a test category",
-            order=10,
-            render_type=rego.Category.RENDER_TYPE_RADIO,
-            required=False,
-        )
-        cls.CAT_2.save()
-
         cls.RESERVATION = datetime.timedelta(hours=1)
 
-        cls.PROD_1 = rego.Product.objects.create(
-            name="Product 1",
-            description="This is a test product. It costs $10. "
-                        "A user may have 10 of them.",
-            category=cls.CAT_1,
-            price=Decimal("10.00"),
-            reservation_duration=cls.RESERVATION,
-            limit_per_user=10,
-            order=10,
-        )
-        cls.PROD_1.save()
+        cls.categories = []
+        for i in xrange(2):
+            cat = rego.Category.objects.create(
+                name="Category " + str(i + 1),
+                description="This is a test category",
+                order=i,
+                render_type=rego.Category.RENDER_TYPE_RADIO,
+                required=False,
+            )
+            cat.save()
+            cls.categories.append(cat)
 
-        cls.PROD_2 = rego.Product.objects.create(
-            name="Product 2",
-            description="This is a test product. It costs $10. "
-                        "A user may have 10 of them.",
-            category=cls.CAT_1,
-            price=Decimal("10.00"),
-            limit_per_user=10,
-            order=10,
-        )
-        cls.PROD_2.save()
+        cls.CAT_1 = cls.categories[0]
+        cls.CAT_2 = cls.categories[1]
 
-        cls.PROD_3 = rego.Product.objects.create(
-            name="Product 3",
-            description="This is a test product. It costs $10. "
-                        "A user may have 10 of them.",
-            category=cls.CAT_2,
-            price=Decimal("10.00"),
-            limit_per_user=10,
-            order=10,
-        )
-        cls.PROD_3.save()
+        cls.products = []
+        for i in xrange(4):
+            prod = rego.Product.objects.create(
+                name="Product 1",
+                description="This is a test product.",
+                category=cls.categories[i / 2],  # 2 products per category
+                price=Decimal("10.00"),
+                reservation_duration=cls.RESERVATION,
+                limit_per_user=10,
+                order=1,
+            )
+            prod.save()
+            cls.products.append(prod)
 
-        cls.PROD_4 = rego.Product.objects.create(
-            name="Product 4",
-            description="This is a test product. It costs $5. "
-                        "A user may have 10 of them.",
-            category=cls.CAT_2,
-            price=Decimal("5.00"),
-            limit_per_user=10,
-            order=10,
-        )
+        cls.PROD_1 = cls.products[0]
+        cls.PROD_2 = cls.products[1]
+        cls.PROD_3 = cls.products[2]
+        cls.PROD_4 = cls.products[3]
+
+        cls.PROD_4.price = Decimal("5.00")
         cls.PROD_4.save()
 
     @classmethod
@@ -205,7 +179,7 @@ class BasicCartTests(RegistrationCartTestCase):
         current_cart.set_quantity(self.PROD_1, 2)
         self.assertEqual(2, get_item().quantity)
 
-    def test_add_to_cart_per_user_limit(self):
+    def test_add_to_cart_product_per_user_limit(self):
         current_cart = CartController.for_user(self.USER_1)
 
         # User should be able to add 1 of PROD_1 to the current cart.
@@ -231,3 +205,86 @@ class BasicCartTests(RegistrationCartTestCase):
         # Second user should not be affected by first user's limits
         second_user_cart = CartController.for_user(self.USER_2)
         second_user_cart.add_to_cart(self.PROD_1, 10)
+
+    def set_limits(self):
+        self.CAT_2.limit_per_user = 10
+        self.PROD_2.limit_per_user = None
+        self.PROD_3.limit_per_user = None
+        self.PROD_4.limit_per_user = 6
+
+        self.CAT_2.save()
+        self.PROD_2.save()
+        self.PROD_3.save()
+        self.PROD_4.save()
+
+    def test_per_user_product_limit_ignored_if_blank(self):
+        self.set_limits()
+
+        current_cart = CartController.for_user(self.USER_1)
+        # There is no product limit on PROD_2, and there is no cat limit
+        current_cart.add_to_cart(self.PROD_2, 1)
+        # There is no product limit on PROD_3, but there is a cat limit
+        current_cart.add_to_cart(self.PROD_3, 1)
+
+    def test_per_user_category_limit_ignored_if_blank(self):
+        self.set_limits()
+        current_cart = CartController.for_user(self.USER_1)
+        # There is no product limit on PROD_2, and there is no cat limit
+        current_cart.add_to_cart(self.PROD_2, 1)
+        # There is no cat limit on PROD_1, but there is a prod limit
+        current_cart.add_to_cart(self.PROD_1, 1)
+
+    def test_per_user_category_limit_only(self):
+        self.set_limits()
+
+        current_cart = CartController.for_user(self.USER_1)
+
+        # Cannot add to cart if category limit is filled by one product.
+        current_cart.set_quantity(self.PROD_3, 10)
+        with self.assertRaises(ValidationError):
+            current_cart.set_quantity(self.PROD_4, 1)
+
+        # Can add to cart if category limit is not filled by one product
+        current_cart.set_quantity(self.PROD_3, 5)
+        current_cart.set_quantity(self.PROD_4, 5)
+        # Cannot add to cart if category limit is filled by two products
+        with self.assertRaises(ValidationError):
+            current_cart.add_to_cart(self.PROD_3, 1)
+
+        current_cart.cart.active = False
+        current_cart.cart.save()
+
+        current_cart = CartController.for_user(self.USER_1)
+        # The category limit should extend across carts
+        with self.assertRaises(ValidationError):
+            current_cart.add_to_cart(self.PROD_3, 10)
+
+    def test_per_user_category_and_product_limits(self):
+        self.set_limits()
+
+        current_cart = CartController.for_user(self.USER_1)
+
+        # Hit both the product and category edges:
+        current_cart.set_quantity(self.PROD_3, 4)
+        current_cart.set_quantity(self.PROD_4, 6)
+        with self.assertRaises(ValidationError):
+            # There's unlimited PROD_3, but limited in the category
+            current_cart.add_to_cart(self.PROD_3, 1)
+
+        current_cart.set_quantity(self.PROD_3, 0)
+        with self.assertRaises(ValidationError):
+            # There's only 6 allowed of PROD_4
+            current_cart.add_to_cart(self.PROD_4, 1)
+
+        # The limits should extend across carts...
+        current_cart.cart.active = False
+        current_cart.cart.save()
+
+        current_cart = CartController.for_user(self.USER_1)
+        current_cart.set_quantity(self.PROD_3, 4)
+
+        with self.assertRaises(ValidationError):
+            current_cart.set_quantity(self.PROD_3, 5)
+
+        with self.assertRaises(ValidationError):
+            current_cart.set_quantity(self.PROD_4, 1)

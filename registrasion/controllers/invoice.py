@@ -11,6 +11,7 @@ class InvoiceController(object):
 
     def __init__(self, invoice):
         self.invoice = invoice
+        self.update_validity() # Make sure this invoice is up-to-date
 
     @classmethod
     def for_cart(cls, cart):
@@ -24,6 +25,10 @@ class InvoiceController(object):
         except ObjectDoesNotExist:
             cart_controller = CartController(cart)
             cart_controller.validate_cart()  # Raises ValidationError on fail.
+
+            # Void past invoices for this cart
+            invoices = rego.Invoice.objects.filter(cart=cart).update(void=True)
+
             invoice = cls._generate(cart)
 
         return InvoiceController(invoice)
@@ -91,19 +96,17 @@ class InvoiceController(object):
 
         return invoice
 
-    def is_valid(self):
-        ''' Returns true if the attached invoice is not void and it represents
-        a valid cart. '''
-        if self.invoice.void:
-            return False
+    def update_validity(self):
+        ''' Updates the validity of this invoice if the cart it is attached to
+        has updated. '''
         if self.invoice.cart is not None:
             if self.invoice.cart.revision != self.invoice.cart_revision:
-                return False
-        return True
+                self.void()
 
     def void(self):
         ''' Voids the invoice. '''
         self.invoice.void = True
+        self.invoice.save()
 
     def pay(self, reference, amount):
         ''' Pays the invoice by the given amount. If the payment

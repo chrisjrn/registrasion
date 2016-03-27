@@ -120,8 +120,8 @@ def ProductsForm(category, products):
 
     # Each Category.RENDER_TYPE value has a subclass here.
     RENDER_TYPES = {
-        rego.Category.RENDER_TYPE_QUANTITY : _QuantityBoxProductsForm,
-        rego.Category.RENDER_TYPE_RADIO : _RadioButtonProductsForm,
+        rego.Category.RENDER_TYPE_QUANTITY: _QuantityBoxProductsForm,
+        rego.Category.RENDER_TYPE_RADIO: _RadioButtonProductsForm,
     }
 
     # Produce a subclass of _ProductsForm which we can alter the base_fields on

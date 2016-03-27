@@ -185,6 +185,7 @@ def handle_products(request, category, products, prefix):
 
     return products_form, discounts, handled
 
+
 @transaction.atomic
 def set_quantities_from_products_form(products_form, current_cart):
     for product_id, quantity, field_name in products_form.product_quantities():
@@ -196,6 +197,7 @@ def set_quantities_from_products_form(products_form, current_cart):
     if products_form.errors:
         raise ValidationError("Cannot add that stuff")
     current_cart.end_batch()
+
 
 def handle_voucher(request, prefix):
     ''' Handles a voucher form in the given request. Returns the voucher
@@ -224,6 +226,7 @@ def handle_voucher(request, prefix):
         handled = False
 
     return (voucher_form, handled)
+
 
 @login_required
 def checkout(request):

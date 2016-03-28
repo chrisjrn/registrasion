@@ -233,3 +233,41 @@ class EnablingConditionTestCases(RegistrationCartTestCase):
 
         self.assertTrue(self.PROD_1 in prods)
         self.assertTrue(self.PROD_2 in prods)
+
+    def test_category_enabling_condition_fails_if_cart_refunded(self):
+        self.add_category_enabling_condition(mandatory=False)
+
+        cart = CartController.for_user(self.USER_1)
+        cart.add_to_cart(self.PROD_3, 1)
+
+        cart.cart.active = False
+        cart.cart.save()
+
+        cart_2 = CartController.for_user(self.USER_1)
+        cart_2.add_to_cart(self.PROD_1, 1)
+        cart_2.set_quantity(self.PROD_1, 0)
+
+        cart.cart.released = True
+        cart.cart.save()
+
+        with self.assertRaises(ValidationError):
+            cart_2.set_quantity(self.PROD_1, 1)
+
+    def test_product_enabling_condition_fails_if_cart_refunded(self):
+        self.add_product_enabling_condition(mandatory=False)
+
+        cart = CartController.for_user(self.USER_1)
+        cart.add_to_cart(self.PROD_2, 1)
+
+        cart.cart.active = False
+        cart.cart.save()
+
+        cart_2 = CartController.for_user(self.USER_1)
+        cart_2.add_to_cart(self.PROD_1, 1)
+        cart_2.set_quantity(self.PROD_1, 0)
+
+        cart.cart.released = True
+        cart.cart.save()
+
+        with self.assertRaises(ValidationError):
+            cart_2.set_quantity(self.PROD_1, 1)

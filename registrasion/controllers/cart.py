@@ -139,6 +139,7 @@ class CartController(object):
         # It's not valid for users to re-enter a voucher they already have
         user_carts_with_voucher = rego.Cart.objects.filter(
             user=self.cart.user,
+            released=False,
             vouchers=voucher,
         )
         if len(user_carts_with_voucher) > 0:

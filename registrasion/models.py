@@ -413,6 +413,7 @@ class Cart(models.Model):
     reservation_duration = models.DurationField()
     revision = models.PositiveIntegerField(default=1)
     active = models.BooleanField(default=True)
+    released = models.BooleanField(default=False)  # Refunds etc
 
     @classmethod
     def reserved_carts(cls):
@@ -422,7 +423,7 @@ class Cart(models.Model):
                 Q(time_last_updated__gt=(
                     timezone.now()-F('reservation_duration')
                                         ))) |
-            Q(active=False)
+            (Q(active=False) & Q(released=False))
         )
 
 

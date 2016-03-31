@@ -1,4 +1,4 @@
-from django.conf.urls import url, patterns
+from django.conf.urls import url, include, patterns
 
 urlpatterns = patterns(
     "registrasion.views",
@@ -10,4 +10,8 @@ urlpatterns = patterns(
     url(r"^register$", "guided_registration", name="guided_registration"),
     url(r"^register/([0-9]+)$", "guided_registration",
         name="guided_registration"),
+
+
+    # Required by django-nested-admin.
+    url(r'^nested_admin/', include('nested_admin.urls')),
 )

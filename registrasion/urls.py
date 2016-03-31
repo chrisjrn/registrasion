@@ -6,7 +6,7 @@ urlpatterns = patterns(
     url(r"^checkout$", "checkout", name="checkout"),
     url(r"^invoice/([0-9]+)$", "invoice", name="invoice"),
     url(r"^invoice/([0-9]+)/pay$", "pay_invoice", name="pay_invoice"),
-    url(r"^profile$", "edit_profile", name="profile"),
+    url(r"^profile$", "edit_profile", name="attendee_edit"),
     url(r"^register$", "guided_registration", name="guided_registration"),
     url(r"^register/([0-9]+)$", "guided_registration",
         name="guided_registration"),

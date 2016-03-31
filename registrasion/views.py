@@ -82,7 +82,7 @@ def edit_profile(request):
     data = {
         "form": form,
     }
-    return render(request, "profile_form.html", data)
+    return render(request, "registrasion/profile_form.html", data)
 
 
 @login_required
@@ -126,7 +126,7 @@ def product_category(request, category_id):
         "voucher_form": voucher_form,
     }
 
-    return render(request, "product_category.html", data)
+    return render(request, "registrasion/product_category.html", data)
 
 
 def handle_products(request, category, products, prefix):
@@ -188,7 +188,10 @@ def handle_products(request, category, products, prefix):
 
 @transaction.atomic
 def set_quantities_from_products_form(products_form, current_cart):
-    for product_id, quantity, field_name in products_form.product_quantities():
+    # TODO: issue #8 is a problem here.
+    quantities = list(products_form.product_quantities())
+    quantities.sort(key=lambda item: item[1])
+    for product_id, quantity, field_name in quantities:
         product = rego.Product.objects.get(pk=product_id)
         try:
             current_cart.set_quantity(product, quantity, batched=True)
@@ -251,7 +254,7 @@ def invoice(request, invoice_id):
         "invoice": current_invoice.invoice,
     }
 
-    return render(request, "invoice.html", data)
+    return render(request, "registrasion/invoice.html", data)
 
 
 @login_required

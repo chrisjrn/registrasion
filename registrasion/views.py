@@ -188,7 +188,10 @@ def handle_products(request, category, products, prefix):
 
 @transaction.atomic
 def set_quantities_from_products_form(products_form, current_cart):
-    for product_id, quantity, field_name in products_form.product_quantities():
+    # TODO: issue #8 is a problem here.
+    quantities = list(products_form.product_quantities())
+    quantities.sort(key=lambda item: item[1])
+    for product_id, quantity, field_name in quantities:
         product = rego.Product.objects.get(pk=product_id)
         try:
             current_cart.set_quantity(product, quantity, batched=True)

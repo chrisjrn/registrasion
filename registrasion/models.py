@@ -441,16 +441,19 @@ class TimeOrStockLimitEnablingCondition(EnablingConditionBase):
 
     start_time = models.DateTimeField(
         null=True,
+        blank=True,
         help_text=_("Products included in this condition will only be "
                     "available after this time."),
     )
     end_time = models.DateTimeField(
         null=True,
+        blank=True,
         help_text=_("Products included in this condition will only be "
                     "available before this time."),
     )
     limit = models.PositiveIntegerField(
         null=True,
+        blank=True,
         help_text=_("The number of items under this grouping that can be "
                     "purchased."),
     )

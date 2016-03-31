@@ -82,7 +82,7 @@ def edit_profile(request):
     data = {
         "form": form,
     }
-    return render(request, "profile_form.html", data)
+    return render(request, "registrasion/profile_form.html", data)
 
 
 @login_required
@@ -126,7 +126,7 @@ def product_category(request, category_id):
         "voucher_form": voucher_form,
     }
 
-    return render(request, "product_category.html", data)
+    return render(request, "registrasion/product_category.html", data)
 
 
 def handle_products(request, category, products, prefix):
@@ -251,7 +251,7 @@ def invoice(request, invoice_id):
         "invoice": current_invoice.invoice,
     }
 
-    return render(request, "invoice.html", data)
+    return render(request, "registrasion/invoice.html", data)
 
 
 @login_required

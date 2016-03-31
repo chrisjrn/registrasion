@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 
 import datetime
+import itertools
 
 from django.core.exceptions import ValidationError
 from django.core.exceptions import ObjectDoesNotExist
@@ -118,6 +119,9 @@ class BadgeAndProfile(models.Model):
 class Category(models.Model):
     ''' Registration product categories '''
 
+    class Meta:
+        verbose_name_plural = _("categories")
+
     def __str__(self):
         return self.name
 
@@ -129,17 +133,35 @@ class Category(models.Model):
         (RENDER_TYPE_QUANTITY, _("Quantity boxes")),
     ]
 
-    name = models.CharField(max_length=65, verbose_name=_("Name"))
-    description = models.CharField(max_length=255,
-                                   verbose_name=_("Description"))
+    name = models.CharField(
+        max_length=65,
+        verbose_name=_("Name"),
+    )
+    description = models.CharField(
+        max_length=255,
+        verbose_name=_("Description"),
+    )
     limit_per_user = models.PositiveIntegerField(
         null=True,
         blank=True,
-        verbose_name=_("Limit per user"))
-    required = models.BooleanField(blank=True)
-    order = models.PositiveIntegerField(verbose_name=("Display order"))
-    render_type = models.IntegerField(choices=CATEGORY_RENDER_TYPES,
-                                      verbose_name=_("Render type"))
+        verbose_name=_("Limit per user"),
+        help_text=_("The total number of items from this category one "
+                    "attendee may purchase."),
+    )
+    required = models.BooleanField(
+        blank=True,
+        help_text=_("If enabled, a user must select an "
+                    "item from this category."),
+    )
+    order = models.PositiveIntegerField(
+        verbose_name=("Display order"),
+    )
+    render_type = models.IntegerField(
+        choices=CATEGORY_RENDER_TYPES,
+        verbose_name=_("Render type"),
+        help_text=_("The registration form will render this category in this "
+                    "style."),
+    )
 
 
 @python_2_unicode_compatible
@@ -147,23 +169,41 @@ class Product(models.Model):
     ''' Registration products '''
 
     def __str__(self):
-        return self.name
+        return "%s - %s" % (self.category.name, self.name)
 
-    name = models.CharField(max_length=65, verbose_name=_("Name"))
-    description = models.CharField(max_length=255,
-                                   verbose_name=_("Description"))
-    category = models.ForeignKey(Category, verbose_name=_("Product category"))
-    price = models.DecimalField(max_digits=8,
-                                decimal_places=2,
-                                verbose_name=_("Price"))
+    name = models.CharField(
+        max_length=65,
+        verbose_name=_("Name"),
+    )
+    description = models.CharField(
+        max_length=255,
+        verbose_name=_("Description"),
+        null=True,
+        blank=True,
+    )
+    category = models.ForeignKey(
+        Category,
+        verbose_name=_("Product category")
+    )
+    price = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        verbose_name=_("Price"),
+    )
     limit_per_user = models.PositiveIntegerField(
         null=True,
         blank=True,
-        verbose_name=_("Limit per user"))
+        verbose_name=_("Limit per user"),
+    )
     reservation_duration = models.DurationField(
         default=datetime.timedelta(hours=1),
-        verbose_name=_("Reservation duration"))
-    order = models.PositiveIntegerField(verbose_name=("Display order"))
+        verbose_name=_("Reservation duration"),
+        help_text=_("The length of time this product will be reserved before "
+                    "it is released for someone else to purchase."),
+    )
+    order = models.PositiveIntegerField(
+        verbose_name=("Display order"),
+    )
 
 
 @python_2_unicode_compatible
@@ -206,8 +246,18 @@ class DiscountBase(models.Model):
     def __str__(self):
         return "Discount: " + self.description
 
-    description = models.CharField(max_length=255,
-                                   verbose_name=_("Description"))
+    def effects(self):
+        ''' Returns all of the effects of this discount. '''
+        products = self.discountforproduct_set.all()
+        categories = self.discountforcategory_set.all()
+        return itertools.chain(products, categories)
+
+    description = models.CharField(
+        max_length=255,
+        verbose_name=_("Description"),
+        help_text=_("A description of this discount. This will be included on "
+                    "invoices where this discount is applied."),
+        )
 
 
 @python_2_unicode_compatible
@@ -292,11 +342,23 @@ class TimeOrStockLimitDiscount(DiscountBase):
         verbose_name = _("Promotional discount")
 
     start_time = models.DateTimeField(
-        null=True, blank=True, verbose_name=_("Start time"))
+        null=True,
+        blank=True,
+        verbose_name=_("Start time"),
+        help_text=_("This discount will only be available after this time."),
+    )
     end_time = models.DateTimeField(
-        null=True, blank=True, verbose_name=_("End time"))
+        null=True,
+        blank=True,
+        verbose_name=_("End time"),
+        help_text=_("This discount will only be available before this time."),
+    )
     limit = models.PositiveIntegerField(
-        null=True, blank=True, verbose_name=_("Limit"))
+        null=True,
+        blank=True,
+        verbose_name=_("Limit"),
+        help_text=_("This discount may only be applied this many times."),
+    )
 
 
 class VoucherDiscount(DiscountBase):
@@ -306,7 +368,8 @@ class VoucherDiscount(DiscountBase):
     voucher = models.OneToOneField(
         Voucher,
         on_delete=models.CASCADE,
-        verbose_name=_("Voucher"))
+        verbose_name=_("Voucher"),
+    )
 
 
 class IncludedProductDiscount(DiscountBase):
@@ -318,7 +381,10 @@ class IncludedProductDiscount(DiscountBase):
 
     enabling_products = models.ManyToManyField(
         Product,
-        verbose_name=_("Including product"))
+        verbose_name=_("Including product"),
+        help_text=_("If one of these products are purchased, the discounts "
+                    "below will be enabled."),
+    )
 
 
 class RoleDiscount(object):
@@ -340,20 +406,54 @@ class EnablingConditionBase(models.Model):
     objects = InheritanceManager()
 
     def __str__(self):
-        return self.name
+        return self.description
+
+    def effects(self):
+        ''' Returns all of the items enabled by this condition. '''
+        return itertools.chain(self.products.all(), self.categories.all())
 
     description = models.CharField(max_length=255)
-    mandatory = models.BooleanField(default=False)
-    products = models.ManyToManyField(Product, blank=True)
-    categories = models.ManyToManyField(Category, blank=True)
+    mandatory = models.BooleanField(
+        default=False,
+        help_text=_("If there is at least one mandatory condition defined on "
+                    "a product or category, all such conditions must be met. "
+                    "Otherwise, at least one non-mandatory condition must be "
+                    "met."),
+    )
+    products = models.ManyToManyField(
+        Product,
+        blank=True,
+        help_text=_("Products that are enabled if this condition is met."),
+    )
+    categories = models.ManyToManyField(
+        Category,
+        blank=True,
+        help_text=_("Categories whose products are enabled if this condition "
+                    "is met."),
+    )
 
 
 class TimeOrStockLimitEnablingCondition(EnablingConditionBase):
     ''' Registration product ceilings '''
 
-    start_time = models.DateTimeField(null=True, verbose_name=_("Start time"))
-    end_time = models.DateTimeField(null=True, verbose_name=_("End time"))
-    limit = models.PositiveIntegerField(null=True, verbose_name=_("Limit"))
+    class Meta:
+        verbose_name = _("ceiling")
+
+    start_time = models.DateTimeField(
+        null=True,
+        help_text=_("Products included in this condition will only be "
+                    "available after this time."),
+    )
+    end_time = models.DateTimeField(
+        null=True,
+        help_text=_("Products included in this condition will only be "
+                    "available before this time."),
+    )
+    limit = models.PositiveIntegerField(
+        null=True,
+        help_text=_("The number of items under this grouping that can be "
+                    "purchased."),
+    )
 
 
 @python_2_unicode_compatible
@@ -361,9 +461,13 @@ class ProductEnablingCondition(EnablingConditionBase):
     ''' The condition is met because a specific product is purchased. '''
 
     def __str__(self):
-        return "Enabled by product: "
+        return "Enabled by products: " + str(self.enabling_products.all())
 
-    enabling_products = models.ManyToManyField(Product)
+    enabling_products = models.ManyToManyField(
+        Product,
+        help_text=_("If one of these products are purchased, this condition "
+                    "is met."),
+    )
 
 
 @python_2_unicode_compatible
@@ -372,9 +476,13 @@ class CategoryEnablingCondition(EnablingConditionBase):
     purchased. '''
 
     def __str__(self):
-        return "Enabled by product in category: "
+        return "Enabled by product in category: " + str(self.enabling_category)
 
-    enabling_category = models.ForeignKey(Category)
+    enabling_category = models.ForeignKey(
+        Category,
+        help_text=_("If a product from this category is purchased, this "
+                    "condition is met."),
+    )
 
 
 @python_2_unicode_compatible

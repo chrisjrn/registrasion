@@ -1,10 +1,5 @@
-import datetime
 import pytz
 
-from decimal import Decimal
-from django.core.exceptions import ValidationError
-
-from registrasion import models as rego
 from registrasion.controllers.cart import CartController
 from registrasion.controllers.invoice import InvoiceController
 

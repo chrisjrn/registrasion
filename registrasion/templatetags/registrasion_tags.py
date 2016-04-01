@@ -50,6 +50,7 @@ def items_purchased(context):
         out.append(ProductAndQuantity(product, quantity))
     return out
 
+
 @register.filter
 def multiply(value, arg):
     ''' Multiplies value by arg '''

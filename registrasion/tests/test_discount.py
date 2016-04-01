@@ -382,22 +382,34 @@ class DiscountTestCase(RegistrationCartTestCase):
         self.add_discount_prod_1_includes_prod_2(quantity=2)
         cart = CartController.for_user(self.USER_1)
         cart.add_to_cart(self.PROD_1, 1)  # Enable the discount
-        discounts = discount.available_discounts(self.USER_1, [], [self.PROD_2])
+        discounts = discount.available_discounts(
+            self.USER_1,
+            [],
+            [self.PROD_2],
+        )
         self.assertEqual(1, len(discounts))
 
         cart.cart.active = False  # Keep discount enabled
         cart.cart.save()
 
         cart = CartController.for_user(self.USER_1)
-        cart.add_to_cart(self.PROD_2, 2) # The discount will be exhausted
+        cart.add_to_cart(self.PROD_2, 2)  # The discount will be exhausted
         cart.cart.active = False
         cart.cart.save()
 
-        discounts = discount.available_discounts(self.USER_1, [], [self.PROD_2])
+        discounts = discount.available_discounts(
+            self.USER_1,
+            [],
+            [self.PROD_2],
+        )
         self.assertEqual(0, len(discounts))
 
         cart.cart.released = True
         cart.cart.save()
 
-        discounts = discount.available_discounts(self.USER_1, [], [self.PROD_2])
+        discounts = discount.available_discounts(
+            self.USER_1,
+            [],
+            [self.PROD_2],
+        )
         self.assertEqual(1, len(discounts))

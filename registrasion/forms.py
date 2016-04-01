@@ -132,14 +132,6 @@ def ProductsForm(category, products):
     return ProductsForm
 
 
-class ProfileForm(forms.ModelForm):
-    ''' A form for requesting badge and profile information. '''
-
-    class Meta:
-        model = rego.BadgeAndProfile
-        exclude = ['attendee']
-
-
 class VoucherForm(forms.Form):
     voucher = forms.CharField(
         label="Voucher code",

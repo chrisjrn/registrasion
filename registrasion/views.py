@@ -1,3 +1,5 @@
+import sys
+
 from registrasion import forms
 from registrasion import models as rego
 from registrasion.controllers import discount
@@ -7,6 +9,7 @@ from registrasion.controllers.product import ProductController
 
 from collections import namedtuple
 
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
@@ -29,6 +32,12 @@ GuidedRegistrationSection = namedtuple(
 GuidedRegistrationSection.__new__.__defaults__ = (
     (None,) * len(GuidedRegistrationSection._fields)
 )
+
+def get_form(name):
+    dot = name.rindex(".")
+    mod_name, form_name = name[:dot], name[dot + 1:]
+    __import__(mod_name)
+    return getattr(sys.modules[mod_name], form_name)
 
 @login_required
 def guided_registration(request, page_id=0):
@@ -56,7 +65,7 @@ def guided_registration(request, page_id=0):
 
     # Step 1: Fill in a badge and collect a voucher code
     try:
-        profile = attendee.badgeandprofile
+        profile = attendee.attendeeprofilebase
     except ObjectDoesNotExist:
         profile = None
 
@@ -161,13 +170,15 @@ def handle_profile(request, prefix):
     attendee = rego.Attendee.get_instance(request.user)
 
     try:
-        profile = attendee.badgeandprofile
+        profile = attendee.attendeeprofilebase
     except ObjectDoesNotExist:
         profile = None
 
     # TODO: pull down the speaker's real name from the Speaker profile
 
-    form = forms.ProfileForm(
+    ProfileForm = get_form(settings.ATTENDEE_PROFILE_FORM)
+
+    form = ProfileForm(
         request.POST or None,
         instance=profile,
         prefix=prefix

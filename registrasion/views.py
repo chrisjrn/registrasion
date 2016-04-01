@@ -12,6 +12,7 @@ from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.http import Http404
 from django.shortcuts import redirect
 from django.shortcuts import render
 
@@ -335,6 +336,10 @@ def invoice(request, invoice_id):
 
     invoice_id = int(invoice_id)
     inv = rego.Invoice.objects.get(pk=invoice_id)
+
+    if request.user != inv.cart.user and not request.user.is_staff:
+        raise Http404()
+
     current_invoice = InvoiceController(inv)
 
     data = {
@@ -350,11 +355,10 @@ def pay_invoice(request, invoice_id):
     WORK IN PROGRESS FUNCTION. Must be replaced with real payment workflow.
 
     '''
-
     invoice_id = int(invoice_id)
     inv = rego.Invoice.objects.get(pk=invoice_id)
     current_invoice = InvoiceController(inv)
-    if not inv.paid and current_invoice.is_valid():
+    if not current_invoice.invoice.paid and not current_invoice.invoice.void:
         current_invoice.pay("Demo invoice payment", inv.value)
 
     return redirect("invoice", current_invoice.invoice.id)

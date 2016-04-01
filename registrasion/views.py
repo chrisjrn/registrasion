@@ -66,6 +66,16 @@ def guided_registration(request, page_id=0):
 
 @login_required
 def edit_profile(request):
+    form, handled = handle_profile(request, "profile")
+
+    data = {
+        "form": form,
+    }
+    return render(request, "registrasion/profile_form.html", data)
+
+def handle_profile(request, prefix):
+    ''' Returns a profile form instance, and a boolean which is true if the
+    form was handled. '''
     attendee = rego.Attendee.get_instance(request.user)
 
     try:
@@ -73,17 +83,21 @@ def edit_profile(request):
     except ObjectDoesNotExist:
         profile = None
 
-    form = forms.ProfileForm(request.POST or None, instance=profile)
+    # TODO: pull down the speaker's real name from the Speaker profile
+
+    form = forms.ProfileForm(
+        request.POST or None,
+        instance=profile,
+        prefix=prefix
+    )
+
+    handled = True if request.POST else False
 
     if request.POST and form.is_valid():
         form.instance.attendee = attendee
         form.save()
 
-    data = {
-        "form": form,
-    }
-    return render(request, "registrasion/profile_form.html", data)
-
+    return form, handled
 
 @login_required
 def product_category(request, category_id):

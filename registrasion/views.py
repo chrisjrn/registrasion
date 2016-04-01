@@ -1,3 +1,4 @@
+import symposion.speakers
 import sys
 
 from registrasion import forms
@@ -174,12 +175,25 @@ def handle_profile(request, prefix):
     except ObjectDoesNotExist:
         profile = None
 
-    # TODO: pull down the speaker's real name from the Speaker profile
-
     ProfileForm = get_form(settings.ATTENDEE_PROFILE_FORM)
+
+    # Load a pre-entered name from the speaker's profile,
+    # if they have one.
+    try:
+        speaker_profile = request.user.speaker_profile
+        speaker_name = speaker_profile.name
+    except ObjectDoesNotExist:
+        speaker_name = None
+
+
+    name_field = ProfileForm.Meta.model.name_field()
+    initial = {}
+    if name_field is not None:
+        initial[name_field] = speaker_name
 
     form = ProfileForm(
         request.POST or None,
+        initial=initial,
         instance=profile,
         prefix=prefix
     )

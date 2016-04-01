@@ -47,6 +47,12 @@ class AttendeeProfileBase(models.Model):
     registration progess.
      '''
 
+    @classmethod
+    def name_field(cls):
+        ''' This is used to pre-fill the attendee's name from the
+        speaker profile. If it's None, that functionality is disabled. '''
+        return None
+
     attendee = models.OneToOneField(Attendee, on_delete=models.CASCADE)
 
 

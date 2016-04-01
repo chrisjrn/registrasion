@@ -173,6 +173,7 @@ def handle_profile(request, prefix):
 
     try:
         profile = attendee.attendeeprofilebase
+        profile = rego.AttendeeProfileBase.objects.get_subclass(pk=profile.id)
     except ObjectDoesNotExist:
         profile = None
 
@@ -188,7 +189,7 @@ def handle_profile(request, prefix):
 
     name_field = ProfileForm.Meta.model.name_field()
     initial = {}
-    if name_field is not None:
+    if profile is None and name_field is not None:
         initial[name_field] = speaker_name
 
     form = ProfileForm(

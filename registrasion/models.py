@@ -46,6 +46,8 @@ class AttendeeProfileBase(models.Model):
     registration progess.
      '''
 
+    objects = InheritanceManager()
+
     @classmethod
     def name_field(cls):
         ''' This is used to pre-fill the attendee's name from the

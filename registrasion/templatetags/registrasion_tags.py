@@ -49,3 +49,8 @@ def items_purchased(context):
         quantity = pp.aggregate(Sum("quantity"))["quantity__sum"]
         out.append(ProductAndQuantity(product, quantity))
     return out
+
+@register.filter
+def multiply(value, arg):
+    ''' Multiplies value by arg '''
+    return value * arg

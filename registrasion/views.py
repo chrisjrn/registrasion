@@ -5,13 +5,30 @@ from registrasion.controllers.cart import CartController
 from registrasion.controllers.invoice import InvoiceController
 from registrasion.controllers.product import ProductController
 
+from collections import namedtuple
+
 from django.contrib.auth.decorators import login_required
+from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.http import Http404
 from django.shortcuts import redirect
 from django.shortcuts import render
 
+
+GuidedRegistrationSection = namedtuple(
+    "GuidedRegistrationSection",
+    (
+        "title",
+        "discounts",
+        "description",
+        "form",
+    )
+)
+GuidedRegistrationSection.__new__.__defaults__ = (
+    (None,) * len(GuidedRegistrationSection._fields)
+)
 
 @login_required
 def guided_registration(request, page_id=0):
@@ -26,46 +43,118 @@ def guided_registration(request, page_id=0):
     dashboard = redirect("dashboard")
     next_step = redirect("guided_registration")
 
-    attendee = rego.Attendee.get_instance(request.user)
-    if attendee.completed_registration:
-        return dashboard
+    sections = []
 
-    # Step 1: Fill in a badge
+    attendee = rego.Attendee.get_instance(request.user)
+
+    if attendee.completed_registration:
+        return render(
+            request,
+            "registrasion/guided_registration_complete.html",
+            {},
+        )
+
+    # Step 1: Fill in a badge and collect a voucher code
     profile = rego.BadgeAndProfile.get_instance(attendee)
 
     if profile is None:
-        ret = edit_profile(request)
-        profile_new = rego.BadgeAndProfile.get_instance(attendee)
-        if profile_new is None:
-            # No new profile was created
-            return ret
-        else:
+        # TODO: if voucherform is invalid, make sure that profileform does not save
+        voucher_form, voucher_handled = handle_voucher(request, "voucher")
+        profile_form, profile_handled = handle_profile(request, "profile")
+
+        voucher_section = GuidedRegistrationSection(
+            title="Voucher Code",
+            form=voucher_form,
+        )
+
+        profile_section = GuidedRegistrationSection(
+            title="Profile and Personal Information",
+            form=profile_form,
+        )
+
+        title = "Attendee information"
+        current_step = 1
+        sections.append(voucher_section)
+        sections.append(profile_section)
+    else:
+        # We're selling products
+
+        last_category = attendee.highest_complete_category
+
+        # Get the next category
+        cats = rego.Category.objects
+        cats = cats.filter(id__gt=last_category).order_by("order")
+
+        if cats.count() == 0:
+            # We've filled in every category
+            attendee.completed_registration = True
+            attendee.save()
             return next_step
 
-    # Step 2: Go through each of the categories in order
-    category = attendee.highest_complete_category
+        if last_category == 0:
+            # Only display the first Category
+            title = "Select ticket type"
+            current_step = 2
+            cats = [cats[0]]
+        else:
+            # Set title appropriately for remaining categories
+            current_step = 3
+            title = "Additional items"
 
-    # Get the next category
-    cats = rego.Category.objects
-    cats = cats.filter(id__gt=category).order_by("order")
+        for category in cats:
+            products = ProductController.available_products(
+                request.user,
+                category=category,
+            )
 
-    if len(cats) == 0:
-        # We've filled in every category
-        attendee.completed_registration = True
-        attendee.save()
-        return dashboard
+            prefix = "category_" + str(category.id)
+            p = handle_products(request, category, products, prefix)
+            products_form, discounts, products_handled = p
 
-    ret = product_category(request, cats[0].id)
-    attendee_new = rego.Attendee.get_instance(request.user)
-    if attendee_new.highest_complete_category == category:
-        # We've not yet completed this category
-        return ret
-    else:
-        return next_step
+            section = GuidedRegistrationSection(
+                title=category.name,
+                description=category.description,
+                discounts=discounts,
+                form=products_form,
+            )
+            sections.append(section)
+
+            if request.method == "POST" and not products_form.errors:
+                if category.id > attendee.highest_complete_category:
+                    # This is only saved if we pass each form with no errors.
+                    attendee.highest_complete_category = category.id
+
+
+    if sections and request.method == "POST":
+        for section in sections:
+            if section.form.errors:
+                break
+        else:
+            attendee.save()
+            # We've successfully processed everything
+            return next_step
+
+    data = {
+        "current_step": current_step,
+        "sections": sections,
+        "title" : title,
+        "total_steps": 3,
+    }
+    return render(request, "registrasion/guided_registration.html", data)
 
 
 @login_required
 def edit_profile(request):
+    form, handled = handle_profile(request, "profile")
+
+    data = {
+        "form": form,
+    }
+    return render(request, "registrasion/profile_form.html", data)
+
+def handle_profile(request, prefix):
+    ''' Returns a profile form instance, and a boolean which is true if the
+    form was handled. '''
     attendee = rego.Attendee.get_instance(request.user)
 
     try:
@@ -73,17 +162,21 @@ def edit_profile(request):
     except ObjectDoesNotExist:
         profile = None
 
-    form = forms.ProfileForm(request.POST or None, instance=profile)
+    # TODO: pull down the speaker's real name from the Speaker profile
+
+    form = forms.ProfileForm(
+        request.POST or None,
+        instance=profile,
+        prefix=prefix
+    )
+
+    handled = True if request.POST else False
 
     if request.POST and form.is_valid():
         form.instance.attendee = attendee
         form.save()
 
-    data = {
-        "form": form,
-    }
-    return render(request, "registrasion/profile_form.html", data)
-
+    return form, handled
 
 @login_required
 def product_category(request, category_id):
@@ -112,11 +205,6 @@ def product_category(request, category_id):
     if request.POST and not voucher_handled and not products_form.errors:
         # Only return to the dashboard if we didn't add a voucher code
         # and if there's no errors in the products form
-
-        attendee = rego.Attendee.get_instance(request.user)
-        if category_id > attendee.highest_complete_category:
-            attendee.highest_complete_category = category_id
-            attendee.save()
         return redirect("dashboard")
 
     data = {
@@ -248,6 +336,10 @@ def invoice(request, invoice_id):
 
     invoice_id = int(invoice_id)
     inv = rego.Invoice.objects.get(pk=invoice_id)
+
+    if request.user != inv.cart.user and not request.user.is_staff:
+        raise Http404()
+
     current_invoice = InvoiceController(inv)
 
     data = {
@@ -263,11 +355,10 @@ def pay_invoice(request, invoice_id):
     WORK IN PROGRESS FUNCTION. Must be replaced with real payment workflow.
 
     '''
-
     invoice_id = int(invoice_id)
     inv = rego.Invoice.objects.get(pk=invoice_id)
     current_invoice = InvoiceController(inv)
-    if not inv.paid and current_invoice.is_valid():
+    if not current_invoice.invoice.paid and not current_invoice.invoice.void:
         current_invoice.pay("Demo invoice payment", inv.value)
 
     return redirect("invoice", current_invoice.invoice.id)

@@ -57,6 +57,11 @@ class BadgeAndProfile(models.Model):
         except ObjectDoesNotExist:
             return None
 
+    def save(self):
+        if not self.name_per_invoice:
+            self.name_per_invoice = self.name
+        super(BadgeAndProfile, self).save()
+
     attendee = models.OneToOneField(Attendee, on_delete=models.CASCADE)
 
     # Things that appear on badge

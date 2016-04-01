@@ -1,3 +1,6 @@
+import symposion.speakers
+import sys
+
 from registrasion import forms
 from registrasion import models as rego
 from registrasion.controllers import discount
@@ -7,6 +10,7 @@ from registrasion.controllers.product import ProductController
 
 from collections import namedtuple
 
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
@@ -29,6 +33,12 @@ GuidedRegistrationSection = namedtuple(
 GuidedRegistrationSection.__new__.__defaults__ = (
     (None,) * len(GuidedRegistrationSection._fields)
 )
+
+def get_form(name):
+    dot = name.rindex(".")
+    mod_name, form_name = name[:dot], name[dot + 1:]
+    __import__(mod_name)
+    return getattr(sys.modules[mod_name], form_name)
 
 @login_required
 def guided_registration(request, page_id=0):
@@ -55,9 +65,12 @@ def guided_registration(request, page_id=0):
         )
 
     # Step 1: Fill in a badge and collect a voucher code
-    profile = rego.BadgeAndProfile.get_instance(attendee)
+    try:
+        profile = attendee.attendeeprofilebase
+    except ObjectDoesNotExist:
+        profile = None
 
-    if profile is None:
+    if not profile:
         # TODO: if voucherform is invalid, make sure that profileform does not save
         voucher_form, voucher_handled = handle_voucher(request, "voucher")
         profile_form, profile_handled = handle_profile(request, "profile")
@@ -158,14 +171,29 @@ def handle_profile(request, prefix):
     attendee = rego.Attendee.get_instance(request.user)
 
     try:
-        profile = rego.BadgeAndProfile.objects.get(attendee=attendee)
+        profile = attendee.attendeeprofilebase
     except ObjectDoesNotExist:
         profile = None
 
-    # TODO: pull down the speaker's real name from the Speaker profile
+    ProfileForm = get_form(settings.ATTENDEE_PROFILE_FORM)
 
-    form = forms.ProfileForm(
+    # Load a pre-entered name from the speaker's profile,
+    # if they have one.
+    try:
+        speaker_profile = request.user.speaker_profile
+        speaker_name = speaker_profile.name
+    except ObjectDoesNotExist:
+        speaker_name = None
+
+
+    name_field = ProfileForm.Meta.model.name_field()
+    initial = {}
+    if name_field is not None:
+        initial[name_field] = speaker_name
+
+    form = ProfileForm(
         request.POST or None,
+        initial=initial,
         instance=profile,
         prefix=prefix
     )

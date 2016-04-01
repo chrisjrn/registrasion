@@ -55,9 +55,12 @@ def guided_registration(request, page_id=0):
         )
 
     # Step 1: Fill in a badge and collect a voucher code
-    profile = rego.BadgeAndProfile.get_instance(attendee)
+    try:
+        profile = attendee.badgeandprofile
+    except ObjectDoesNotExist:
+        profile = None
 
-    if profile is None:
+    if not profile:
         # TODO: if voucherform is invalid, make sure that profileform does not save
         voucher_form, voucher_handled = handle_voucher(request, "voucher")
         profile_form, profile_handled = handle_profile(request, "profile")
@@ -158,7 +161,7 @@ def handle_profile(request, prefix):
     attendee = rego.Attendee.get_instance(request.user)
 
     try:
-        profile = rego.BadgeAndProfile.objects.get(attendee=attendee)
+        profile = attendee.badgeandprofile
     except ObjectDoesNotExist:
         profile = None
 

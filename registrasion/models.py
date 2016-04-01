@@ -48,15 +48,6 @@ class BadgeAndProfile(models.Model):
     def __str__(self):
         return "Badge for: %s of %s" % (self.name, self.company)
 
-    @staticmethod
-    def get_instance(attendee):
-        ''' Returns either None, or the instance that belongs
-        to this attendee. '''
-        try:
-            return BadgeAndProfile.objects.get(attendee=attendee)
-        except ObjectDoesNotExist:
-            return None
-
     def save(self):
         if not self.name_per_invoice:
             self.name_per_invoice = self.name

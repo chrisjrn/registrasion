@@ -79,7 +79,7 @@ class ProductController(object):
 
         for condition in conditions:
             cond = ConditionController.for_condition(condition)
-            met = cond.is_met(user, quantity)
+            met = cond.is_met(user)
 
             if condition.mandatory and not met:
                 mandatory_violated = True

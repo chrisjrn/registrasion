@@ -117,7 +117,18 @@ class CartController(object):
                     )
                 )
 
+        product_quantities_all = list(product_quantities) + [
+            (i.product, i.quantity) for i in items_in_cart.all()
+        ]
+
         # Test each enabling condition here
+        errs = ConditionController.test_enabling_conditions(
+            self.cart.user,
+            product_quantities=product_quantities_all,
+        )
+
+        if errs:
+            raise ValidationError("Whoops")
 
         for product, quantity in product_quantities:
             self._set_quantity_old(product, quantity)
@@ -161,10 +172,6 @@ class CartController(object):
         # Validate the addition to the cart
         adjustment = quantity - old_quantity
         prod = ProductController(product)
-
-        if not prod.can_add_with_enabling_conditions(
-                self.cart.user, adjustment):
-            raise ValidationError("Not enough of that product left (ec)")
 
         product_item.quantity = quantity
         product_item.save()
@@ -245,7 +252,7 @@ class CartController(object):
 
             quantity = 0 if is_reserved else discount_item.quantity
 
-            if not cond.is_met(self.cart.user, quantity):
+            if not cond.is_met(self.cart.user): # TODO: REPLACE WITH QUANTITY CHECKER WHEN FIXING CEILINGS
                 raise ValidationError("Discounts are no longer available")
 
     def recalculate_discounts(self):

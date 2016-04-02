@@ -52,9 +52,9 @@ class ProductController(object):
         prod_count = prod_items.aggregate(Sum("quantity"))["quantity__sum"]
         cat_count = cat_items.aggregate(Sum("quantity"))["quantity__sum"]
 
-        if prod_count == None:
+        if prod_count is None:
             prod_count = 0
-        if cat_count == None:
+        if cat_count is None:
             cat_count = 0
 
         prod_limit = self.product.limit_per_user

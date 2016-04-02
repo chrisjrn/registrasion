@@ -4,6 +4,7 @@ from django.db.models import Q
 from django.db.models import Sum
 from registrasion import models as rego
 
+from category import CategoryController
 from conditions import ConditionController
 
 
@@ -32,6 +33,7 @@ class ProductController(object):
         out = [
             product
             for product in all_products
+            if CategoryController(product.category).user_quantity_remaining(user) > 0
             if cls(product).user_can_add_within_limit(user, 1, past_carts=True)
             if cls(product).can_add_with_enabling_conditions(user, 0)
         ]
@@ -54,23 +56,14 @@ class ProductController(object):
         )
 
         prod_items = items.filter(product=self.product)
-        cat_items = items.filter(product__category=self.product.category)
 
         prod_count = prod_items.aggregate(Sum("quantity"))["quantity__sum"]
-        cat_count = cat_items.aggregate(Sum("quantity"))["quantity__sum"]
-
-        if prod_count is None:
-            prod_count = 0
-        if cat_count is None:
-            cat_count = 0
+        prod_count = prod_count or 0
 
         prod_limit = self.product.limit_per_user
         prod_met = prod_limit is None or quantity + prod_count <= prod_limit
 
-        cat_limit = self.product.category.limit_per_user
-        cat_met = cat_limit is None or quantity + cat_count <= cat_limit
-
-        if prod_met and cat_met:
+        if prod_met:
             return True
         else:
             return False

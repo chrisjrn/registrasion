@@ -1,14 +1,16 @@
+import collections
 import datetime
 import discount
 
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import Max
+from django.db.models import Max, Sum
 from django.utils import timezone
 
 from registrasion import models as rego
 
+from category import CategoryController
 from conditions import ConditionController
 from product import ProductController
 
@@ -71,11 +73,39 @@ class CartController(object):
     @transaction.atomic
     def set_quantities(self, product_quantities):
 
+        items_in_cart = rego.ProductItem.objects.filter(cart=self.cart)
+
         # Remove all items that we're updating
-        rego.ProductItem.objects.filter(
-            cart=self.cart,
+        items_in_cart.filter(
             product__in=(i[0] for i in product_quantities),
         ).delete()
+
+        # Collect by category
+        by_cat = collections.defaultdict(list)
+        for product, quantity in product_quantities:
+            by_cat[product.category].append((product, quantity))
+
+        # Test each category limit here
+        for cat in by_cat:
+            ctrl = CategoryController(cat)
+            limit = ctrl.user_quantity_remaining(self.cart.user)
+
+            # Get the amount so far in the cart
+            cat_items = items_in_cart.filter(product__category=cat)
+            so_far = cat_items.aggregate(Sum("quantity"))["quantity__sum"] or 0
+            to_add = sum(i[1] for i in by_cat[cat])
+
+            if so_far + to_add > limit:
+                # TODO: batch errors
+                raise ValidationError(
+                    "You may only have %d items in category: %s" % (
+                        limit, cat.name,
+                    )
+                )
+
+        # Test each product limit here
+
+        # Test each enabling condition here
 
         for product, quantity in product_quantities:
             self._set_quantity_old(product, quantity)
@@ -86,7 +116,7 @@ class CartController(object):
         ''' Sets the _quantity_ of the given _product_ in the cart to the given
         _quantity_. '''
 
-        self.set_quantities( ((product,quantity),) )
+        self.set_quantities(((product, quantity),))
 
     def _set_quantity_old(self, product, quantity):
         ''' Sets the _quantity_ of the given _product_ in the cart to the given

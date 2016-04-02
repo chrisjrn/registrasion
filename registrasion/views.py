@@ -121,6 +121,10 @@ def guided_registration(request, page_id=0):
                 category=category,
             )
 
+            if not products:
+                # This product category does not exist for this user
+                continue
+
             prefix = "category_" + str(category.id)
             p = handle_products(request, category, products, prefix)
             products_form, discounts, products_handled = p
@@ -159,6 +163,13 @@ def guided_registration(request, page_id=0):
 @login_required
 def edit_profile(request):
     form, handled = handle_profile(request, "profile")
+
+    if handled and not form.errors:
+        messages.success(
+            request,
+            "Your attendee profile was updated.",
+        )
+        return redirect("dashboard")
 
     data = {
         "form": form,
@@ -229,12 +240,23 @@ def product_category(request, category_id):
         category=category,
     )
 
+    if not products:
+        messages.warning(
+            request,
+            "There are no products available from category: "+ category.name,
+        )
+        return redirect("dashboard")
+
     p = handle_products(request, category, products, PRODUCTS_FORM_PREFIX)
     products_form, discounts, products_handled = p
 
     if request.POST and not voucher_handled and not products_form.errors:
         # Only return to the dashboard if we didn't add a voucher code
         # and if there's no errors in the products form
+        messages.success(
+            request,
+            "Your reservations have been updated.",
+        )
         return redirect("dashboard")
 
     data = {

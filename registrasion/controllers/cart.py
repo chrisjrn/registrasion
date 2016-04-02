@@ -3,6 +3,7 @@ import discount
 
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.db.models import Max
 from django.utils import timezone
 
@@ -57,14 +58,37 @@ class CartController(object):
 
     def end_batch(self):
         ''' Performs operations that occur occur at the end of a batch of
-        product changes/voucher applications etc. '''
+        product changes/voucher applications etc.
+        THIS SHOULD BE PRIVATE
+        '''
+
         self.recalculate_discounts()
 
         self.extend_reservation()
         self.cart.revision += 1
         self.cart.save()
 
+    @transaction.atomic
+    def set_quantities(self, product_quantities):
+
+        # Remove all items that we're updating
+        rego.ProductItem.objects.filter(
+            cart=self.cart,
+            product__in=(i[0] for i in product_quantities),
+        ).delete()
+
+        for product, quantity in product_quantities:
+            self._set_quantity_old(product, quantity)
+
+        self.end_batch()
+
     def set_quantity(self, product, quantity, batched=False):
+        ''' Sets the _quantity_ of the given _product_ in the cart to the given
+        _quantity_. '''
+
+        self.set_quantities( ((product,quantity),) )
+
+    def _set_quantity_old(self, product, quantity):
         ''' Sets the _quantity_ of the given _product_ in the cart to the given
         _quantity_. '''
 
@@ -105,9 +129,6 @@ class CartController(object):
 
         product_item.quantity = quantity
         product_item.save()
-
-        if not batched:
-            self.end_batch()
 
     def add_to_cart(self, product, quantity):
         ''' Adds _quantity_ of the given _product_ to the cart. Raises

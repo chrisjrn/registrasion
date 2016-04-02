@@ -158,7 +158,7 @@ class CategoryConditionController(ConditionController):
             category=self.condition.enabling_category,
         )
         products_count = rego.ProductItem.objects.filter(
-            cart=carts,
+            cart__in=carts,
             product__in=enabling_products,
         ).count()
         return products_count > 0
@@ -177,7 +177,7 @@ class ProductConditionController(ConditionController):
 
         carts = rego.Cart.objects.filter(user=user, released=False)
         products_count = rego.ProductItem.objects.filter(
-            cart=carts,
+            cart__in=carts,
             product__in=self.condition.enabling_products.all(),
         ).count()
         return products_count > 0
@@ -247,7 +247,7 @@ class TimeOrStockLimitConditionController(ConditionController):
         product_items = rego.ProductItem.objects.filter(
             product__in=self._products().all(),
         )
-        product_items = product_items.filter(cart=reserved_carts)
+        product_items = product_items.filter(cart__in=reserved_carts)
 
         count = product_items.aggregate(Sum("quantity"))["quantity__sum"] or 0
 

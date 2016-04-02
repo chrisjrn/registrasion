@@ -72,6 +72,15 @@ class RegistrationCartTestCase(SetTimeMixin, TestCase):
         cls.PROD_4.price = Decimal("5.00")
         cls.PROD_4.save()
 
+        # Burn through some carts -- this made some past EC tests fail
+        current_cart = CartController.for_user(cls.USER_1)
+        current_cart.cart.active = False
+        current_cart.cart.save()
+
+        current_cart = CartController.for_user(cls.USER_2)
+        current_cart.cart.active = False
+        current_cart.cart.save()
+
     @classmethod
     def make_ceiling(cls, name, limit=None, start_time=None, end_time=None):
         limit_ceiling = rego.TimeOrStockLimitEnablingCondition.objects.create(

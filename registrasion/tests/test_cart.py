@@ -293,10 +293,11 @@ class BasicCartTests(RegistrationCartTestCase):
     def __available_products_test(self, item, quantity):
         self.set_limits()
 
-        get_prods = lambda: ProductController.available_products(
-            self.USER_1,
-            products=[self.PROD_2, self.PROD_3, self.PROD_4],
-        )
+        def get_prods():
+            return ProductController.available_products(
+                self.USER_1,
+                products=[self.PROD_2, self.PROD_3, self.PROD_4],
+            )
 
         current_cart = CartController.for_user(self.USER_1)
         prods = get_prods()

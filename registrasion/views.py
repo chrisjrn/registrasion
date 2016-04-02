@@ -243,7 +243,7 @@ def product_category(request, category_id):
     if not products:
         messages.warning(
             request,
-            "There are no products available from category: "+ category.name,
+            "There are no products available from category: " + category.name,
         )
         return redirect("dashboard")
 

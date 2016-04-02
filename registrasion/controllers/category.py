@@ -2,8 +2,10 @@ from .product import ProductController
 
 from registrasion import models as rego
 
+
 class AllProducts(object):
     pass
+
 
 class CategoryController(object):
 

@@ -121,10 +121,6 @@ def guided_registration(request, page_id=0):
                 category=category,
             )
 
-            if not products:
-                # This product category does not exist for this user
-                continue
-
             prefix = "category_" + str(category.id)
             p = handle_products(request, category, products, prefix)
             products_form, discounts, products_handled = p
@@ -135,7 +131,9 @@ def guided_registration(request, page_id=0):
                 discounts=discounts,
                 form=products_form,
             )
-            sections.append(section)
+            if products:
+                # This product category does not exist for this user
+                sections.append(section)
 
             if request.method == "POST" and not products_form.errors:
                 if category.id > attendee.highest_complete_category:
@@ -323,10 +321,8 @@ def handle_products(request, category, products, prefix):
 
 
 def set_quantities_from_products_form(products_form, current_cart):
-    # TODO: issue #8 is a problem here.
-    quantities = list(products_form.product_quantities())
-    quantities.sort(key=lambda item: item[1])
 
+    quantities = products_form.product_quantities()
     product_quantities = [
         (rego.Product.objects.get(pk=i[0]), i[1]) for i in quantities
     ]

@@ -9,6 +9,7 @@ from django.test import TestCase
 
 from registrasion import models as rego
 from registrasion.controllers.cart import CartController
+from registrasion.controllers.product import ProductController
 
 from patch_datetime import SetTimeMixin
 
@@ -288,3 +289,31 @@ class BasicCartTests(RegistrationCartTestCase):
 
         with self.assertRaises(ValidationError):
             current_cart.set_quantity(self.PROD_4, 1)
+
+    def __available_products_test(self, item, quantity):
+        self.set_limits()
+
+        get_prods = lambda: ProductController.available_products(
+            self.USER_1,
+            products=[self.PROD_2, self.PROD_3, self.PROD_4],
+        )
+
+        current_cart = CartController.for_user(self.USER_1)
+        prods = get_prods()
+        self.assertTrue(item in prods)
+        current_cart.add_to_cart(item, quantity)
+        self.assertTrue(item in prods)
+
+        current_cart.cart.active = False
+        current_cart.cart.save()
+
+        current_cart = CartController.for_user(self.USER_1)
+
+        prods = get_prods()
+        self.assertTrue(item not in prods)
+
+    def test_available_products_respects_category_limits(self):
+        self.__available_products_test(self.PROD_3, 10)
+
+    def test_available_products_respects_product_limits(self):
+        self.__available_products_test(self.PROD_4, 6)

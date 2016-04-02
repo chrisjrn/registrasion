@@ -21,6 +21,4 @@ class CategoryController(object):
             products=products,
         )
 
-        print available
-
         return set(i.category for i in available)

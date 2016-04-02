@@ -81,6 +81,17 @@ class CartController(object):
             product__in=(i[0] for i in product_quantities),
         ).delete()
 
+        all_product_quantities = list(product_quantities) + [
+            (i.product, i.quantity) for i in items_in_cart.all()
+        ]
+        self._test_limits(all_product_quantities)
+
+        for product, quantity in product_quantities:
+            self._set_quantity_old(product, quantity)
+
+        self.end_batch()
+
+    def _test_limits(self, product_quantities):
         # Collect by category
         by_cat = collections.defaultdict(list)
         for product, quantity in product_quantities:
@@ -92,11 +103,9 @@ class CartController(object):
             limit = ctrl.user_quantity_remaining(self.cart.user)
 
             # Get the amount so far in the cart
-            cat_items = items_in_cart.filter(product__category=cat)
-            so_far = cat_items.aggregate(Sum("quantity"))["quantity__sum"] or 0
             to_add = sum(i[1] for i in by_cat[cat])
 
-            if so_far + to_add > limit:
+            if to_add > limit:
                 # TODO: batch errors
                 raise ValidationError(
                     "You may only have %d items in category: %s" % (
@@ -117,23 +126,15 @@ class CartController(object):
                     )
                 )
 
-        product_quantities_all = list(product_quantities) + [
-            (i.product, i.quantity) for i in items_in_cart.all()
-        ]
-
-        # Test each enabling condition here
+        # Test the enabling conditions
         errs = ConditionController.test_enabling_conditions(
             self.cart.user,
-            product_quantities=product_quantities_all,
+            product_quantities=product_quantities,
         )
 
         if errs:
-            raise ValidationError("Whoops")
-
-        for product, quantity in product_quantities:
-            self._set_quantity_old(product, quantity)
-
-        self.end_batch()
+            # TODO: batch errors
+            raise ValidationError("An enabling condition failed")
 
     def set_quantity(self, product, quantity, batched=False):
         ''' Sets the _quantity_ of the given _product_ in the cart to the given
@@ -225,17 +226,9 @@ class CartController(object):
         # TODO: validate vouchers
 
         items = rego.ProductItem.objects.filter(cart=self.cart)
-        for item in items:
-            # NOTE: per-user limits are tested at add time
-            # and are unliklely to change
-            prod = ProductController(item.product)
 
-            # If the cart is not reserved, we need to see if we can re-reserve
-            quantity = 0 if is_reserved else item.quantity
-
-            if not prod.can_add_with_enabling_conditions(
-                    self.cart.user, quantity):
-                raise ValidationError("Products are no longer available")
+        product_quantities = list((i.product, i.quantity) for i in items)
+        self._test_limits(product_quantities)
 
         # Validate the discounts
         discount_items = rego.DiscountItem.objects.filter(cart=self.cart)
@@ -250,9 +243,7 @@ class CartController(object):
                 pk=discount.pk)
             cond = ConditionController.for_condition(real_discount)
 
-            quantity = 0 if is_reserved else discount_item.quantity
-
-            if not cond.is_met(self.cart.user): # TODO: REPLACE WITH QUANTITY CHECKER WHEN FIXING CEILINGS
+            if not cond.is_met(self.cart.user):
                 raise ValidationError("Discounts are no longer available")
 
     def recalculate_discounts(self):

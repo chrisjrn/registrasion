@@ -299,12 +299,8 @@ def handle_products(request, category, products, prefix):
     )
 
     if request.method == "POST" and products_form.is_valid():
-        try:
-            if products_form.has_changed():
-                set_quantities_from_products_form(products_form, current_cart)
-        except ValidationError:
-            # There were errors, but they've already been added to the form.
-            pass
+        if products_form.has_changed():
+            set_quantities_from_products_form(products_form, current_cart)
 
         # If category is required, the user must have at least one
         # in an active+valid cart
@@ -326,20 +322,19 @@ def handle_products(request, category, products, prefix):
     return products_form, discounts, handled
 
 
-@transaction.atomic
 def set_quantities_from_products_form(products_form, current_cart):
     # TODO: issue #8 is a problem here.
     quantities = list(products_form.product_quantities())
     quantities.sort(key=lambda item: item[1])
-    for product_id, quantity, field_name in quantities:
-        product = rego.Product.objects.get(pk=product_id)
-        try:
-            current_cart.set_quantity(product, quantity, batched=True)
-        except ValidationError as ve:
-            products_form.add_error(field_name, ve)
-    if products_form.errors:
-        raise ValidationError("Cannot add that stuff")
-    current_cart.end_batch()
+
+    product_quantities = [
+        (rego.Product.objects.get(pk=i[0]), i[1]) for i in quantities
+    ]
+
+    try:
+        current_cart.set_quantities(product_quantities)
+    except ValidationError as ve:
+        products_form.add_error(None, ve)
 
 
 def handle_voucher(request, prefix):

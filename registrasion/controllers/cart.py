@@ -70,6 +70,7 @@ class CartController(object):
         self.cart.revision += 1
         self.cart.save()
 
+
     @transaction.atomic
     def set_quantities(self, product_quantities):
 
@@ -104,6 +105,17 @@ class CartController(object):
                 )
 
         # Test each product limit here
+        for product, quantity in product_quantities:
+            prod = ProductController(product)
+            limit = prod.user_quantity_remaining(self.cart.user)
+
+            if quantity > limit:
+                # TODO: batch errors
+                raise ValidationError(
+                    "You may only have %d of product: %s" % (
+                        limit, cat.name,
+                    )
+                )
 
         # Test each enabling condition here
 
@@ -153,9 +165,6 @@ class CartController(object):
         if not prod.can_add_with_enabling_conditions(
                 self.cart.user, adjustment):
             raise ValidationError("Not enough of that product left (ec)")
-
-        if not prod.user_can_add_within_limit(self.cart.user, adjustment):
-            raise ValidationError("Not enough of that product left (user)")
 
         product_item.quantity = quantity
         product_item.save()

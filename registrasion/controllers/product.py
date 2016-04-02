@@ -34,39 +34,36 @@ class ProductController(object):
             product
             for product in all_products
             if CategoryController(product.category).user_quantity_remaining(user) > 0
-            if cls(product).user_can_add_within_limit(user, 1, past_carts=True)
+            if cls(product).user_quantity_remaining(user) > 0
             if cls(product).can_add_with_enabling_conditions(user, 0)
         ]
         out.sort(key=lambda product: product.order)
         return out
 
-    def user_can_add_within_limit(self, user, quantity, past_carts=False):
-        ''' Return true if the user is able to add _quantity_ to their count of
-        this Product without exceeding _limit_per_user_.'''
+    def user_quantity_remaining(self, user):
+        ''' Returns the quantity of this product that the user add in the
+        current cart. '''
+
+        prod_limit = self.product.limit_per_user
+
+        if prod_limit is None:
+            # Don't need to run the remaining queries
+            return 999999  # We can do better
 
         carts = rego.Cart.objects.filter(
             user=user,
+            active=False,
             released=False,
         )
-        if past_carts:
-            carts = carts.filter(active=False)
 
         items = rego.ProductItem.objects.filter(
             cart__in=carts,
+            product=self.product,
         )
 
-        prod_items = items.filter(product=self.product)
+        prod_count = items.aggregate(Sum("quantity"))["quantity__sum"] or 0
 
-        prod_count = prod_items.aggregate(Sum("quantity"))["quantity__sum"]
-        prod_count = prod_count or 0
-
-        prod_limit = self.product.limit_per_user
-        prod_met = prod_limit is None or quantity + prod_count <= prod_limit
-
-        if prod_met:
-            return True
-        else:
-            return False
+        return prod_limit - prod_count
 
     def can_add_with_enabling_conditions(self, user, quantity):
         ''' Returns true if the user is able to add _quantity_ to their count

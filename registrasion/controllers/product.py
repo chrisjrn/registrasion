@@ -30,14 +30,20 @@ class ProductController(object):
         if products is not None:
             all_products = itertools.chain(all_products, products)
 
-        out = [
+        passed_limits = set(
             product
             for product in all_products
             if CategoryController(product.category).user_quantity_remaining(user) > 0
             if cls(product).user_quantity_remaining(user) > 0
-            if cls(product).can_add_with_enabling_conditions(user, 0)
-        ]
+        )
+
+        failed_conditions = set(ConditionController.test_enabling_conditions(
+            user, products=passed_limits
+        ))
+
+        out = list(passed_limits - failed_conditions)
         out.sort(key=lambda product: product.order)
+        
         return out
 
     def user_quantity_remaining(self, user):

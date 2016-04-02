@@ -32,16 +32,23 @@ class ProductController(object):
         out = [
             product
             for product in all_products
+            if cls(product).user_can_add_within_limit(user, 1, past_carts=True)
             if cls(product).can_add_with_enabling_conditions(user, 0)
         ]
         out.sort(key=lambda product: product.order)
         return out
 
-    def user_can_add_within_limit(self, user, quantity):
+    def user_can_add_within_limit(self, user, quantity, past_carts=False):
         ''' Return true if the user is able to add _quantity_ to their count of
         this Product without exceeding _limit_per_user_.'''
 
-        carts = rego.Cart.objects.filter(user=user)
+        carts = rego.Cart.objects.filter(
+            user=user,
+            released=False,
+        )
+        if past_carts:
+            carts = carts.filter(active=False)
+
         items = rego.ProductItem.objects.filter(
             cart__in=carts,
         )
@@ -52,9 +59,9 @@ class ProductController(object):
         prod_count = prod_items.aggregate(Sum("quantity"))["quantity__sum"]
         cat_count = cat_items.aggregate(Sum("quantity"))["quantity__sum"]
 
-        if prod_count == None:
+        if prod_count is None:
             prod_count = 0
-        if cat_count == None:
+        if cat_count is None:
             cat_count = 0
 
         prod_limit = self.product.limit_per_user

@@ -3,6 +3,7 @@ import pytz
 from django.core.exceptions import ValidationError
 
 from registrasion import models as rego
+from registrasion.controllers.category import CategoryController
 from registrasion.controllers.cart import CartController
 from registrasion.controllers.product import ProductController
 
@@ -271,3 +272,24 @@ class EnablingConditionTestCases(RegistrationCartTestCase):
 
         with self.assertRaises(ValidationError):
             cart_2.set_quantity(self.PROD_1, 1)
+
+    def test_available_categories(self):
+        self.add_product_enabling_condition_on_category(mandatory=False)
+
+        cart_1 = CartController.for_user(self.USER_1)
+
+        cats = CategoryController.available_categories(
+            self.USER_1,
+        )
+
+        self.assertFalse(self.CAT_1 in cats)
+        self.assertTrue(self.CAT_2 in cats)
+
+        cart_1.add_to_cart(self.PROD_3, 1)
+
+        cats = CategoryController.available_categories(
+            self.USER_1,
+        )
+
+        self.assertTrue(self.CAT_1 in cats)
+        self.assertTrue(self.CAT_2 in cats)

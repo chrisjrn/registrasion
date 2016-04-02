@@ -48,11 +48,11 @@ class CategoryConditionController(ConditionController):
         enabling_products = rego.Product.objects.filter(
             category=self.condition.enabling_category,
         )
-        products = rego.ProductItem.objects.filter(
+        products_count = rego.ProductItem.objects.filter(
             cart=carts,
             product__in=enabling_products,
-        )
-        return len(products) > 0
+        ).count()
+        return products_count > 0
 
 
 class ProductConditionController(ConditionController):
@@ -67,11 +67,11 @@ class ProductConditionController(ConditionController):
         condition in one of their carts '''
 
         carts = rego.Cart.objects.filter(user=user, released=False)
-        products = rego.ProductItem.objects.filter(
+        products_count = rego.ProductItem.objects.filter(
             cart=carts,
             product__in=self.condition.enabling_products.all(),
-        )
-        return len(products) > 0
+        ).count()
+        return products_count > 0
 
 
 class TimeOrStockLimitConditionController(ConditionController):
@@ -155,8 +155,8 @@ class VoucherConditionController(ConditionController):
 
     def is_met(self, user, quantity):
         ''' returns True if the user has the given voucher attached. '''
-        carts = rego.Cart.objects.filter(
+        carts_count = rego.Cart.objects.filter(
             user=user,
             vouchers=self.condition.voucher,
-        )
-        return len(carts) > 0
+        ).count()
+        return carts_count > 0

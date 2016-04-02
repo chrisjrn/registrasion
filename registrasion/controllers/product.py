@@ -43,7 +43,7 @@ class ProductController(object):
 
         carts = rego.Cart.objects.filter(user=user)
         items = rego.ProductItem.objects.filter(
-            cart=carts,
+            cart__in=carts,
         )
 
         prod_items = items.filter(product=self.product)
@@ -51,6 +51,11 @@ class ProductController(object):
 
         prod_count = prod_items.aggregate(Sum("quantity"))["quantity__sum"]
         cat_count = cat_items.aggregate(Sum("quantity"))["quantity__sum"]
+
+        if prod_count == None:
+            prod_count = 0
+        if cat_count == None:
+            cat_count = 0
 
         prod_limit = self.product.limit_per_user
         prod_met = prod_limit is None or quantity + prod_count <= prod_limit

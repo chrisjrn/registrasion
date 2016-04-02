@@ -46,10 +46,12 @@ class CategoryConditionController(ConditionController):
 
         carts = rego.Cart.objects.filter(user=user, released=False)
         enabling_products = rego.Product.objects.filter(
-            category=self.condition.enabling_category)
+            category=self.condition.enabling_category,
+        )
         products = rego.ProductItem.objects.filter(
             cart=carts,
-            product=enabling_products)
+            product__in=enabling_products,
+        )
         return len(products) > 0
 
 
@@ -67,7 +69,8 @@ class ProductConditionController(ConditionController):
         carts = rego.Cart.objects.filter(user=user, released=False)
         products = rego.ProductItem.objects.filter(
             cart=carts,
-            product=self.condition.enabling_products.all())
+            product__in=self.condition.enabling_products.all(),
+        )
         return len(products) > 0
 
 
@@ -111,12 +114,12 @@ class TimeOrStockLimitConditionController(ConditionController):
         list products differently to discounts. '''
         if isinstance(self.ceiling, rego.TimeOrStockLimitEnablingCondition):
             category_products = rego.Product.objects.filter(
-                category=self.ceiling.categories.all()
+                category=self.ceiling.categories.all(),
             )
             return self.ceiling.products.all() | category_products
         else:
             categories = rego.Category.objects.filter(
-                discountforcategory__discount=self.ceiling
+                discountforcategory__discount=self.ceiling,
             )
             return rego.Product.objects.filter(
                 Q(discountforproduct__discount=self.ceiling) |
@@ -129,7 +132,7 @@ class TimeOrStockLimitConditionController(ConditionController):
 
         reserved_carts = rego.Cart.reserved_carts()
         product_items = rego.ProductItem.objects.filter(
-            product=self._products().all()
+            product__in=self._products().all(),
         )
         product_items = product_items.filter(cart=reserved_carts)
 
@@ -154,5 +157,6 @@ class VoucherConditionController(ConditionController):
         ''' returns True if the user has the given voucher attached. '''
         carts = rego.Cart.objects.filter(
             user=user,
-            vouchers=self.condition.voucher)
+            vouchers=self.condition.voucher,
+        )
         return len(carts) > 0

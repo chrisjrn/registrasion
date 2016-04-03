@@ -10,6 +10,7 @@ from django.db.models import Max
 from django.utils import timezone
 
 from registrasion import models as rego
+from registrasion.exceptions import CartValidationError
 
 from category import CategoryController
 from conditions import ConditionController
@@ -114,22 +115,25 @@ class CartController(object):
         ''' Tests that the quantity changes we intend to make do not violate
         the limits and enabling conditions imposed on the products. '''
 
+        errors = []
+
         # Test each product limit here
         for product, quantity in product_quantities:
             if quantity < 0:
                 # TODO: batch errors
-                raise ValidationError("Value must be zero or greater.")
+                errors.append((product, "Value must be zero or greater."))
 
             prod = ProductController(product)
             limit = prod.user_quantity_remaining(self.cart.user)
 
             if quantity > limit:
                 # TODO: batch errors
-                raise ValidationError(
+                errors.append((
+                    product,
                     "You may only have %d of product: %s" % (
-                        limit, product.name,
+                        limit, product,
                     )
-                )
+                ))
 
         # Collect by category
         by_cat = collections.defaultdict(list)
@@ -137,20 +141,21 @@ class CartController(object):
             by_cat[product.category].append((product, quantity))
 
         # Test each category limit here
-        for cat in by_cat:
-            ctrl = CategoryController(cat)
+        for category in by_cat:
+            ctrl = CategoryController(category)
             limit = ctrl.user_quantity_remaining(self.cart.user)
 
             # Get the amount so far in the cart
-            to_add = sum(i[1] for i in by_cat[cat])
+            to_add = sum(i[1] for i in by_cat[category])
 
             if to_add > limit:
                 # TODO: batch errors
-                raise ValidationError(
+                errors.append((
+                    category,
                     "You may only have %d items in category: %s" % (
-                        limit, cat.name,
+                        limit, category.name,
                     )
-                )
+                ))
 
         # Test the enabling conditions
         errs = ConditionController.test_enabling_conditions(
@@ -160,7 +165,12 @@ class CartController(object):
 
         if errs:
             # TODO: batch errors
-            raise ValidationError("An enabling condition failed")
+            errors.append(
+                ("enabling_conditions", "An enabling condition failed")
+            )
+
+        if errors:
+            raise CartValidationError(errors)
 
     def apply_voucher(self, voucher_code):
         ''' Applies the voucher with the given code to this cart. '''

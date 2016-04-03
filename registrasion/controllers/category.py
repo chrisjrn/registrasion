@@ -53,4 +53,4 @@ class CategoryController(object):
         )
 
         cat_count = items.aggregate(Sum("quantity"))["quantity__sum"] or 0
-        cat_limit - cat_count
+        return cat_limit - cat_count

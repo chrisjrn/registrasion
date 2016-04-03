@@ -6,6 +6,7 @@ from registrasion.controllers import discount
 from registrasion.controllers.cart import CartController
 from registrasion.controllers.invoice import InvoiceController
 from registrasion.controllers.product import ProductController
+from registrasion.exceptions import CartValidationError
 
 from collections import namedtuple
 
@@ -321,15 +322,24 @@ def handle_products(request, category, products, prefix):
 
 def set_quantities_from_products_form(products_form, current_cart):
 
-    quantities = products_form.product_quantities()
+    quantities = list(products_form.product_quantities())
     product_quantities = [
         (rego.Product.objects.get(pk=i[0]), i[1]) for i in quantities
     ]
+    field_names = dict(
+        (i[0][0], i[1][2]) for i in zip(product_quantities, quantities)
+    )
 
     try:
         current_cart.set_quantities(product_quantities)
-    except ValidationError as ve:
-        products_form.add_error(None, ve)
+    except CartValidationError as ve:
+        for ve_field in ve.error_list:
+            product, message = ve_field.message
+            if product in field_names:
+                field = field_names[product]
+            else:
+                field = None
+            products_form.add_error(field, message)
 
 
 def handle_voucher(request, prefix):

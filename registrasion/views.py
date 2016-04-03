@@ -14,7 +14,6 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError
-from django.db import transaction
 from django.http import Http404
 from django.shortcuts import redirect
 from django.shortcuts import render

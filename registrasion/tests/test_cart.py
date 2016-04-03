@@ -126,7 +126,6 @@ class RegistrationCartTestCase(SetTimeMixin, TestCase):
             quantity=10,
         ).save()
 
-
     @classmethod
     def new_voucher(self, code="VOUCHER", limit=1):
         voucher = rego.Voucher.objects.create(

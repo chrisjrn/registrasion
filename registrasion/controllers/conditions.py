@@ -3,7 +3,6 @@ import itertools
 from collections import defaultdict
 from collections import namedtuple
 
-from django.db.models import Q
 from django.db.models import Sum
 from django.utils import timezone
 
@@ -64,8 +63,8 @@ class ConditionController(object):
                              "product_quantities")
         elif products is None:
             products = set(i[0] for i in product_quantities)
-            quantities = dict( (product, quantity)
-                for product, quantity in product_quantities )
+            quantities = dict((product, quantity)
+                              for product, quantity in product_quantities)
         elif product_quantities is None:
             products = set(products)
             quantities = {}
@@ -84,7 +83,6 @@ class ConditionController(object):
         # if there are no mandatory conditions
         non_mandatory = defaultdict(lambda: False)
 
-        remainders = []
         for condition in all_conditions:
             cond = cls.for_condition(condition)
             remainder = cond.user_quantity_remaining(user)
@@ -232,6 +230,7 @@ class TimeOrStockLimitConditionController(ConditionController):
         count = items.aggregate(Sum("quantity"))["quantity__sum"] or 0
 
         return self.ceiling.limit - count
+
 
 class TimeOrStockLimitEnablingConditionController(
         TimeOrStockLimitConditionController):

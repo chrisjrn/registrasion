@@ -6,7 +6,7 @@ import itertools
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import Max, Sum
+from django.db.models import Max
 from django.utils import timezone
 
 from registrasion import models as rego
@@ -70,7 +70,6 @@ class CartController(object):
         self.extend_reservation()
         self.cart.revision += 1
         self.cart.save()
-
 
     @transaction.atomic
     def set_quantities(self, product_quantities):
@@ -193,8 +192,6 @@ class CartController(object):
     def validate_cart(self):
         ''' Determines whether the status of the current cart is valid;
         this is normally called before generating or paying an invoice '''
-
-        is_reserved = self.cart in rego.Cart.reserved_carts()
 
         # TODO: validate vouchers
 

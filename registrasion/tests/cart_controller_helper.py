@@ -3,6 +3,7 @@ from registrasion import models as rego
 
 from django.core.exceptions import ObjectDoesNotExist
 
+
 class TestingCartController(CartController):
 
     def set_quantity(self, product, quantity, batched=False):

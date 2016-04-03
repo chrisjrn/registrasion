@@ -1,6 +1,5 @@
 import itertools
 
-from django.db.models import Q
 from django.db.models import Sum
 from registrasion import models as rego
 
@@ -33,7 +32,9 @@ class ProductController(object):
         passed_limits = set(
             product
             for product in all_products
-            if CategoryController(product.category).user_quantity_remaining(user) > 0
+            if CategoryController(product.category).user_quantity_remaining(
+                user
+            ) > 0
             if cls(product).user_quantity_remaining(user) > 0
         )
 

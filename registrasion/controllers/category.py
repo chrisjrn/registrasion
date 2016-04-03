@@ -53,10 +53,4 @@ class CategoryController(object):
         )
 
         cat_count = items.aggregate(Sum("quantity"))["quantity__sum"] or 0
-        
-        cat_limit = self.category.limit_per_user
-
-        if cat_limit is None:
-            return 999999  # We should probably work on this.
-        else:
-            return cat_limit - cat_count
+        cat_limit - cat_count

@@ -20,7 +20,8 @@ setup(
     author="Christopher Neugebauer",
     author_email="_@chrisjrn.com",
     version=registrasion.__version__,
-    description="A registration app for the Symposion conference management system.",
+    description="A registration app for the Symposion conference management "
+                "system.",
     url="http://github.com/chrisjrn/registrasion/",
     packages=find_packages(),
     include_package_data=True,

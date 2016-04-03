@@ -1,4 +1,3 @@
-import symposion.speakers
 import sys
 
 from registrasion import forms
@@ -7,6 +6,7 @@ from registrasion.controllers import discount
 from registrasion.controllers.cart import CartController
 from registrasion.controllers.invoice import InvoiceController
 from registrasion.controllers.product import ProductController
+from registrasion.exceptions import CartValidationError
 
 from collections import namedtuple
 
@@ -15,7 +15,6 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError
-from django.db import transaction
 from django.http import Http404
 from django.shortcuts import redirect
 from django.shortcuts import render
@@ -34,11 +33,13 @@ GuidedRegistrationSection.__new__.__defaults__ = (
     (None,) * len(GuidedRegistrationSection._fields)
 )
 
+
 def get_form(name):
     dot = name.rindex(".")
     mod_name, form_name = name[:dot], name[dot + 1:]
     __import__(mod_name)
     return getattr(sys.modules[mod_name], form_name)
+
 
 @login_required
 def guided_registration(request, page_id=0):
@@ -50,7 +51,6 @@ def guided_registration(request, page_id=0):
     through each category one by one
     '''
 
-    dashboard = redirect("dashboard")
     next_step = redirect("guided_registration")
 
     sections = []
@@ -71,7 +71,8 @@ def guided_registration(request, page_id=0):
         profile = None
 
     if not profile:
-        # TODO: if voucherform is invalid, make sure that profileform does not save
+        # TODO: if voucherform is invalid, make sure
+        # that profileform does not save
         voucher_form, voucher_handled = handle_voucher(request, "voucher")
         profile_form, profile_handled = handle_profile(request, "profile")
 
@@ -130,13 +131,14 @@ def guided_registration(request, page_id=0):
                 discounts=discounts,
                 form=products_form,
             )
-            sections.append(section)
+            if products:
+                # This product category does not exist for this user
+                sections.append(section)
 
             if request.method == "POST" and not products_form.errors:
                 if category.id > attendee.highest_complete_category:
                     # This is only saved if we pass each form with no errors.
                     attendee.highest_complete_category = category.id
-
 
     if sections and request.method == "POST":
         for section in sections:
@@ -150,7 +152,7 @@ def guided_registration(request, page_id=0):
     data = {
         "current_step": current_step,
         "sections": sections,
-        "title" : title,
+        "title": title,
         "total_steps": 3,
     }
     return render(request, "registrasion/guided_registration.html", data)
@@ -160,10 +162,18 @@ def guided_registration(request, page_id=0):
 def edit_profile(request):
     form, handled = handle_profile(request, "profile")
 
+    if handled and not form.errors:
+        messages.success(
+            request,
+            "Your attendee profile was updated.",
+        )
+        return redirect("dashboard")
+
     data = {
         "form": form,
     }
     return render(request, "registrasion/profile_form.html", data)
+
 
 def handle_profile(request, prefix):
     ''' Returns a profile form instance, and a boolean which is true if the
@@ -172,6 +182,7 @@ def handle_profile(request, prefix):
 
     try:
         profile = attendee.attendeeprofilebase
+        profile = rego.AttendeeProfileBase.objects.get_subclass(pk=profile.id)
     except ObjectDoesNotExist:
         profile = None
 
@@ -185,10 +196,9 @@ def handle_profile(request, prefix):
     except ObjectDoesNotExist:
         speaker_name = None
 
-
     name_field = ProfileForm.Meta.model.name_field()
     initial = {}
-    if name_field is not None:
+    if profile is None and name_field is not None:
         initial[name_field] = speaker_name
 
     form = ProfileForm(
@@ -205,6 +215,7 @@ def handle_profile(request, prefix):
         form.save()
 
     return form, handled
+
 
 @login_required
 def product_category(request, category_id):
@@ -227,12 +238,23 @@ def product_category(request, category_id):
         category=category,
     )
 
+    if not products:
+        messages.warning(
+            request,
+            "There are no products available from category: " + category.name,
+        )
+        return redirect("dashboard")
+
     p = handle_products(request, category, products, PRODUCTS_FORM_PREFIX)
     products_form, discounts, products_handled = p
 
     if request.POST and not voucher_handled and not products_form.errors:
         # Only return to the dashboard if we didn't add a voucher code
         # and if there's no errors in the products form
+        messages.success(
+            request,
+            "Your reservations have been updated.",
+        )
         return redirect("dashboard")
 
     data = {
@@ -275,12 +297,8 @@ def handle_products(request, category, products, prefix):
     )
 
     if request.method == "POST" and products_form.is_valid():
-        try:
-            if products_form.has_changed():
-                set_quantities_from_products_form(products_form, current_cart)
-        except ValidationError:
-            # There were errors, but they've already been added to the form.
-            pass
+        if products_form.has_changed():
+            set_quantities_from_products_form(products_form, current_cart)
 
         # If category is required, the user must have at least one
         # in an active+valid cart
@@ -302,20 +320,26 @@ def handle_products(request, category, products, prefix):
     return products_form, discounts, handled
 
 
-@transaction.atomic
 def set_quantities_from_products_form(products_form, current_cart):
-    # TODO: issue #8 is a problem here.
+
     quantities = list(products_form.product_quantities())
-    quantities.sort(key=lambda item: item[1])
-    for product_id, quantity, field_name in quantities:
-        product = rego.Product.objects.get(pk=product_id)
-        try:
-            current_cart.set_quantity(product, quantity, batched=True)
-        except ValidationError as ve:
-            products_form.add_error(field_name, ve)
-    if products_form.errors:
-        raise ValidationError("Cannot add that stuff")
-    current_cart.end_batch()
+    product_quantities = [
+        (rego.Product.objects.get(pk=i[0]), i[1]) for i in quantities
+    ]
+    field_names = dict(
+        (i[0][0], i[1][2]) for i in zip(product_quantities, quantities)
+    )
+
+    try:
+        current_cart.set_quantities(product_quantities)
+    except CartValidationError as ve:
+        for ve_field in ve.error_list:
+            product, message = ve_field.message
+            if product in field_names:
+                field = field_names[product]
+            else:
+                field = None
+            products_form.add_error(field, message)
 
 
 def handle_voucher(request, prefix):

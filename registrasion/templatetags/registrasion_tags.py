@@ -1,4 +1,5 @@
 from registrasion import models as rego
+from registrasion.controllers.category import CategoryController
 
 from collections import namedtuple
 from django import template
@@ -12,7 +13,7 @@ ProductAndQuantity = namedtuple("ProductAndQuantity", ["product", "quantity"])
 @register.assignment_tag(takes_context=True)
 def available_categories(context):
     ''' Returns all of the available product categories '''
-    return rego.Category.objects.all()
+    return CategoryController.available_categories(context.request.user)
 
 
 @register.assignment_tag(takes_context=True)
@@ -49,6 +50,7 @@ def items_purchased(context):
         quantity = pp.aggregate(Sum("quantity"))["quantity__sum"]
         out.append(ProductAndQuantity(product, quantity))
     return out
+
 
 @register.filter
 def multiply(value, arg):

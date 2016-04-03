@@ -5,7 +5,7 @@ from decimal import Decimal
 from django.core.exceptions import ValidationError
 
 from registrasion import models as rego
-from registrasion.controllers.cart import CartController
+from cart_controller_helper import TestingCartController
 from registrasion.controllers.invoice import InvoiceController
 
 from test_cart import RegistrationCartTestCase
@@ -16,7 +16,7 @@ UTC = pytz.timezone('UTC')
 class InvoiceTestCase(RegistrationCartTestCase):
 
     def test_create_invoice(self):
-        current_cart = CartController.for_user(self.USER_1)
+        current_cart = TestingCartController.for_user(self.USER_1)
 
         # Should be able to create an invoice after the product is added
         current_cart.add_to_cart(self.PROD_1, 1)
@@ -49,11 +49,11 @@ class InvoiceTestCase(RegistrationCartTestCase):
     def test_create_invoice_fails_if_cart_invalid(self):
         self.make_ceiling("Limit ceiling", limit=1)
         self.set_time(datetime.datetime(2015, 01, 01, tzinfo=UTC))
-        current_cart = CartController.for_user(self.USER_1)
+        current_cart = TestingCartController.for_user(self.USER_1)
         current_cart.add_to_cart(self.PROD_1, 1)
 
         self.add_timedelta(self.RESERVATION * 2)
-        cart_2 = CartController.for_user(self.USER_2)
+        cart_2 = TestingCartController.for_user(self.USER_2)
         cart_2.add_to_cart(self.PROD_1, 1)
 
         # Now try to invoice the first user
@@ -61,7 +61,7 @@ class InvoiceTestCase(RegistrationCartTestCase):
             InvoiceController.for_cart(current_cart.cart)
 
     def test_paying_invoice_makes_new_cart(self):
-        current_cart = CartController.for_user(self.USER_1)
+        current_cart = TestingCartController.for_user(self.USER_1)
         current_cart.add_to_cart(self.PROD_1, 1)
 
         invoice = InvoiceController.for_cart(current_cart.cart)
@@ -74,7 +74,7 @@ class InvoiceTestCase(RegistrationCartTestCase):
         self.assertFalse(invoice.invoice.cart.active)
 
         # Asking for a cart should generate a new one
-        new_cart = CartController.for_user(self.USER_1)
+        new_cart = TestingCartController.for_user(self.USER_1)
         self.assertNotEqual(current_cart.cart, new_cart.cart)
 
     def test_invoice_includes_discounts(self):
@@ -96,7 +96,7 @@ class InvoiceTestCase(RegistrationCartTestCase):
             quantity=1
         ).save()
 
-        current_cart = CartController.for_user(self.USER_1)
+        current_cart = TestingCartController.for_user(self.USER_1)
         current_cart.apply_voucher(voucher.code)
 
         # Should be able to create an invoice after the product is added
@@ -112,7 +112,7 @@ class InvoiceTestCase(RegistrationCartTestCase):
             invoice_1.invoice.value)
 
     def test_invoice_voids_self_if_cart_is_invalid(self):
-        current_cart = CartController.for_user(self.USER_1)
+        current_cart = TestingCartController.for_user(self.USER_1)
 
         # Should be able to create an invoice after the product is added
         current_cart.add_to_cart(self.PROD_1, 1)
@@ -134,7 +134,7 @@ class InvoiceTestCase(RegistrationCartTestCase):
         self.assertFalse(invoice_2_new.invoice.void)
 
     def test_voiding_invoice_creates_new_invoice(self):
-        current_cart = CartController.for_user(self.USER_1)
+        current_cart = TestingCartController.for_user(self.USER_1)
 
         # Should be able to create an invoice after the product is added
         current_cart.add_to_cart(self.PROD_1, 1)
@@ -147,7 +147,7 @@ class InvoiceTestCase(RegistrationCartTestCase):
         self.assertNotEqual(invoice_1.invoice, invoice_2.invoice)
 
     def test_cannot_pay_void_invoice(self):
-        current_cart = CartController.for_user(self.USER_1)
+        current_cart = TestingCartController.for_user(self.USER_1)
 
         # Should be able to create an invoice after the product is added
         current_cart.add_to_cart(self.PROD_1, 1)
@@ -159,7 +159,7 @@ class InvoiceTestCase(RegistrationCartTestCase):
             invoice_1.pay("Reference", invoice_1.invoice.value)
 
     def test_cannot_void_paid_invoice(self):
-        current_cart = CartController.for_user(self.USER_1)
+        current_cart = TestingCartController.for_user(self.USER_1)
 
         # Should be able to create an invoice after the product is added
         current_cart.add_to_cart(self.PROD_1, 1)

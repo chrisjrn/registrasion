@@ -4,7 +4,6 @@ import datetime
 import itertools
 
 from django.core.exceptions import ValidationError
-from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth.models import User
 from django.db import models
 from django.db.models import F, Q
@@ -46,6 +45,8 @@ class AttendeeProfileBase(models.Model):
     Subclass this in your Django site to ask for attendee information in your
     registration progess.
      '''
+
+    objects = InheritanceManager()
 
     @classmethod
     def name_field(cls):

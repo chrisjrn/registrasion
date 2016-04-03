@@ -3,9 +3,10 @@ import pytz
 
 from django.core.exceptions import ValidationError
 
-from registrasion.controllers.cart import CartController
-
+from cart_controller_helper import TestingCartController
 from test_cart import RegistrationCartTestCase
+
+from registrasion import models as rego
 
 UTC = pytz.timezone('UTC')
 
@@ -22,7 +23,7 @@ class CeilingsTestCases(RegistrationCartTestCase):
 
     def __add_to_cart_test(self):
 
-        current_cart = CartController.for_user(self.USER_1)
+        current_cart = TestingCartController.for_user(self.USER_1)
 
         # User should not be able to add 10 of PROD_1 to the current cart
         # because it is affected by limit_ceiling
@@ -46,7 +47,7 @@ class CeilingsTestCases(RegistrationCartTestCase):
             start_time=datetime.datetime(2015, 01, 01, tzinfo=UTC),
             end_time=datetime.datetime(2015, 02, 01, tzinfo=UTC))
 
-        current_cart = CartController.for_user(self.USER_1)
+        current_cart = TestingCartController.for_user(self.USER_1)
 
         # User should not be able to add whilst we're before start_time
         self.set_time(datetime.datetime(2014, 01, 01, tzinfo=UTC))
@@ -74,8 +75,8 @@ class CeilingsTestCases(RegistrationCartTestCase):
 
         self.set_time(datetime.datetime(2015, 01, 01, tzinfo=UTC))
 
-        first_cart = CartController.for_user(self.USER_1)
-        second_cart = CartController.for_user(self.USER_2)
+        first_cart = TestingCartController.for_user(self.USER_1)
+        second_cart = TestingCartController.for_user(self.USER_2)
 
         first_cart.add_to_cart(self.PROD_1, 1)
 
@@ -111,8 +112,8 @@ class CeilingsTestCases(RegistrationCartTestCase):
     def __validation_test(self):
         self.set_time(datetime.datetime(2015, 01, 01, tzinfo=UTC))
 
-        first_cart = CartController.for_user(self.USER_1)
-        second_cart = CartController.for_user(self.USER_2)
+        first_cart = TestingCartController.for_user(self.USER_1)
+        second_cart = TestingCartController.for_user(self.USER_2)
 
         # Adding a valid product should validate.
         first_cart.add_to_cart(self.PROD_1, 1)
@@ -136,13 +137,13 @@ class CeilingsTestCases(RegistrationCartTestCase):
     def test_items_released_from_ceiling_by_refund(self):
         self.make_ceiling("Limit ceiling", limit=1)
 
-        first_cart = CartController.for_user(self.USER_1)
+        first_cart = TestingCartController.for_user(self.USER_1)
         first_cart.add_to_cart(self.PROD_1, 1)
 
         first_cart.cart.active = False
         first_cart.cart.save()
 
-        second_cart = CartController.for_user(self.USER_2)
+        second_cart = TestingCartController.for_user(self.USER_2)
         with self.assertRaises(ValidationError):
             second_cart.add_to_cart(self.PROD_1, 1)
 
@@ -150,3 +151,36 @@ class CeilingsTestCases(RegistrationCartTestCase):
         first_cart.cart.save()
 
         second_cart.add_to_cart(self.PROD_1, 1)
+
+    def test_discount_ceiling_only_counts_items_covered_by_ceiling(self):
+        self.make_discount_ceiling("Limit ceiling", limit=1, percentage=50)
+        voucher = self.new_voucher(code="VOUCHER")
+
+        discount = rego.VoucherDiscount.objects.create(
+            description="VOUCHER RECIPIENT",
+            voucher=voucher,
+        )
+        discount.save()
+        rego.DiscountForProduct.objects.create(
+            discount=discount,
+            product=self.PROD_1,
+            percentage=100,
+            quantity=1
+        ).save()
+
+        # Buy two of PROD_1, in separate carts:
+        cart = TestingCartController.for_user(self.USER_1)
+        # the 100% discount from the voucher should apply to the first item
+        # and not the ceiling discount.
+        cart.apply_voucher("VOUCHER")
+        cart.add_to_cart(self.PROD_1, 1)
+        self.assertEqual(1, len(cart.cart.discountitem_set.all()))
+
+        cart.cart.active = False
+        cart.cart.save()
+
+        # The second cart has no voucher attached, so should apply the
+        # ceiling discount
+        cart = TestingCartController.for_user(self.USER_1)
+        cart.add_to_cart(self.PROD_1, 1)
+        self.assertEqual(1, len(cart.cart.discountitem_set.all()))

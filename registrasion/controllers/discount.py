@@ -75,7 +75,7 @@ def available_discounts(user, categories, products):
             pass
         elif real_discount not in failed_discounts:
             # This clause is still available
-            if real_discount in accepted_discounts or cond.is_met(user, 0):
+            if real_discount in accepted_discounts or cond.is_met(user):
                 # This clause is valid for this user
                 discounts.append(DiscountAndQuantity(
                     discount=real_discount,

@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError
 
 from registrasion import models as rego
 from registrasion.controllers.category import CategoryController
-from registrasion.controllers.cart import CartController
+from cart_controller_helper import TestingCartController
 from registrasion.controllers.product import ProductController
 
 from test_cart import RegistrationCartTestCase
@@ -56,7 +56,7 @@ class EnablingConditionTestCases(RegistrationCartTestCase):
         self.add_product_enabling_condition()
 
         # Cannot buy PROD_1 without buying PROD_2
-        current_cart = CartController.for_user(self.USER_1)
+        current_cart = TestingCartController.for_user(self.USER_1)
         with self.assertRaises(ValidationError):
             current_cart.add_to_cart(self.PROD_1, 1)
 
@@ -66,20 +66,20 @@ class EnablingConditionTestCases(RegistrationCartTestCase):
     def test_product_enabled_by_product_in_previous_cart(self):
         self.add_product_enabling_condition()
 
-        current_cart = CartController.for_user(self.USER_1)
+        current_cart = TestingCartController.for_user(self.USER_1)
         current_cart.add_to_cart(self.PROD_2, 1)
         current_cart.cart.active = False
         current_cart.cart.save()
 
         # Create new cart and try to add PROD_1
-        current_cart = CartController.for_user(self.USER_1)
+        current_cart = TestingCartController.for_user(self.USER_1)
         current_cart.add_to_cart(self.PROD_1, 1)
 
     def test_product_enabling_condition_enables_category(self):
         self.add_product_enabling_condition_on_category()
 
         # Cannot buy PROD_1 without buying item from CAT_2
-        current_cart = CartController.for_user(self.USER_1)
+        current_cart = TestingCartController.for_user(self.USER_1)
         with self.assertRaises(ValidationError):
             current_cart.add_to_cart(self.PROD_1, 1)
 
@@ -90,7 +90,7 @@ class EnablingConditionTestCases(RegistrationCartTestCase):
         self.add_category_enabling_condition()
 
         # Cannot buy PROD_1 without buying PROD_2
-        current_cart = CartController.for_user(self.USER_1)
+        current_cart = TestingCartController.for_user(self.USER_1)
         with self.assertRaises(ValidationError):
             current_cart.add_to_cart(self.PROD_1, 1)
 
@@ -101,13 +101,13 @@ class EnablingConditionTestCases(RegistrationCartTestCase):
     def test_product_enabled_by_category_in_previous_cart(self):
         self.add_category_enabling_condition()
 
-        current_cart = CartController.for_user(self.USER_1)
+        current_cart = TestingCartController.for_user(self.USER_1)
         current_cart.add_to_cart(self.PROD_3, 1)
         current_cart.cart.active = False
         current_cart.cart.save()
 
         # Create new cart and try to add PROD_1
-        current_cart = CartController.for_user(self.USER_1)
+        current_cart = TestingCartController.for_user(self.USER_1)
         current_cart.add_to_cart(self.PROD_1, 1)
 
     def test_multiple_non_mandatory_conditions(self):
@@ -115,7 +115,7 @@ class EnablingConditionTestCases(RegistrationCartTestCase):
         self.add_category_enabling_condition()
 
         # User 1 is testing the product enabling condition
-        cart_1 = CartController.for_user(self.USER_1)
+        cart_1 = TestingCartController.for_user(self.USER_1)
         # Cannot add PROD_1 until a condition is met
         with self.assertRaises(ValidationError):
             cart_1.add_to_cart(self.PROD_1, 1)
@@ -123,7 +123,7 @@ class EnablingConditionTestCases(RegistrationCartTestCase):
         cart_1.add_to_cart(self.PROD_1, 1)
 
         # User 2 is testing the category enabling condition
-        cart_2 = CartController.for_user(self.USER_2)
+        cart_2 = TestingCartController.for_user(self.USER_2)
         # Cannot add PROD_1 until a condition is met
         with self.assertRaises(ValidationError):
             cart_2.add_to_cart(self.PROD_1, 1)
@@ -134,7 +134,7 @@ class EnablingConditionTestCases(RegistrationCartTestCase):
         self.add_product_enabling_condition(mandatory=True)
         self.add_category_enabling_condition(mandatory=True)
 
-        cart_1 = CartController.for_user(self.USER_1)
+        cart_1 = TestingCartController.for_user(self.USER_1)
         # Cannot add PROD_1 until both conditions are met
         with self.assertRaises(ValidationError):
             cart_1.add_to_cart(self.PROD_1, 1)
@@ -148,7 +148,7 @@ class EnablingConditionTestCases(RegistrationCartTestCase):
         self.add_product_enabling_condition(mandatory=False)
         self.add_category_enabling_condition(mandatory=True)
 
-        cart_1 = CartController.for_user(self.USER_1)
+        cart_1 = TestingCartController.for_user(self.USER_1)
         # Cannot add PROD_1 until both conditions are met
         with self.assertRaises(ValidationError):
             cart_1.add_to_cart(self.PROD_1, 1)
@@ -199,7 +199,7 @@ class EnablingConditionTestCases(RegistrationCartTestCase):
     def test_available_products_on_category_works_when_condition_is_met(self):
         self.add_product_enabling_condition(mandatory=False)
 
-        cart_1 = CartController.for_user(self.USER_1)
+        cart_1 = TestingCartController.for_user(self.USER_1)
         cart_1.add_to_cart(self.PROD_2, 1)
 
         prods = ProductController.available_products(
@@ -224,7 +224,7 @@ class EnablingConditionTestCases(RegistrationCartTestCase):
     def test_available_products_on_products_works_when_condition_is_met(self):
         self.add_product_enabling_condition(mandatory=False)
 
-        cart_1 = CartController.for_user(self.USER_1)
+        cart_1 = TestingCartController.for_user(self.USER_1)
         cart_1.add_to_cart(self.PROD_2, 1)
 
         prods = ProductController.available_products(
@@ -238,13 +238,13 @@ class EnablingConditionTestCases(RegistrationCartTestCase):
     def test_category_enabling_condition_fails_if_cart_refunded(self):
         self.add_category_enabling_condition(mandatory=False)
 
-        cart = CartController.for_user(self.USER_1)
+        cart = TestingCartController.for_user(self.USER_1)
         cart.add_to_cart(self.PROD_3, 1)
 
         cart.cart.active = False
         cart.cart.save()
 
-        cart_2 = CartController.for_user(self.USER_1)
+        cart_2 = TestingCartController.for_user(self.USER_1)
         cart_2.add_to_cart(self.PROD_1, 1)
         cart_2.set_quantity(self.PROD_1, 0)
 
@@ -257,13 +257,13 @@ class EnablingConditionTestCases(RegistrationCartTestCase):
     def test_product_enabling_condition_fails_if_cart_refunded(self):
         self.add_product_enabling_condition(mandatory=False)
 
-        cart = CartController.for_user(self.USER_1)
+        cart = TestingCartController.for_user(self.USER_1)
         cart.add_to_cart(self.PROD_2, 1)
 
         cart.cart.active = False
         cart.cart.save()
 
-        cart_2 = CartController.for_user(self.USER_1)
+        cart_2 = TestingCartController.for_user(self.USER_1)
         cart_2.add_to_cart(self.PROD_1, 1)
         cart_2.set_quantity(self.PROD_1, 0)
 
@@ -276,7 +276,7 @@ class EnablingConditionTestCases(RegistrationCartTestCase):
     def test_available_categories(self):
         self.add_product_enabling_condition_on_category(mandatory=False)
 
-        cart_1 = CartController.for_user(self.USER_1)
+        cart_1 = TestingCartController.for_user(self.USER_1)
 
         cats = CategoryController.available_categories(
             self.USER_1,

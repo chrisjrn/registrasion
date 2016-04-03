@@ -6,6 +6,7 @@ from registrasion.controllers import discount
 from registrasion.controllers.cart import CartController
 from registrasion.controllers.invoice import InvoiceController
 from registrasion.controllers.product import ProductController
+from registrasion.exceptions import CartValidationError
 
 from collections import namedtuple
 
@@ -14,7 +15,6 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError
-from django.db import transaction
 from django.http import Http404
 from django.shortcuts import redirect
 from django.shortcuts import render
@@ -121,10 +121,6 @@ def guided_registration(request, page_id=0):
                 category=category,
             )
 
-            if not products:
-                # This product category does not exist for this user
-                continue
-
             prefix = "category_" + str(category.id)
             p = handle_products(request, category, products, prefix)
             products_form, discounts, products_handled = p
@@ -135,7 +131,9 @@ def guided_registration(request, page_id=0):
                 discounts=discounts,
                 form=products_form,
             )
-            sections.append(section)
+            if products:
+                # This product category does not exist for this user
+                sections.append(section)
 
             if request.method == "POST" and not products_form.errors:
                 if category.id > attendee.highest_complete_category:
@@ -299,12 +297,8 @@ def handle_products(request, category, products, prefix):
     )
 
     if request.method == "POST" and products_form.is_valid():
-        try:
-            if products_form.has_changed():
-                set_quantities_from_products_form(products_form, current_cart)
-        except ValidationError:
-            # There were errors, but they've already been added to the form.
-            pass
+        if products_form.has_changed():
+            set_quantities_from_products_form(products_form, current_cart)
 
         # If category is required, the user must have at least one
         # in an active+valid cart
@@ -326,20 +320,26 @@ def handle_products(request, category, products, prefix):
     return products_form, discounts, handled
 
 
-@transaction.atomic
 def set_quantities_from_products_form(products_form, current_cart):
-    # TODO: issue #8 is a problem here.
+
     quantities = list(products_form.product_quantities())
-    quantities.sort(key=lambda item: item[1])
-    for product_id, quantity, field_name in quantities:
-        product = rego.Product.objects.get(pk=product_id)
-        try:
-            current_cart.set_quantity(product, quantity, batched=True)
-        except ValidationError as ve:
-            products_form.add_error(field_name, ve)
-    if products_form.errors:
-        raise ValidationError("Cannot add that stuff")
-    current_cart.end_batch()
+    product_quantities = [
+        (rego.Product.objects.get(pk=i[0]), i[1]) for i in quantities
+    ]
+    field_names = dict(
+        (i[0][0], i[1][2]) for i in zip(product_quantities, quantities)
+    )
+
+    try:
+        current_cart.set_quantities(product_quantities)
+    except CartValidationError as ve:
+        for ve_field in ve.error_list:
+            product, message = ve_field.message
+            if product in field_names:
+                field = field_names[product]
+            else:
+                field = None
+            products_form.add_error(field, message)
 
 
 def handle_voucher(request, prefix):

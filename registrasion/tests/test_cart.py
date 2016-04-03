@@ -110,7 +110,8 @@ class RegistrationCartTestCase(SetTimeMixin, TestCase):
 
     @classmethod
     def make_discount_ceiling(
-            cls, name, limit=None, start_time=None, end_time=None):
+            cls, name, limit=None, start_time=None, end_time=None,
+            percentage=100):
         limit_ceiling = rego.TimeOrStockLimitDiscount.objects.create(
             description=name,
             start_time=start_time,
@@ -121,9 +122,20 @@ class RegistrationCartTestCase(SetTimeMixin, TestCase):
         rego.DiscountForProduct.objects.create(
             discount=limit_ceiling,
             product=cls.PROD_1,
-            percentage=100,
+            percentage=percentage,
             quantity=10,
         ).save()
+
+
+    @classmethod
+    def new_voucher(self, code="VOUCHER", limit=1):
+        voucher = rego.Voucher.objects.create(
+            recipient="Voucher recipient",
+            code=code,
+            limit=limit,
+        )
+        voucher.save()
+        return voucher
 
 
 class BasicCartTests(RegistrationCartTestCase):

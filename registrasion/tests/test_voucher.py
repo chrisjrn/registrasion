@@ -16,16 +16,6 @@ UTC = pytz.timezone('UTC')
 
 class VoucherTestCases(RegistrationCartTestCase):
 
-    @classmethod
-    def new_voucher(self, code="VOUCHER", limit=1):
-        voucher = rego.Voucher.objects.create(
-            recipient="Voucher recipient",
-            code=code,
-            limit=limit,
-        )
-        voucher.save()
-        return voucher
-
     def test_apply_voucher(self):
         voucher = self.new_voucher()
 

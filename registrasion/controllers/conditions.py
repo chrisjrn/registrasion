@@ -33,9 +33,9 @@ class ConditionController(object):
             rego.IncludedProductDiscount: ProductConditionController,
             rego.ProductEnablingCondition: ProductConditionController,
             rego.TimeOrStockLimitDiscount:
-                TimeOrStockLimitConditionController,
+                TimeOrStockLimitDiscountController,
             rego.TimeOrStockLimitEnablingCondition:
-                TimeOrStockLimitConditionController,
+                TimeOrStockLimitEnablingConditionController,
             rego.VoucherDiscount: VoucherConditionController,
             rego.VoucherEnablingCondition: VoucherConditionController,
         }
@@ -184,7 +184,7 @@ class ProductConditionController(ConditionController):
 
 
 class TimeOrStockLimitConditionController(ConditionController):
-    ''' Condition tests for TimeOrStockLimit EnablingCondition and
+    ''' Common condition tests for TimeOrStockLimit EnablingCondition and
     Discount.'''
 
     def __init__(self, ceiling):
@@ -213,23 +213,6 @@ class TimeOrStockLimitConditionController(ConditionController):
 
         return True
 
-    def _products(self):
-        ''' Abstracts away the product list, becuase enabling conditions
-        list products differently to discounts. '''
-        if isinstance(self.ceiling, rego.TimeOrStockLimitEnablingCondition):
-            category_products = rego.Product.objects.filter(
-                category__in=self.ceiling.categories.all(),
-            )
-            return self.ceiling.products.all() | category_products
-        else:
-            categories = rego.Category.objects.filter(
-                discountforcategory__discount=self.ceiling,
-            )
-            return rego.Product.objects.filter(
-                Q(discountforproduct__discount=self.ceiling) |
-                Q(category__in=categories.all())
-            )
-
     def _get_remaining_stock(self, user):
         ''' Returns the stock that remains under this ceiling, excluding the
         user's current cart. '''
@@ -244,14 +227,34 @@ class TimeOrStockLimitConditionController(ConditionController):
             active=True,
         )
 
-        product_items = rego.ProductItem.objects.filter(
-            product__in=self._products().all(),
-        )
-        product_items = product_items.filter(cart__in=reserved_carts)
-
-        count = product_items.aggregate(Sum("quantity"))["quantity__sum"] or 0
+        items = self._items()
+        items = items.filter(cart__in=reserved_carts)
+        count = items.aggregate(Sum("quantity"))["quantity__sum"] or 0
 
         return self.ceiling.limit - count
+
+class TimeOrStockLimitEnablingConditionController(
+        TimeOrStockLimitConditionController):
+
+    def _items(self):
+        category_products = rego.Product.objects.filter(
+            category__in=self.ceiling.categories.all(),
+        )
+        products = self.ceiling.products.all() | category_products
+
+        product_items = rego.ProductItem.objects.filter(
+            product__in=products.all(),
+        )
+        return product_items
+
+
+class TimeOrStockLimitDiscountController(TimeOrStockLimitConditionController):
+
+    def _items(self):
+        discount_items = rego.DiscountItem.objects.filter(
+            discount=self.ceiling,
+        )
+        return discount_items
 
 
 class VoucherConditionController(ConditionController):

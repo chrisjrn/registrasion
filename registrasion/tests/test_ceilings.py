@@ -4,8 +4,9 @@ import pytz
 from django.core.exceptions import ValidationError
 
 from cart_controller_helper import TestingCartController
-
 from test_cart import RegistrationCartTestCase
+
+from registrasion import models as rego
 
 UTC = pytz.timezone('UTC')
 
@@ -150,3 +151,36 @@ class CeilingsTestCases(RegistrationCartTestCase):
         first_cart.cart.save()
 
         second_cart.add_to_cart(self.PROD_1, 1)
+
+    def test_discount_ceiling_only_counts_items_covered_by_ceiling(self):
+        self.make_discount_ceiling("Limit ceiling", limit=1, percentage=50)
+        voucher = self.new_voucher(code="VOUCHER")
+
+        discount = rego.VoucherDiscount.objects.create(
+            description="VOUCHER RECIPIENT",
+            voucher=voucher,
+        )
+        discount.save()
+        rego.DiscountForProduct.objects.create(
+            discount=discount,
+            product=self.PROD_1,
+            percentage=100,
+            quantity=1
+        ).save()
+
+        # Buy two of PROD_1, in separate carts:
+        cart = TestingCartController.for_user(self.USER_1)
+        # the 100% discount from the voucher should apply to the first item
+        # and not the ceiling discount.
+        cart.apply_voucher("VOUCHER")
+        cart.add_to_cart(self.PROD_1, 1)
+        self.assertEqual(1, len(cart.cart.discountitem_set.all()))
+
+        cart.cart.active = False
+        cart.cart.save()
+
+        # The second cart has no voucher attached, so should apply the
+        # ceiling discount
+        cart = TestingCartController.for_user(self.USER_1)
+        cart.add_to_cart(self.PROD_1, 1)
+        self.assertEqual(1, len(cart.cart.discountitem_set.all()))

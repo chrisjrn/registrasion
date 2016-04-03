@@ -1,6 +1,6 @@
 import pytz
 
-from registrasion.controllers.cart import CartController
+from cart_controller_helper import TestingCartController
 from registrasion.controllers.invoice import InvoiceController
 
 from test_cart import RegistrationCartTestCase
@@ -11,7 +11,7 @@ UTC = pytz.timezone('UTC')
 class RefundTestCase(RegistrationCartTestCase):
 
     def test_refund_marks_void_and_unpaid_and_cart_released(self):
-        current_cart = CartController.for_user(self.USER_1)
+        current_cart = TestingCartController.for_user(self.USER_1)
 
         # Should be able to create an invoice after the product is added
         current_cart.add_to_cart(self.PROD_1, 1)

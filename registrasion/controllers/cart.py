@@ -21,8 +21,8 @@ class CartController(object):
     def __init__(self, cart):
         self.cart = cart
 
-    @staticmethod
-    def for_user(user):
+    @classmethod
+    def for_user(cls, user):
         ''' Returns the user's current cart, or creates a new cart
         if there isn't one ready yet. '''
 
@@ -35,7 +35,7 @@ class CartController(object):
                 reservation_duration=datetime.timedelta(),
                  )
             existing.save()
-        return CartController(existing)
+        return cls(existing)
 
     def extend_reservation(self):
         ''' Updates the cart's time last updated value, which is used to
@@ -162,25 +162,6 @@ class CartController(object):
         if errs:
             # TODO: batch errors
             raise ValidationError("An enabling condition failed")
-
-    def set_quantity(self, product, quantity, batched=False):
-        ''' Sets the _quantity_ of the given _product_ in the cart to the given
-        _quantity_. '''
-
-        self.set_quantities(((product, quantity),))
-
-    def add_to_cart(self, product, quantity):
-        ''' Adds _quantity_ of the given _product_ to the cart. Raises
-        ValidationError if constraints are violated.'''
-
-        try:
-            product_item = rego.ProductItem.objects.get(
-                cart=self.cart,
-                product=product)
-            old_quantity = product_item.quantity
-        except ObjectDoesNotExist:
-            old_quantity = 0
-        self.set_quantity(product, old_quantity + quantity)
 
     def apply_voucher(self, voucher_code):
         ''' Applies the voucher with the given code to this cart. '''

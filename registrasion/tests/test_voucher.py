@@ -6,7 +6,7 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 
 from registrasion import models as rego
-from registrasion.controllers.cart import CartController
+from cart_controller_helper import TestingCartController
 from registrasion.controllers.invoice import InvoiceController
 
 from test_cart import RegistrationCartTestCase
@@ -31,12 +31,12 @@ class VoucherTestCases(RegistrationCartTestCase):
 
         self.set_time(datetime.datetime(2015, 01, 01, tzinfo=UTC))
 
-        cart_1 = CartController.for_user(self.USER_1)
+        cart_1 = TestingCartController.for_user(self.USER_1)
         cart_1.apply_voucher(voucher.code)
         self.assertIn(voucher, cart_1.cart.vouchers.all())
 
         # Second user should not be able to apply this voucher (it's exhausted)
-        cart_2 = CartController.for_user(self.USER_2)
+        cart_2 = TestingCartController.for_user(self.USER_2)
         with self.assertRaises(ValidationError):
             cart_2.apply_voucher(voucher.code)
 
@@ -66,7 +66,7 @@ class VoucherTestCases(RegistrationCartTestCase):
         enabling_condition.save()
 
         # Adding the product without a voucher will not work
-        current_cart = CartController.for_user(self.USER_1)
+        current_cart = TestingCartController.for_user(self.USER_1)
         with self.assertRaises(ValidationError):
             current_cart.add_to_cart(self.PROD_1, 1)
 
@@ -90,7 +90,7 @@ class VoucherTestCases(RegistrationCartTestCase):
         ).save()
 
         # Having PROD_1 in place should add a discount
-        current_cart = CartController.for_user(self.USER_1)
+        current_cart = TestingCartController.for_user(self.USER_1)
         current_cart.apply_voucher(voucher.code)
         current_cart.add_to_cart(self.PROD_1, 1)
         self.assertEqual(1, len(current_cart.cart.discountitem_set.all()))
@@ -106,19 +106,19 @@ class VoucherTestCases(RegistrationCartTestCase):
 
     def test_vouchers_case_insensitive(self):
         voucher = self.new_voucher(code="VOUCHeR")
-        current_cart = CartController.for_user(self.USER_1)
+        current_cart = TestingCartController.for_user(self.USER_1)
         current_cart.apply_voucher(voucher.code.lower())
 
     def test_voucher_can_only_be_applied_once(self):
         voucher = self.new_voucher(limit=2)
-        current_cart = CartController.for_user(self.USER_1)
+        current_cart = TestingCartController.for_user(self.USER_1)
         current_cart.apply_voucher(voucher.code)
         with self.assertRaises(ValidationError):
             current_cart.apply_voucher(voucher.code)
 
     def test_voucher_can_only_be_applied_once_across_multiple_carts(self):
         voucher = self.new_voucher(limit=2)
-        current_cart = CartController.for_user(self.USER_1)
+        current_cart = TestingCartController.for_user(self.USER_1)
         current_cart.apply_voucher(voucher.code)
 
         inv = InvoiceController.for_cart(current_cart.cart)
@@ -131,13 +131,13 @@ class VoucherTestCases(RegistrationCartTestCase):
 
     def test_refund_releases_used_vouchers(self):
         voucher = self.new_voucher(limit=2)
-        current_cart = CartController.for_user(self.USER_1)
+        current_cart = TestingCartController.for_user(self.USER_1)
         current_cart.apply_voucher(voucher.code)
 
         inv = InvoiceController.for_cart(current_cart.cart)
         inv.pay("Hello!", inv.invoice.value)
 
-        current_cart = CartController.for_user(self.USER_1)
+        current_cart = TestingCartController.for_user(self.USER_1)
         with self.assertRaises(ValidationError):
             current_cart.apply_voucher(voucher.code)
 

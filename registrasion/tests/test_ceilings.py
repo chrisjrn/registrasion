@@ -3,7 +3,7 @@ import pytz
 
 from django.core.exceptions import ValidationError
 
-from registrasion.controllers.cart import CartController
+from cart_controller_helper import TestingCartController
 
 from test_cart import RegistrationCartTestCase
 
@@ -22,7 +22,7 @@ class CeilingsTestCases(RegistrationCartTestCase):
 
     def __add_to_cart_test(self):
 
-        current_cart = CartController.for_user(self.USER_1)
+        current_cart = TestingCartController.for_user(self.USER_1)
 
         # User should not be able to add 10 of PROD_1 to the current cart
         # because it is affected by limit_ceiling
@@ -46,7 +46,7 @@ class CeilingsTestCases(RegistrationCartTestCase):
             start_time=datetime.datetime(2015, 01, 01, tzinfo=UTC),
             end_time=datetime.datetime(2015, 02, 01, tzinfo=UTC))
 
-        current_cart = CartController.for_user(self.USER_1)
+        current_cart = TestingCartController.for_user(self.USER_1)
 
         # User should not be able to add whilst we're before start_time
         self.set_time(datetime.datetime(2014, 01, 01, tzinfo=UTC))
@@ -74,8 +74,8 @@ class CeilingsTestCases(RegistrationCartTestCase):
 
         self.set_time(datetime.datetime(2015, 01, 01, tzinfo=UTC))
 
-        first_cart = CartController.for_user(self.USER_1)
-        second_cart = CartController.for_user(self.USER_2)
+        first_cart = TestingCartController.for_user(self.USER_1)
+        second_cart = TestingCartController.for_user(self.USER_2)
 
         first_cart.add_to_cart(self.PROD_1, 1)
 
@@ -111,8 +111,8 @@ class CeilingsTestCases(RegistrationCartTestCase):
     def __validation_test(self):
         self.set_time(datetime.datetime(2015, 01, 01, tzinfo=UTC))
 
-        first_cart = CartController.for_user(self.USER_1)
-        second_cart = CartController.for_user(self.USER_2)
+        first_cart = TestingCartController.for_user(self.USER_1)
+        second_cart = TestingCartController.for_user(self.USER_2)
 
         # Adding a valid product should validate.
         first_cart.add_to_cart(self.PROD_1, 1)
@@ -136,13 +136,13 @@ class CeilingsTestCases(RegistrationCartTestCase):
     def test_items_released_from_ceiling_by_refund(self):
         self.make_ceiling("Limit ceiling", limit=1)
 
-        first_cart = CartController.for_user(self.USER_1)
+        first_cart = TestingCartController.for_user(self.USER_1)
         first_cart.add_to_cart(self.PROD_1, 1)
 
         first_cart.cart.active = False
         first_cart.cart.save()
 
-        second_cart = CartController.for_user(self.USER_2)
+        second_cart = TestingCartController.for_user(self.USER_2)
         with self.assertRaises(ValidationError):
             second_cart.add_to_cart(self.PROD_1, 1)
 

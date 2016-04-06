@@ -114,6 +114,8 @@ class VoucherTestCases(RegistrationCartTestCase):
         inv = InvoiceController.for_cart(current_cart.cart)
         inv.pay("Hello!", inv.invoice.value)
 
+        current_cart = TestingCartController.for_user(self.USER_1)
+
         with self.assertRaises(ValidationError):
             current_cart.apply_voucher(voucher.code)
 

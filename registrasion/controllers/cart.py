@@ -175,16 +175,26 @@ class CartController(object):
     def apply_voucher(self, voucher_code):
         ''' Applies the voucher with the given code to this cart. '''
 
-        # Is voucher exhausted?
-        active_carts = rego.Cart.reserved_carts()
-
         # Try and find the voucher
         voucher = rego.Voucher.objects.get(code=voucher_code.upper())
+
+        self._test_voucher(voucher)
+
+        # If successful...
+        self.cart.vouchers.add(voucher)
+        self.end_batch()
+
+    def _test_voucher(self, voucher):
+        ''' Tests whether this voucher is allowed to be applied to this cart.
+        Raises ValidationError if not. '''
+
+        # Is voucher exhausted?
+        active_carts = rego.Cart.reserved_carts()
 
         # It's invalid for a user to enter a voucher that's exhausted
         carts_with_voucher = active_carts.filter(vouchers=voucher)
         if len(carts_with_voucher) >= voucher.limit:
-            raise ValidationError("This voucher is no longer available")
+            raise ValidationError("Voucher %s is no longer available" % voucher.code)
 
         # It's not valid for users to re-enter a voucher they already have
         user_carts_with_voucher = rego.Cart.objects.filter(
@@ -195,9 +205,6 @@ class CartController(object):
         if len(user_carts_with_voucher) > 0:
             raise ValidationError("You have already entered this voucher.")
 
-        # If successful...
-        self.cart.vouchers.add(voucher)
-        self.end_batch()
 
     def validate_cart(self):
         ''' Determines whether the status of the current cart is valid;

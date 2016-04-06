@@ -13,7 +13,7 @@ class DiscountAndQuantity(object):
         self.quantity = quantity
 
     def __repr__(self):
-        print "(discount=%s, clause=%s, quantity=%d)" % (
+        return "(discount=%s, clause=%s, quantity=%d)" % (
             self.discount, self.clause, self.quantity,
         )
 
@@ -37,11 +37,20 @@ def available_discounts(user, categories, products):
     )
     # (Not relevant: discounts that match products in provided categories)
 
+    product_discounts = product_discounts.select_related(
+        "product",
+        "product__category",
+    )
+
+    all_category_discounts = category_discounts | product_category_discounts
+    all_category_discounts = all_category_discounts.select_related(
+        "category",
+    )
+
     # The set of all potential discounts
     potential_discounts = set(itertools.chain(
         product_discounts,
-        category_discounts,
-        product_category_discounts,
+        all_category_discounts,
     ))
 
     discounts = []
@@ -49,6 +58,7 @@ def available_discounts(user, categories, products):
     # Markers so that we don't need to evaluate given conditions more than once
     accepted_discounts = set()
     failed_discounts = set()
+
 
     for discount in potential_discounts:
         real_discount = rego.DiscountBase.objects.get_subclass(
@@ -63,7 +73,7 @@ def available_discounts(user, categories, products):
             cart__user=user,
             cart__active=False,  # Only past carts count
             cart__released=False,  # You can reuse refunded discounts
-            discount=discount.discount,
+            discount=real_discount,
         )
         agg = past_uses.aggregate(Sum("quantity"))
         past_use_count = agg["quantity__sum"]

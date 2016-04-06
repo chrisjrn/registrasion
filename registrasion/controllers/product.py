@@ -23,18 +23,25 @@ class ProductController(object):
 
         if category is not None:
             all_products = rego.Product.objects.filter(category=category)
+            all_products = all_products.select_related("category")
         else:
             all_products = []
 
         if products is not None:
-            all_products = itertools.chain(all_products, products)
+            all_products = set(itertools.chain(all_products, products))
+
+        cat_quants = dict(
+            (
+                category,
+                CategoryController(category).user_quantity_remaining(user),
+            )
+            for category in set(product.category for product in all_products)
+        )
 
         passed_limits = set(
             product
             for product in all_products
-            if CategoryController(product.category).user_quantity_remaining(
-                user
-            ) > 0
+            if cat_quants[product.category] > 0
             if cls(product).user_quantity_remaining(user) > 0
         )
 

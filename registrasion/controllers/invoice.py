@@ -67,8 +67,11 @@ class InvoiceController(object):
         )
         invoice.save()
 
-        # TODO: calculate line items.
         product_items = rego.ProductItem.objects.filter(cart=cart)
+
+        if len(product_items) == 0:
+            raise ValidationError("Your cart is empty.")
+
         product_items = product_items.order_by(
             "product__category__order", "product__order"
         )

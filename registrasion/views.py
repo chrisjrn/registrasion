@@ -337,6 +337,8 @@ def set_quantities_from_products_form(products_form, current_cart):
             product, message = ve_field.message
             if product in field_names:
                 field = field_names[product]
+            elif isinstance(product, rego.Product):
+                continue
             else:
                 field = None
             products_form.add_error(field, message)

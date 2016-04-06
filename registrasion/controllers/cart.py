@@ -120,14 +120,12 @@ class CartController(object):
         # Test each product limit here
         for product, quantity in product_quantities:
             if quantity < 0:
-                # TODO: batch errors
                 errors.append((product, "Value must be zero or greater."))
 
             prod = ProductController(product)
             limit = prod.user_quantity_remaining(self.cart.user)
 
             if quantity > limit:
-                # TODO: batch errors
                 errors.append((
                     product,
                     "You may only have %d of product: %s" % (
@@ -149,7 +147,6 @@ class CartController(object):
             to_add = sum(i[1] for i in by_cat[category])
 
             if to_add > limit:
-                # TODO: batch errors
                 errors.append((
                     category,
                     "You may only have %d items in category: %s" % (
@@ -164,10 +161,8 @@ class CartController(object):
         )
 
         if errs:
-            # TODO: batch errors
-            errors.append(
-                ("enabling_conditions", "An enabling condition failed")
-            )
+            for error in errs:
+                errors.append(error)
 
         if errors:
             raise CartValidationError(errors)

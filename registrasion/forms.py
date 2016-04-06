@@ -55,6 +55,7 @@ class _QuantityBoxProductsForm(_ProductsForm):
             field = forms.IntegerField(
                 label=product.name,
                 help_text=help_text,
+                min_value=0,
             )
             cls.base_fields[cls.field_name(product)] = field
 

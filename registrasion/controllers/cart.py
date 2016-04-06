@@ -80,6 +80,11 @@ class CartController(object):
         pairs. '''
 
         items_in_cart = rego.ProductItem.objects.filter(cart=self.cart)
+        items_in_cart = items_in_cart.select_related(
+            "product",
+            "product__category",
+        )
+
         product_quantities = list(product_quantities)
 
         # n.b need to add have the existing items first so that the new
@@ -283,6 +288,7 @@ class CartController(object):
 
         # Fix products and discounts
         items = rego.ProductItem.objects.filter(cart=self.cart)
+        items = items.select_related("product")
         products = set(i.product for i in items)
         available = set(ProductController.available_products(
             self.cart.user,
@@ -302,7 +308,9 @@ class CartController(object):
         # Delete the existing entries.
         rego.DiscountItem.objects.filter(cart=self.cart).delete()
 
-        product_items = self.cart.productitem_set.all()
+        product_items = self.cart.productitem_set.all().select_related(
+            "product", "product__category",
+        )
 
         products = [i.product for i in product_items]
         discounts = discount.available_discounts(self.cart.user, [], products)
@@ -310,6 +318,7 @@ class CartController(object):
         # The highest-value discounts will apply to the highest-value
         # products first.
         product_items = self.cart.productitem_set.all()
+        product_items = product_items.select_related("product")
         product_items = product_items.order_by('product__price')
         product_items = reversed(product_items)
         for item in product_items:

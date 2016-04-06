@@ -30,7 +30,7 @@ def items_pending(context):
     all_items = rego.ProductItem.objects.filter(
         cart__user=context.request.user,
         cart__active=True,
-    )
+    ).select_related("product", "product__category")
     return all_items
 
 
@@ -42,17 +42,18 @@ def items_purchased(context, category=None):
     all_items = rego.ProductItem.objects.filter(
         cart__user=context.request.user,
         cart__active=False,
-    )
+        cart__released=False,
+    ).select_related("product", "product__category")
 
     if category:
         all_items = all_items.filter(product__category=category)
 
-    products = set(item.product for item in all_items)
+    pq = all_items.values("product").annotate(quantity=Sum("quantity")).all()
+    products = rego.Product.objects.all()
     out = []
-    for product in products:
-        pp = all_items.filter(product=product)
-        quantity = pp.aggregate(Sum("quantity"))["quantity__sum"]
-        out.append(ProductAndQuantity(product, quantity))
+    for item in pq:
+        prod = products.get(pk=item["product"])
+        out.append(ProductAndQuantity(prod, item["quantity"]))
     return out
 
 

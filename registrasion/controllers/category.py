@@ -22,7 +22,7 @@ class CategoryController(object):
         from product import ProductController
 
         if products is AllProducts:
-            products = rego.Product.objects.all()
+            products = rego.Product.objects.all().select_related("category")
 
         available = ProductController.available_products(
             user,

@@ -1,4 +1,5 @@
 import itertools
+import operator
 
 from collections import defaultdict
 from collections import namedtuple
@@ -90,12 +91,22 @@ class ConditionController(object):
             quantities = {}
 
         # Get the conditions covered by the products themselves
-        all_conditions = [
-            product.enablingconditionbase_set.select_subclasses() |
-            product.category.enablingconditionbase_set.select_subclasses()
+
+        prods = (
+            product.enablingconditionbase_set.select_subclasses()
             for product in products
-        ]
-        all_conditions = set(itertools.chain(*all_conditions))
+        )
+        # Get the conditions covered by their categories
+        cats = (
+            category.enablingconditionbase_set.select_subclasses()
+            for category in set(product.category for product in products)
+        )
+
+        if products:
+            # Simplify the query.
+            all_conditions = reduce(operator.or_, itertools.chain(prods, cats))
+        else:
+            all_conditions = []
 
         # All mandatory conditions on a product need to be met
         mandatory = defaultdict(lambda: True)
@@ -115,10 +126,14 @@ class ConditionController(object):
             from_category = rego.Product.objects.filter(
                 category__in=condition.categories.all(),
             ).all()
-            all_products = set(itertools.chain(cond_products, from_category))
-
+            all_products = cond_products | from_category
+            all_products = all_products.select_related("category")
             # Remove the products that we aren't asking about
-            all_products = all_products & products
+            all_products = [
+                product
+                for product in all_products
+                if product in products
+            ]
 
             if quantities:
                 consumed = sum(quantities[i] for i in all_products)

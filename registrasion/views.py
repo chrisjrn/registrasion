@@ -115,11 +115,20 @@ def guided_registration(request, page_id=0):
             current_step = 3
             title = "Additional items"
 
+        all_products = rego.Product.objects.filter(
+            category__in=cats,
+        ).select_related("category")
+
+        available_products = set(ProductController.available_products(
+            request.user,
+            products=all_products,
+        ))
+
         for category in cats:
-            products = ProductController.available_products(
-                request.user,
-                category=category,
-            )
+            products = [
+                i for i in available_products
+                if i.category == category
+            ]
 
             prefix = "category_" + str(category.id)
             p = handle_products(request, category, products, prefix)
@@ -280,15 +289,17 @@ def handle_products(request, category, products, prefix):
     items = rego.ProductItem.objects.filter(
         product__in=products,
         cart=current_cart.cart,
-    )
+    ).select_related("product")
     quantities = []
-    for product in products:
-        # Only add items that are enabled.
-        try:
-            quantity = items.get(product=product).quantity
-        except ObjectDoesNotExist:
-            quantity = 0
-        quantities.append((product, quantity))
+    seen = set()
+
+    for item in items:
+        quantities.append((item.product, item.quantity))
+        seen.add(item.product)
+
+    zeros = set(products) - seen
+    for product in zeros:
+        quantities.append((product, 0))
 
     products_form = ProductsForm(
         request.POST or None,
@@ -323,8 +334,12 @@ def handle_products(request, category, products, prefix):
 def set_quantities_from_products_form(products_form, current_cart):
 
     quantities = list(products_form.product_quantities())
+
+    pks = [i[0] for i in quantities]
+    products = rego.Product.objects.filter(id__in=pks).select_related("category")
+
     product_quantities = [
-        (rego.Product.objects.get(pk=i[0]), i[1]) for i in quantities
+        (products.get(pk=i[0]), i[1]) for i in quantities
     ]
     field_names = dict(
         (i[0][0], i[1][2]) for i in zip(product_quantities, quantities)

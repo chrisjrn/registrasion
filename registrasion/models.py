@@ -99,6 +99,7 @@ class Category(models.Model):
     )
     order = models.PositiveIntegerField(
         verbose_name=("Display order"),
+        db_index=True,
     )
     render_type = models.IntegerField(
         choices=CATEGORY_RENDER_TYPES,
@@ -147,6 +148,7 @@ class Product(models.Model):
     )
     order = models.PositiveIntegerField(
         verbose_name=("Display order"),
+        db_index=True,
     )
 
 
@@ -313,6 +315,7 @@ class VoucherDiscount(DiscountBase):
         Voucher,
         on_delete=models.CASCADE,
         verbose_name=_("Voucher"),
+        db_index=True,
     )
 
 
@@ -458,17 +461,33 @@ class Cart(models.Model):
     ''' Represents a set of product items that have been purchased, or are
     pending purchase. '''
 
+    class Meta:
+        index_together = [
+            ("active", "time_last_updated"),
+            ("active", "released"),
+            ("active", "user"),
+            ("released", "user"),
+        ]
+
     def __str__(self):
         return "%d rev #%d" % (self.id, self.revision)
 
     user = models.ForeignKey(User)
     # ProductItems (foreign key)
     vouchers = models.ManyToManyField(Voucher, blank=True)
-    time_last_updated = models.DateTimeField()
+    time_last_updated = models.DateTimeField(
+        db_index=True,
+    )
     reservation_duration = models.DurationField()
     revision = models.PositiveIntegerField(default=1)
-    active = models.BooleanField(default=True)
-    released = models.BooleanField(default=False)  # Refunds etc
+    active = models.BooleanField(
+        default=True,
+        db_index=True,
+    )
+    released = models.BooleanField(
+        default=False,
+        db_index=True
+    )  # Refunds etc
 
     @classmethod
     def reserved_carts(cls):
@@ -492,7 +511,7 @@ class ProductItem(models.Model):
 
     cart = models.ForeignKey(Cart)
     product = models.ForeignKey(Product)
-    quantity = models.PositiveIntegerField()
+    quantity = models.PositiveIntegerField(db_index=True)
 
 
 @python_2_unicode_compatible

@@ -43,6 +43,18 @@ class VoucherTestCases(RegistrationCartTestCase):
         with self.assertRaises(ValidationError):
             cart_1.validate_cart()
 
+    def test_fix_simple_errors_resolves_unavailable_voucher(self):
+        self.test_apply_voucher()
+
+        # User has an exhausted voucher leftover from test_apply_voucher
+        cart_1 = TestingCartController.for_user(self.USER_1)
+        with self.assertRaises(ValidationError):
+            cart_1.validate_cart()
+
+        cart_1.fix_simple_errors()
+        # This should work now.
+        cart_1.validate_cart()
+
     def test_voucher_enables_item(self):
         voucher = self.new_voucher()
 
@@ -137,3 +149,11 @@ class VoucherTestCases(RegistrationCartTestCase):
 
         inv.refund("Hello!", inv.invoice.value)
         current_cart.apply_voucher(voucher.code)
+
+    def test_fix_simple_errors_does_not_remove_limited_voucher(self):
+        voucher = self.new_voucher(code="VOUCHER")
+        current_cart = TestingCartController.for_user(self.USER_1)
+        current_cart.apply_voucher(voucher.code)
+
+        current_cart.fix_simple_errors()
+        self.assertEqual(1, current_cart.cart.vouchers.count())

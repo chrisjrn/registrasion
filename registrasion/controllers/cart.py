@@ -198,7 +198,7 @@ class CartController(object):
         # It's invalid for a user to enter a voucher that's exhausted
         carts_with_voucher = active_carts.filter(vouchers=voucher)
         carts_with_voucher = carts_with_voucher.exclude(pk=self.cart.id)
-        if len(carts_with_voucher) >= voucher.limit:
+        if carts_with_voucher.count() >= voucher.limit:
             raise ValidationError("Voucher %s is no longer available" % voucher.code)
 
         # It's not valid for users to re-enter a voucher they already have
@@ -206,7 +206,7 @@ class CartController(object):
             user=self.cart.user,
         )
 
-        if len(user_carts_with_voucher) > 0:
+        if user_carts_with_voucher.count() > 0:
             raise ValidationError("You have already entered this voucher.")
 
     def _test_vouchers(self, vouchers):
@@ -278,13 +278,24 @@ class CartController(object):
         if errors:
             raise ValidationError(errors)
 
+    @transaction.atomic
     def fix_simple_errors(self):
         ''' This attempts to fix the easy errors raised by ValidationError.
         This includes removing items from the cart that are no longer
         available, recalculating all of the discounts, and removing voucher
         codes that are no longer available. '''
 
-        # TODO: fix vouchers first (this affects available discounts)
+        # Fix vouchers first (this affects available discounts)
+        active_carts = rego.Cart.reserved_carts()
+        to_remove = []
+        for voucher in self.cart.vouchers.all():
+            try:
+                self._test_voucher(voucher)
+            except ValidationError as ve:
+                to_remove.append(voucher)
+
+        for voucher in to_remove:
+            self.cart.vouchers.remove(voucher)
 
         # Fix products and discounts
         items = rego.ProductItem.objects.filter(cart=self.cart)
@@ -298,7 +309,6 @@ class CartController(object):
         zeros = [(product, 0) for product in not_available]
 
         self.set_quantities(zeros)
-
 
     @transaction.atomic
     def recalculate_discounts(self):

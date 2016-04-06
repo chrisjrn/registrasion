@@ -74,12 +74,12 @@ class RegistrationCartTestCase(SetTimeMixin, TestCase):
 
         # Burn through some carts -- this made some past EC tests fail
         current_cart = TestingCartController.for_user(cls.USER_1)
-        current_cart.cart.active = False
-        current_cart.cart.save()
+
+        current_cart.next_cart()
 
         current_cart = TestingCartController.for_user(cls.USER_2)
-        current_cart.cart.active = False
-        current_cart.cart.save()
+
+        current_cart.next_cart()
 
     @classmethod
     def make_ceiling(cls, name, limit=None, start_time=None, end_time=None):
@@ -142,8 +142,8 @@ class BasicCartTests(RegistrationCartTestCase):
     def test_get_cart(self):
         current_cart = TestingCartController.for_user(self.USER_1)
 
-        current_cart.cart.active = False
-        current_cart.cart.save()
+
+        current_cart.next_cart()
 
         old_cart = current_cart
 
@@ -214,8 +214,8 @@ class BasicCartTests(RegistrationCartTestCase):
         with self.assertRaises(ValidationError):
             current_cart.add_to_cart(self.PROD_1, 10)
 
-        current_cart.cart.active = False
-        current_cart.cart.save()
+
+        current_cart.next_cart()
 
         current_cart = TestingCartController.for_user(self.USER_1)
         # User should not be able to add 10 of PROD_1 to the current cart now,
@@ -272,8 +272,8 @@ class BasicCartTests(RegistrationCartTestCase):
         with self.assertRaises(ValidationError):
             current_cart.add_to_cart(self.PROD_3, 1)
 
-        current_cart.cart.active = False
-        current_cart.cart.save()
+
+        current_cart.next_cart()
 
         current_cart = TestingCartController.for_user(self.USER_1)
         # The category limit should extend across carts
@@ -298,8 +298,8 @@ class BasicCartTests(RegistrationCartTestCase):
             current_cart.add_to_cart(self.PROD_4, 1)
 
         # The limits should extend across carts...
-        current_cart.cart.active = False
-        current_cart.cart.save()
+
+        current_cart.next_cart()
 
         current_cart = TestingCartController.for_user(self.USER_1)
         current_cart.set_quantity(self.PROD_3, 4)
@@ -325,8 +325,8 @@ class BasicCartTests(RegistrationCartTestCase):
         current_cart.add_to_cart(item, quantity)
         self.assertTrue(item in prods)
 
-        current_cart.cart.active = False
-        current_cart.cart.save()
+
+        current_cart.next_cart()
 
         current_cart = TestingCartController.for_user(self.USER_1)
 

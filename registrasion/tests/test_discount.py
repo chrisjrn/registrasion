@@ -168,8 +168,8 @@ class DiscountTestCase(RegistrationCartTestCase):
         # Enable the discount during the first cart.
         cart = TestingCartController.for_user(self.USER_1)
         cart.add_to_cart(self.PROD_1, 1)
-        cart.cart.active = False
-        cart.cart.save()
+
+        cart.next_cart()
 
         # Use the discount in the second cart
         cart = TestingCartController.for_user(self.USER_1)
@@ -177,8 +177,8 @@ class DiscountTestCase(RegistrationCartTestCase):
 
         # The discount should be applied.
         self.assertEqual(1, len(cart.cart.discountitem_set.all()))
-        cart.cart.active = False
-        cart.cart.save()
+
+        cart.next_cart()
 
         # The discount should respect the total quantity across all
         # of the user's carts.
@@ -197,8 +197,8 @@ class DiscountTestCase(RegistrationCartTestCase):
         cart.add_to_cart(self.PROD_1, 1)
         # This would exhaust discount if present
         cart.add_to_cart(self.PROD_2, 2)
-        cart.cart.active = False
-        cart.cart.save()
+
+        cart.next_cart()
 
         self.add_discount_prod_1_includes_prod_2()
         cart = TestingCartController.for_user(self.USER_1)
@@ -346,9 +346,8 @@ class DiscountTestCase(RegistrationCartTestCase):
 
         discounts = discount.available_discounts(self.USER_1, [self.CAT_2], [])
         self.assertEqual(2, discounts[0].quantity)
-        inv = InvoiceController.for_cart(cart.cart)
-        inv.pay("Dummy reference", inv.invoice.value)
-        self.assertTrue(inv.invoice.paid)
+
+        cart.next_cart()
 
     def test_discount_quantity_is_correct_after_first_purchase(self):
         self.test_discount_quantity_is_correct_before_first_purchase()
@@ -358,9 +357,8 @@ class DiscountTestCase(RegistrationCartTestCase):
 
         discounts = discount.available_discounts(self.USER_1, [self.CAT_2], [])
         self.assertEqual(1, discounts[0].quantity)
-        inv = InvoiceController.for_cart(cart.cart)
-        inv.pay("Dummy reference", inv.invoice.value)
-        self.assertTrue(inv.invoice.paid)
+
+        cart.next_cart()
 
     def test_discount_is_gone_after_quantity_exhausted(self):
         self.test_discount_quantity_is_correct_after_first_purchase()
@@ -390,12 +388,12 @@ class DiscountTestCase(RegistrationCartTestCase):
         self.assertEqual(1, len(discounts))
 
         cart.cart.active = False  # Keep discount enabled
-        cart.cart.save()
+        cart.next_cart()
 
         cart = TestingCartController.for_user(self.USER_1)
         cart.add_to_cart(self.PROD_2, 2)  # The discount will be exhausted
-        cart.cart.active = False
-        cart.cart.save()
+
+        cart.next_cart()
 
         discounts = discount.available_discounts(
             self.USER_1,
@@ -405,7 +403,7 @@ class DiscountTestCase(RegistrationCartTestCase):
         self.assertEqual(0, len(discounts))
 
         cart.cart.released = True
-        cart.cart.save()
+        cart.next_cart()
 
         discounts = discount.available_discounts(
             self.USER_1,

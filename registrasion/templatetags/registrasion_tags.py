@@ -35,13 +35,17 @@ def items_pending(context):
 
 
 @register.assignment_tag(takes_context=True)
-def items_purchased(context):
-    ''' Returns all of the items that this user has purchased '''
+def items_purchased(context, category=None):
+    ''' Returns all of the items that this user has purchased, optionally
+    from the given category. '''
 
     all_items = rego.ProductItem.objects.filter(
         cart__user=context.request.user,
         cart__active=False,
     )
+
+    if category:
+        all_items = all_items.filter(product__category=category)
 
     products = set(item.product for item in all_items)
     out = []

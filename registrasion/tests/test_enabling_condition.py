@@ -68,8 +68,8 @@ class EnablingConditionTestCases(RegistrationCartTestCase):
 
         current_cart = TestingCartController.for_user(self.USER_1)
         current_cart.add_to_cart(self.PROD_2, 1)
-        current_cart.cart.active = False
-        current_cart.cart.save()
+
+        current_cart.next_cart()
 
         # Create new cart and try to add PROD_1
         current_cart = TestingCartController.for_user(self.USER_1)
@@ -103,8 +103,8 @@ class EnablingConditionTestCases(RegistrationCartTestCase):
 
         current_cart = TestingCartController.for_user(self.USER_1)
         current_cart.add_to_cart(self.PROD_3, 1)
-        current_cart.cart.active = False
-        current_cart.cart.save()
+
+        current_cart.next_cart()
 
         # Create new cart and try to add PROD_1
         current_cart = TestingCartController.for_user(self.USER_1)
@@ -241,15 +241,15 @@ class EnablingConditionTestCases(RegistrationCartTestCase):
         cart = TestingCartController.for_user(self.USER_1)
         cart.add_to_cart(self.PROD_3, 1)
 
-        cart.cart.active = False
-        cart.cart.save()
+
+        cart.next_cart()
 
         cart_2 = TestingCartController.for_user(self.USER_1)
         cart_2.add_to_cart(self.PROD_1, 1)
         cart_2.set_quantity(self.PROD_1, 0)
 
         cart.cart.released = True
-        cart.cart.save()
+        cart.next_cart()
 
         with self.assertRaises(ValidationError):
             cart_2.set_quantity(self.PROD_1, 1)
@@ -260,15 +260,15 @@ class EnablingConditionTestCases(RegistrationCartTestCase):
         cart = TestingCartController.for_user(self.USER_1)
         cart.add_to_cart(self.PROD_2, 1)
 
-        cart.cart.active = False
-        cart.cart.save()
+
+        cart.next_cart()
 
         cart_2 = TestingCartController.for_user(self.USER_1)
         cart_2.add_to_cart(self.PROD_1, 1)
         cart_2.set_quantity(self.PROD_1, 0)
 
         cart.cart.released = True
-        cart.cart.save()
+        cart.next_cart()
 
         with self.assertRaises(ValidationError):
             cart_2.set_quantity(self.PROD_1, 1)

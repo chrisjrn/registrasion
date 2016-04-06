@@ -24,3 +24,7 @@ class TestingCartController(CartController):
         except ObjectDoesNotExist:
             old_quantity = 0
         self.set_quantity(product, old_quantity + quantity)
+
+    def next_cart(self):
+        self.cart.active = False
+        self.cart.save()

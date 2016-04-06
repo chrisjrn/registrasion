@@ -203,15 +203,35 @@ class CartController(object):
         ''' Determines whether the status of the current cart is valid;
         this is normally called before generating or paying an invoice '''
 
+        cart = self.cart
+        user = self.cart.user
+        errors = []
+
         # TODO: validate vouchers
 
-        items = rego.ProductItem.objects.filter(cart=self.cart)
+        items = rego.ProductItem.objects.filter(cart=cart)
+
+        products = set(i.product for i in items)
+        available = set(ProductController.available_products(
+            user,
+            products=products,
+        ))
+
+        if products != available:
+            # Then we have products that aren't available any more.
+            for product in products:
+                if product not in available:
+                    message = "%s is no longer available to you." % product
+                    errors.append(ValidationError(message))
 
         product_quantities = list((i.product, i.quantity) for i in items)
-        self._test_limits(product_quantities)
+        try:
+            self._test_limits(product_quantities)
+        except ValidationError as ve:
+            errors.append(ve)
 
         # Validate the discounts
-        discount_items = rego.DiscountItem.objects.filter(cart=self.cart)
+        discount_items = rego.DiscountItem.objects.filter(cart=cart)
         seen_discounts = set()
 
         for discount_item in discount_items:
@@ -223,12 +243,17 @@ class CartController(object):
                 pk=discount.pk)
             cond = ConditionController.for_condition(real_discount)
 
-            if not cond.is_met(self.cart.user):
-                raise ValidationError("Discounts are no longer available")
+            if not cond.is_met(user):
+                errors.append(
+                    ValidationError("Discounts are no longer available")
+                )
 
+        if errors:
+            raise ValidationError(errors)
+
+    @transaction.atomic
     def recalculate_discounts(self):
         ''' Calculates all of the discounts available for this product.
-        NB should be transactional, and it's terribly inefficient.
         '''
 
         # Delete the existing entries.

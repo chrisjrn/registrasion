@@ -293,3 +293,19 @@ class EnablingConditionTestCases(RegistrationCartTestCase):
 
         self.assertTrue(self.CAT_1 in cats)
         self.assertTrue(self.CAT_2 in cats)
+
+    def test_validate_cart_when_enabling_conditions_become_unmet(self):
+        self.add_product_enabling_condition(mandatory=False)
+
+        cart = TestingCartController.for_user(self.USER_1)
+        cart.add_to_cart(self.PROD_2, 1)
+        cart.add_to_cart(self.PROD_1, 1)
+
+        # Should pass
+        cart.validate_cart()
+
+        cart.set_quantity(self.PROD_2, 0)
+
+        # Should fail
+        with self.assertRaises(ValidationError):
+            cart.validate_cart()

@@ -238,24 +238,13 @@ class CartController(object):
             errors.append(ve)
 
         items = rego.ProductItem.objects.filter(cart=cart)
-        products = set(i.product for i in items)
-        available = set(ProductController.available_products(
-            user,
-            products=products,
-        ))
-
-        if products != available:
-            # Then we have products that aren't available any more.
-            for product in products:
-                if product not in available:
-                    message = "%s is no longer available to you." % product
-                    errors.append(ValidationError(message))
 
         product_quantities = list((i.product, i.quantity) for i in items)
         try:
             self._test_limits(product_quantities)
         except ValidationError as ve:
-            errors.append(ve)
+            for error in ve.error_list:
+                errors.append(error.message[1])
 
         # Validate the discounts
         discount_items = rego.DiscountItem.objects.filter(cart=cart)

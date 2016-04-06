@@ -91,8 +91,8 @@ class CeilingsTestCases(RegistrationCartTestCase):
         second_cart.add_to_cart(self.PROD_1, 1)
 
         # User 2 pays for their cart
-        second_cart.cart.active = False
-        second_cart.cart.save()
+
+        second_cart.next_cart()
 
         # User 1 should not be able to add item to their cart
         # because user 2 has paid for their reserved item, exhausting
@@ -128,8 +128,8 @@ class CeilingsTestCases(RegistrationCartTestCase):
             first_cart.validate_cart()
 
         # Paid cart outside the reservation window
-        second_cart.cart.active = False
-        second_cart.cart.save()
+
+        second_cart.next_cart()
         self.add_timedelta(self.RESERVATION + datetime.timedelta(seconds=1))
         with self.assertRaises(ValidationError):
             first_cart.validate_cart()
@@ -140,15 +140,15 @@ class CeilingsTestCases(RegistrationCartTestCase):
         first_cart = TestingCartController.for_user(self.USER_1)
         first_cart.add_to_cart(self.PROD_1, 1)
 
-        first_cart.cart.active = False
-        first_cart.cart.save()
+
+        first_cart.next_cart()
 
         second_cart = TestingCartController.for_user(self.USER_2)
         with self.assertRaises(ValidationError):
             second_cart.add_to_cart(self.PROD_1, 1)
 
         first_cart.cart.released = True
-        first_cart.cart.save()
+        first_cart.next_cart()
 
         second_cart.add_to_cart(self.PROD_1, 1)
 
@@ -176,8 +176,8 @@ class CeilingsTestCases(RegistrationCartTestCase):
         cart.add_to_cart(self.PROD_1, 1)
         self.assertEqual(1, len(cart.cart.discountitem_set.all()))
 
-        cart.cart.active = False
-        cart.cart.save()
+
+        cart.next_cart()
 
         # The second cart has no voucher attached, so should apply the
         # ceiling discount

@@ -210,7 +210,6 @@ class CartController(object):
         # TODO: validate vouchers
 
         items = rego.ProductItem.objects.filter(cart=cart)
-
         products = set(i.product for i in items)
         available = set(ProductController.available_products(
             user,
@@ -250,6 +249,28 @@ class CartController(object):
 
         if errors:
             raise ValidationError(errors)
+
+    def fix_simple_errors(self):
+        ''' This attempts to fix the easy errors raised by ValidationError.
+        This includes removing items from the cart that are no longer
+        available, recalculating all of the discounts, and removing voucher
+        codes that are no longer available. '''
+
+        # TODO: fix vouchers first (this affects available discounts)
+
+        # Fix products and discounts
+        items = rego.ProductItem.objects.filter(cart=self.cart)
+        products = set(i.product for i in items)
+        available = set(ProductController.available_products(
+            self.cart.user,
+            products=products,
+        ))
+
+        not_available = products - available
+        zeros = [(product, 0) for product in not_available]
+
+        self.set_quantities(zeros)
+
 
     @transaction.atomic
     def recalculate_discounts(self):

@@ -37,11 +37,23 @@ class VoucherTestCases(RegistrationCartTestCase):
         cart_2.cart.active = False
         cart_2.cart.save()
 
-        # After the reservation duration, user 1 should not be able to apply
-        # voucher, as user 2 has paid for their cart.
+        # After the reservation duration, even though the voucher has applied,
+        # it exceeds the number of vouchers available.
         self.add_timedelta(rego.Voucher.RESERVATION_DURATION * 2)
         with self.assertRaises(ValidationError):
-            cart_1.apply_voucher(voucher.code)
+            cart_1.validate_cart()
+
+    def test_fix_simple_errors_resolves_unavailable_voucher(self):
+        self.test_apply_voucher()
+
+        # User has an exhausted voucher leftover from test_apply_voucher
+        cart_1 = TestingCartController.for_user(self.USER_1)
+        with self.assertRaises(ValidationError):
+            cart_1.validate_cart()
+
+        cart_1.fix_simple_errors()
+        # This should work now.
+        cart_1.validate_cart()
 
     def test_voucher_enables_item(self):
         voucher = self.new_voucher()
@@ -103,8 +115,10 @@ class VoucherTestCases(RegistrationCartTestCase):
         voucher = self.new_voucher(limit=2)
         current_cart = TestingCartController.for_user(self.USER_1)
         current_cart.apply_voucher(voucher.code)
-        with self.assertRaises(ValidationError):
-            current_cart.apply_voucher(voucher.code)
+        current_cart.apply_voucher(voucher.code)
+
+        # You can apply the code twice, but it will only add to the cart once.
+        self.assertEqual(1, current_cart.cart.vouchers.count())
 
     def test_voucher_can_only_be_applied_once_across_multiple_carts(self):
         voucher = self.new_voucher(limit=2)
@@ -113,6 +127,8 @@ class VoucherTestCases(RegistrationCartTestCase):
 
         inv = InvoiceController.for_cart(current_cart.cart)
         inv.pay("Hello!", inv.invoice.value)
+
+        current_cart = TestingCartController.for_user(self.USER_1)
 
         with self.assertRaises(ValidationError):
             current_cart.apply_voucher(voucher.code)
@@ -133,3 +149,11 @@ class VoucherTestCases(RegistrationCartTestCase):
 
         inv.refund("Hello!", inv.invoice.value)
         current_cart.apply_voucher(voucher.code)
+
+    def test_fix_simple_errors_does_not_remove_limited_voucher(self):
+        voucher = self.new_voucher(code="VOUCHER")
+        current_cart = TestingCartController.for_user(self.USER_1)
+        current_cart.apply_voucher(voucher.code)
+
+        current_cart.fix_simple_errors()
+        self.assertEqual(1, current_cart.cart.vouchers.count())

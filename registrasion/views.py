@@ -337,6 +337,8 @@ def set_quantities_from_products_form(products_form, current_cart):
             product, message = ve_field.message
             if product in field_names:
                 field = field_names[product]
+            elif isinstance(product, rego.Product):
+                continue
             else:
                 field = None
             products_form.add_error(field, message)
@@ -377,10 +379,30 @@ def checkout(request):
     invoice. '''
 
     current_cart = CartController.for_user(request.user)
-    current_invoice = InvoiceController.for_cart(current_cart.cart)
+
+    if "fix_errors" in request.GET and request.GET["fix_errors"] == "true":
+        current_cart.fix_simple_errors()
+
+    try:
+        current_invoice = InvoiceController.for_cart(current_cart.cart)
+    except ValidationError as ve:
+        return checkout_errors(request, ve)
 
     return redirect("invoice", current_invoice.invoice.id)
 
+def checkout_errors(request, errors):
+
+    error_list = []
+    for error in errors.error_list:
+        if isinstance(error, tuple):
+            error = error[1]
+        error_list.append(error)
+
+    data = {
+        "error_list": error_list,
+    }
+
+    return render(request, "registrasion/checkout_errors.html", data)
 
 @login_required
 def invoice(request, invoice_id):

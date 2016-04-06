@@ -38,9 +38,10 @@ class ProductController(object):
             if cls(product).user_quantity_remaining(user) > 0
         )
 
-        failed_conditions = set(ConditionController.test_enabling_conditions(
+        failed_and_messages = ConditionController.test_enabling_conditions(
             user, products=passed_limits
-        ))
+        )
+        failed_conditions = set(i[0] for i in failed_and_messages)
 
         out = list(passed_limits - failed_conditions)
         out.sort(key=lambda product: product.order)

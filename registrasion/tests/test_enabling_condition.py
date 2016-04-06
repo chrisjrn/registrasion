@@ -293,3 +293,48 @@ class EnablingConditionTestCases(RegistrationCartTestCase):
 
         self.assertTrue(self.CAT_1 in cats)
         self.assertTrue(self.CAT_2 in cats)
+
+    def test_validate_cart_when_enabling_conditions_become_unmet(self):
+        self.add_product_enabling_condition(mandatory=False)
+
+        cart = TestingCartController.for_user(self.USER_1)
+        cart.add_to_cart(self.PROD_2, 1)
+        cart.add_to_cart(self.PROD_1, 1)
+
+        # Should pass
+        cart.validate_cart()
+
+        cart.set_quantity(self.PROD_2, 0)
+
+        # Should fail
+        with self.assertRaises(ValidationError):
+            cart.validate_cart()
+
+    def test_fix_simple_errors_resolves_unavailable_products(self):
+        self.test_validate_cart_when_enabling_conditions_become_unmet()
+        cart = TestingCartController.for_user(self.USER_1)
+
+        # Should just remove all of the unavailable products
+        cart.fix_simple_errors()
+        # Should now succeed
+        cart.validate_cart()
+
+        # Should keep PROD_2 in the cart
+        items = rego.ProductItem.objects.filter(cart=cart.cart)
+        self.assertFalse([i for i in items if i.product == self.PROD_1])
+
+    def test_fix_simple_errors_does_not_remove_limited_items(self):
+        cart = TestingCartController.for_user(self.USER_1)
+
+        cart.add_to_cart(self.PROD_2, 1)
+        cart.add_to_cart(self.PROD_1, 10)
+
+        # Should just remove all of the unavailable products
+        cart.fix_simple_errors()
+        # Should now succeed
+        cart.validate_cart()
+
+        # Should keep PROD_2 in the cart
+        # and also PROD_1, which is now exhausted for user.
+        items = rego.ProductItem.objects.filter(cart=cart.cart)
+        self.assertTrue([i for i in items if i.product == self.PROD_1])

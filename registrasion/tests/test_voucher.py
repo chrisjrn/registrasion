@@ -125,8 +125,8 @@ class VoucherTestCases(RegistrationCartTestCase):
         current_cart = TestingCartController.for_user(self.USER_1)
         current_cart.apply_voucher(voucher.code)
 
-        inv = InvoiceController.for_cart(current_cart.cart)
-        inv.pay("Hello!", inv.invoice.value)
+        current_cart.cart.active = False
+        current_cart.cart.save()
 
         current_cart = TestingCartController.for_user(self.USER_1)
 
@@ -139,9 +139,11 @@ class VoucherTestCases(RegistrationCartTestCase):
         voucher = self.new_voucher(limit=2)
         current_cart = TestingCartController.for_user(self.USER_1)
         current_cart.apply_voucher(voucher.code)
+        current_cart.add_to_cart(self.PROD_1, 1)
 
         inv = InvoiceController.for_cart(current_cart.cart)
-        inv.pay("Hello!", inv.invoice.value)
+        if not inv.invoice.paid:
+            inv.pay("Hello!", inv.invoice.value)
 
         current_cart = TestingCartController.for_user(self.USER_1)
         with self.assertRaises(ValidationError):

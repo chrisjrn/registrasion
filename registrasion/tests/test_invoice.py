@@ -83,18 +83,16 @@ class InvoiceTestCase(RegistrationCartTestCase):
             code="VOUCHER",
             limit=1
         )
-        voucher.save()
         discount = rego.VoucherDiscount.objects.create(
             description="VOUCHER RECIPIENT",
             voucher=voucher,
         )
-        discount.save()
         rego.DiscountForProduct.objects.create(
             discount=discount,
             product=self.PROD_1,
             percentage=Decimal(50),
             quantity=1
-        ).save()
+        )
 
         current_cart = TestingCartController.for_user(self.USER_1)
         current_cart.apply_voucher(voucher.code)
@@ -110,6 +108,32 @@ class InvoiceTestCase(RegistrationCartTestCase):
         self.assertEqual(
             self.PROD_1.price * Decimal("0.5"),
             invoice_1.invoice.value)
+
+    def test_zero_value_invoice_is_automatically_paid(self):
+        voucher = rego.Voucher.objects.create(
+            recipient="Voucher recipient",
+            code="VOUCHER",
+            limit=1
+        )
+        discount = rego.VoucherDiscount.objects.create(
+            description="VOUCHER RECIPIENT",
+            voucher=voucher,
+        )
+        rego.DiscountForProduct.objects.create(
+            discount=discount,
+            product=self.PROD_1,
+            percentage=Decimal(100),
+            quantity=1
+        )
+
+        current_cart = TestingCartController.for_user(self.USER_1)
+        current_cart.apply_voucher(voucher.code)
+
+        # Should be able to create an invoice after the product is added
+        current_cart.add_to_cart(self.PROD_1, 1)
+        invoice_1 = InvoiceController.for_cart(current_cart.cart)
+
+        self.assertTrue(invoice_1.invoice.paid)
 
     def test_invoice_voids_self_if_cart_is_invalid(self):
         current_cart = TestingCartController.for_user(self.USER_1)
@@ -169,3 +193,8 @@ class InvoiceTestCase(RegistrationCartTestCase):
 
         with self.assertRaises(ValidationError):
             invoice_1.void()
+
+    def test_cannot_generate_blank_invoice(self):
+        current_cart = TestingCartController.for_user(self.USER_1)
+        with self.assertRaises(ValidationError):
+            invoice_1 = InvoiceController.for_cart(current_cart.cart)

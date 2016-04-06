@@ -57,6 +57,7 @@ class InvoiceController(object):
         return value
 
     @classmethod
+    @transaction.atomic
     def _generate(cls, cart):
         ''' Generates an invoice for the given cart. '''
         invoice = rego.Invoice.objects.create(
@@ -65,7 +66,6 @@ class InvoiceController(object):
             cart_revision=cart.revision,
             value=Decimal()
         )
-        invoice.save()
 
         product_items = rego.ProductItem.objects.filter(cart=cart)
 
@@ -85,7 +85,6 @@ class InvoiceController(object):
                 quantity=item.quantity,
                 price=product.price,
             )
-            line_item.save()
             invoice_value += line_item.quantity * line_item.price
 
         for item in discount_items:
@@ -95,11 +94,13 @@ class InvoiceController(object):
                 quantity=item.quantity,
                 price=cls.resolve_discount_value(item) * -1,
             )
-            line_item.save()
             invoice_value += line_item.quantity * line_item.price
 
-        # TODO: calculate line items from discounts
         invoice.value = invoice_value
+
+        if invoice.value == 0:
+            invoice.paid = True
+
         invoice.save()
 
         return invoice

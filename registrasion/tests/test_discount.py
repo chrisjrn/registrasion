@@ -346,9 +346,8 @@ class DiscountTestCase(RegistrationCartTestCase):
 
         discounts = discount.available_discounts(self.USER_1, [self.CAT_2], [])
         self.assertEqual(2, discounts[0].quantity)
-        inv = InvoiceController.for_cart(cart.cart)
-        inv.pay("Dummy reference", inv.invoice.value)
-        self.assertTrue(inv.invoice.paid)
+        cart.cart.active = False
+        cart.cart.save()
 
     def test_discount_quantity_is_correct_after_first_purchase(self):
         self.test_discount_quantity_is_correct_before_first_purchase()
@@ -358,9 +357,8 @@ class DiscountTestCase(RegistrationCartTestCase):
 
         discounts = discount.available_discounts(self.USER_1, [self.CAT_2], [])
         self.assertEqual(1, discounts[0].quantity)
-        inv = InvoiceController.for_cart(cart.cart)
-        inv.pay("Dummy reference", inv.invoice.value)
-        self.assertTrue(inv.invoice.paid)
+        cart.cart.active = False
+        cart.cart.save()
 
     def test_discount_is_gone_after_quantity_exhausted(self):
         self.test_discount_quantity_is_correct_after_first_purchase()

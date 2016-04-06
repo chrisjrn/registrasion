@@ -37,11 +37,11 @@ class VoucherTestCases(RegistrationCartTestCase):
         cart_2.cart.active = False
         cart_2.cart.save()
 
-        # After the reservation duration, user 1 should not be able to apply
-        # voucher, as user 2 has paid for their cart.
+        # After the reservation duration, even though the voucher has applied,
+        # it exceeds the number of vouchers available.
         self.add_timedelta(rego.Voucher.RESERVATION_DURATION * 2)
         with self.assertRaises(ValidationError):
-            cart_1.apply_voucher(voucher.code)
+            cart_1.validate_cart()
 
     def test_voucher_enables_item(self):
         voucher = self.new_voucher()
@@ -103,8 +103,10 @@ class VoucherTestCases(RegistrationCartTestCase):
         voucher = self.new_voucher(limit=2)
         current_cart = TestingCartController.for_user(self.USER_1)
         current_cart.apply_voucher(voucher.code)
-        with self.assertRaises(ValidationError):
-            current_cart.apply_voucher(voucher.code)
+        current_cart.apply_voucher(voucher.code)
+
+        # You can apply the code twice, but it will only add to the cart once.
+        self.assertEqual(1, current_cart.cart.vouchers.count())
 
     def test_voucher_can_only_be_applied_once_across_multiple_carts(self):
         voucher = self.new_voucher(limit=2)

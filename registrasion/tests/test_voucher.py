@@ -141,7 +141,7 @@ class VoucherTestCases(RegistrationCartTestCase):
         current_cart.add_to_cart(self.PROD_1, 1)
 
         inv = TestingInvoiceController.for_cart(current_cart.cart)
-        if not inv.invoice.paid:
+        if not inv.invoice.is_paid:
             inv.pay("Hello!", inv.invoice.value)
 
         current_cart = TestingCartController.for_user(self.USER_1)

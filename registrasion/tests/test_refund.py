@@ -18,11 +18,13 @@ class RefundTestCase(RegistrationCartTestCase):
         invoice = TestingInvoiceController.for_cart(current_cart.cart)
 
         invoice.pay("A Payment!", invoice.invoice.value)
-        self.assertFalse(invoice.invoice.void)
-        self.assertTrue(invoice.invoice.paid)
+        self.assertFalse(invoice.invoice.is_void)
+        self.assertTrue(invoice.invoice.is_paid)
+        self.assertFalse(invoice.invoice.is_refunded)
         self.assertFalse(invoice.invoice.cart.released)
 
         invoice.refund("A Refund!", invoice.invoice.value)
-        self.assertTrue(invoice.invoice.void)
-        self.assertFalse(invoice.invoice.paid)
+        self.assertFalse(invoice.invoice.is_void)
+        self.assertFalse(invoice.invoice.is_paid)
+        self.assertTrue(invoice.invoice.is_refunded)
         self.assertTrue(invoice.invoice.cart.released)

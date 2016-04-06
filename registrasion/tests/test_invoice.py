@@ -35,8 +35,8 @@ class InvoiceTestCase(RegistrationCartTestCase):
         # The old invoice should automatically be voided
         invoice_1_new = rego.Invoice.objects.get(pk=invoice_1.invoice.id)
         invoice_2_new = rego.Invoice.objects.get(pk=invoice_2.invoice.id)
-        self.assertTrue(invoice_1_new.void)
-        self.assertFalse(invoice_2_new.void)
+        self.assertTrue(invoice_1_new.is_void)
+        self.assertFalse(invoice_2_new.is_void)
 
         # Invoice should have two line items
         line_items = rego.LineItem.objects.filter(invoice=invoice_2.invoice)
@@ -68,7 +68,7 @@ class InvoiceTestCase(RegistrationCartTestCase):
         invoice.pay("A payment!", invoice.invoice.value)
 
         # This payment is for the correct amount invoice should be paid.
-        self.assertTrue(invoice.invoice.paid)
+        self.assertTrue(invoice.invoice.is_paid)
 
         # Cart should not be active
         self.assertFalse(invoice.invoice.cart.active)
@@ -133,7 +133,7 @@ class InvoiceTestCase(RegistrationCartTestCase):
         current_cart.add_to_cart(self.PROD_1, 1)
         invoice_1 = TestingInvoiceController.for_cart(current_cart.cart)
 
-        self.assertTrue(invoice_1.invoice.paid)
+        self.assertTrue(invoice_1.invoice.is_paid)
 
     def test_invoice_voids_self_if_cart_is_invalid(self):
         current_cart = TestingCartController.for_user(self.USER_1)
@@ -142,7 +142,7 @@ class InvoiceTestCase(RegistrationCartTestCase):
         current_cart.add_to_cart(self.PROD_1, 1)
         invoice_1 = TestingInvoiceController.for_cart(current_cart.cart)
 
-        self.assertFalse(invoice_1.invoice.void)
+        self.assertFalse(invoice_1.invoice.is_void)
 
         # Adding item to cart should produce a new invoice
         current_cart.add_to_cart(self.PROD_2, 1)
@@ -151,11 +151,11 @@ class InvoiceTestCase(RegistrationCartTestCase):
 
         # Viewing invoice_1's invoice should show it as void
         invoice_1_new = TestingInvoiceController(invoice_1.invoice)
-        self.assertTrue(invoice_1_new.invoice.void)
+        self.assertTrue(invoice_1_new.invoice.is_void)
 
         # Viewing invoice_2's invoice should *not* show it as void
         invoice_2_new = TestingInvoiceController(invoice_2.invoice)
-        self.assertFalse(invoice_2_new.invoice.void)
+        self.assertFalse(invoice_2_new.invoice.is_void)
 
     def test_voiding_invoice_creates_new_invoice(self):
         current_cart = TestingCartController.for_user(self.USER_1)
@@ -164,7 +164,7 @@ class InvoiceTestCase(RegistrationCartTestCase):
         current_cart.add_to_cart(self.PROD_1, 1)
         invoice_1 = TestingInvoiceController.for_cart(current_cart.cart)
 
-        self.assertFalse(invoice_1.invoice.void)
+        self.assertFalse(invoice_1.invoice.is_void)
         invoice_1.void()
 
         invoice_2 = TestingInvoiceController.for_cart(current_cart.cart)

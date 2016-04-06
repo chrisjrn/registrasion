@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 import datetime
 import itertools
 
+from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError
 from django.contrib.auth.models import User
 from django.db import models
@@ -26,13 +27,10 @@ class Attendee(models.Model):
     def get_instance(user):
         ''' Returns the instance of attendee for the given user, or creates
         a new one. '''
-        attendees = Attendee.objects.filter(user=user)
-        if len(attendees) > 0:
-            return attendees[0]
-        else:
-            attendee = Attendee(user=user)
-            attendee.save()
-            return attendee
+        try:
+            return Attendee.objects.get(user=user)
+        except ObjectDoesNotExist:
+            return Attendee.objects.create(user=user)
 
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     # Badge/profile is linked
@@ -53,6 +51,19 @@ class AttendeeProfileBase(models.Model):
         ''' This is used to pre-fill the attendee's name from the
         speaker profile. If it's None, that functionality is disabled. '''
         return None
+
+    def invoice_recipient(self):
+        ''' Returns a representation of this attendee profile for the purpose
+        of rendering to an invoice. Override in subclasses. '''
+
+        # Manual dispatch to subclass. Fleh.
+        slf = AttendeeProfileBase.objects.get_subclass(id=self.id)
+        # Actually compare the functions.
+        if type(slf).invoice_recipient != type(self).invoice_recipient:
+            return type(slf).invoice_recipient(slf)
+
+        # Return a default
+        return slf.attendee.user.username
 
     attendee = models.OneToOneField(Attendee, on_delete=models.CASCADE)
 
@@ -533,6 +544,18 @@ class Invoice(models.Model):
     ''' An invoice. Invoices can be automatically generated when checking out
     a Cart, in which case, it is attached to a given revision of a Cart. '''
 
+    STATUS_UNPAID = 1
+    STATUS_PAID = 2
+    STATUS_REFUNDED = 3
+    STATUS_VOID = 4
+
+    STATUS_TYPES = [
+        (STATUS_UNPAID, _("Unpaid")),
+        (STATUS_PAID, _("Paid")),
+        (STATUS_REFUNDED, _("Refunded")),
+        (STATUS_VOID, _("VOID")),
+    ]
+
     def __str__(self):
         return "Invoice #%d" % self.id
 
@@ -541,13 +564,37 @@ class Invoice(models.Model):
             raise ValidationError(
                 "If this is a cart invoice, it must have a revision")
 
+    @property
+    def is_unpaid(self):
+        return self.status == self.STATUS_UNPAID
+
+    @property
+    def is_void(self):
+        return self.status == self.STATUS_VOID
+
+    @property
+    def is_paid(self):
+        return self.status == self.STATUS_PAID
+
+    @property
+    def is_refunded(self):
+        return self.status == self.STATUS_REFUNDED
+
     # Invoice Number
     user = models.ForeignKey(User)
     cart = models.ForeignKey(Cart, null=True)
-    cart_revision = models.IntegerField(null=True)
+    cart_revision = models.IntegerField(
+        null=True,
+        db_index=True,
+    )
     # Line Items (foreign key)
-    void = models.BooleanField(default=False)
-    paid = models.BooleanField(default=False)
+    status = models.IntegerField(
+        choices=STATUS_TYPES,
+        db_index=True,
+    )
+    recipient = models.CharField(max_length=1024)
+    issue_time = models.DateTimeField()
+    due_time = models.DateTimeField()
     value = models.DecimalField(max_digits=8, decimal_places=2)
 
 
@@ -565,17 +612,25 @@ class LineItem(models.Model):
     description = models.CharField(max_length=255)
     quantity = models.PositiveIntegerField()
     price = models.DecimalField(max_digits=8, decimal_places=2)
+    product = models.ForeignKey(Product, null=True, blank=True)
 
 
 @python_2_unicode_compatible
-class Payment(models.Model):
-    ''' A payment for an invoice. Each invoice can have multiple payments
-    attached to it.'''
+class PaymentBase(models.Model):
+    ''' The base payment type for invoices. Payment apps should subclass this
+    class to handle implementation-specific issues. '''
+
+    objects = InheritanceManager()
 
     def __str__(self):
         return "Payment: ref=%s amount=%s" % (self.reference, self.amount)
 
     invoice = models.ForeignKey(Invoice)
     time = models.DateTimeField(default=timezone.now)
-    reference = models.CharField(max_length=64)
+    reference = models.CharField(max_length=255)
     amount = models.DecimalField(max_digits=8, decimal_places=2)
+
+
+class ManualPayment(PaymentBase):
+    ''' Payments that are manually entered by staff. '''
+    pass

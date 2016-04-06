@@ -3,6 +3,7 @@ from registrasion.controllers.invoice import InvoiceController
 from registrasion import models as rego
 
 from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import ValidationError
 
 
 class TestingCartController(CartController):
@@ -32,4 +33,27 @@ class TestingCartController(CartController):
 
 
 class TestingInvoiceController(InvoiceController):
-    pass
+
+    def pay(self, reference, amount):
+        ''' Testing method for simulating an invoice paymenht by the given
+        amount. '''
+        if self.invoice.cart:
+            cart = CartController(self.invoice.cart)
+            cart.validate_cart()  # Raises ValidationError if invalid
+
+        status = self.invoice.status
+        if status == rego.Invoice.STATUS_VOID:
+            raise ValidationError("Void invoices cannot be paid")
+        elif status == rego.Invoice.STATUS_PAID:
+            raise ValidationError("Paid invoices cannot be paid again")
+        elif status == rego.Invoice.STATUS_REFUNDED:
+            raise ValidationError("Refunded invoices cannot be paid")
+
+        ''' Adds a payment '''
+        payment = rego.ManualPayment.objects.create(
+            invoice=self.invoice,
+            reference=reference,
+            amount=amount,
+        )
+
+        self.update_status()

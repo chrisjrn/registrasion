@@ -197,4 +197,4 @@ class InvoiceTestCase(RegistrationCartTestCase):
     def test_cannot_generate_blank_invoice(self):
         current_cart = TestingCartController.for_user(self.USER_1)
         with self.assertRaises(ValidationError):
-            invoice_1 = InvoiceController.for_cart(current_cart.cart)
+            InvoiceController.for_cart(current_cart.cart)

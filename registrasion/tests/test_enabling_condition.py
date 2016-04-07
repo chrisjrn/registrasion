@@ -241,7 +241,6 @@ class EnablingConditionTestCases(RegistrationCartTestCase):
         cart = TestingCartController.for_user(self.USER_1)
         cart.add_to_cart(self.PROD_3, 1)
 
-
         cart.next_cart()
 
         cart_2 = TestingCartController.for_user(self.USER_1)
@@ -259,7 +258,6 @@ class EnablingConditionTestCases(RegistrationCartTestCase):
 
         cart = TestingCartController.for_user(self.USER_1)
         cart.add_to_cart(self.PROD_2, 1)
-
 
         cart.next_cart()
 

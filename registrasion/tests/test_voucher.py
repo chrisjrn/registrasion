@@ -125,7 +125,6 @@ class VoucherTestCases(RegistrationCartTestCase):
         current_cart = TestingCartController.for_user(self.USER_1)
         current_cart.apply_voucher(voucher.code)
 
-
         current_cart.next_cart()
 
         current_cart = TestingCartController.for_user(self.USER_1)

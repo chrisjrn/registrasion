@@ -140,7 +140,6 @@ class CeilingsTestCases(RegistrationCartTestCase):
         first_cart = TestingCartController.for_user(self.USER_1)
         first_cart.add_to_cart(self.PROD_1, 1)
 
-
         first_cart.next_cart()
 
         second_cart = TestingCartController.for_user(self.USER_2)
@@ -175,7 +174,6 @@ class CeilingsTestCases(RegistrationCartTestCase):
         cart.apply_voucher("VOUCHER")
         cart.add_to_cart(self.PROD_1, 1)
         self.assertEqual(1, len(cart.cart.discountitem_set.all()))
-
 
         cart.next_cart()
 

@@ -199,7 +199,8 @@ class CartController(object):
         carts_with_voucher = active_carts.filter(vouchers=voucher)
         carts_with_voucher = carts_with_voucher.exclude(pk=self.cart.id)
         if carts_with_voucher.count() >= voucher.limit:
-            raise ValidationError("Voucher %s is no longer available" % voucher.code)
+            raise ValidationError(
+                "Voucher %s is no longer available" % voucher.code)
 
         # It's not valid for users to re-enter a voucher they already have
         user_carts_with_voucher = carts_with_voucher.filter(
@@ -275,12 +276,11 @@ class CartController(object):
         codes that are no longer available. '''
 
         # Fix vouchers first (this affects available discounts)
-        active_carts = rego.Cart.reserved_carts()
         to_remove = []
         for voucher in self.cart.vouchers.all():
             try:
                 self._test_voucher(voucher)
-            except ValidationError as ve:
+            except ValidationError:
                 to_remove.append(voucher)
 
         for voucher in to_remove:

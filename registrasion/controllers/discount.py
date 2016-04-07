@@ -59,7 +59,6 @@ def available_discounts(user, categories, products):
     accepted_discounts = set()
     failed_discounts = set()
 
-
     for discount in potential_discounts:
         real_discount = rego.DiscountBase.objects.get_subclass(
             pk=discount.discount.pk,

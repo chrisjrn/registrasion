@@ -142,7 +142,6 @@ class BasicCartTests(RegistrationCartTestCase):
     def test_get_cart(self):
         current_cart = TestingCartController.for_user(self.USER_1)
 
-
         current_cart.next_cart()
 
         old_cart = current_cart
@@ -214,7 +213,6 @@ class BasicCartTests(RegistrationCartTestCase):
         with self.assertRaises(ValidationError):
             current_cart.add_to_cart(self.PROD_1, 10)
 
-
         current_cart.next_cart()
 
         current_cart = TestingCartController.for_user(self.USER_1)
@@ -272,7 +270,6 @@ class BasicCartTests(RegistrationCartTestCase):
         with self.assertRaises(ValidationError):
             current_cart.add_to_cart(self.PROD_3, 1)
 
-
         current_cart.next_cart()
 
         current_cart = TestingCartController.for_user(self.USER_1)
@@ -324,7 +321,6 @@ class BasicCartTests(RegistrationCartTestCase):
         self.assertTrue(item in prods)
         current_cart.add_to_cart(item, quantity)
         self.assertTrue(item in prods)
-
 
         current_cart.next_cart()
 

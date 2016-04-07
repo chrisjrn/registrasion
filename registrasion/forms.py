@@ -48,7 +48,10 @@ class _QuantityBoxProductsForm(_ProductsForm):
     def set_fields(cls, category, products):
         for product in products:
             if product.description:
-                help_text = "$%d each -- %s" % (product.price, product.description)
+                help_text = "$%d each -- %s" % (
+                    product.price,
+                    product.description,
+                )
             else:
                 help_text = "$%d each" % product.price
 

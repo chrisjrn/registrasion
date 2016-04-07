@@ -45,7 +45,6 @@ class ConditionController(object):
         except KeyError:
             return ConditionController()
 
-
     SINGLE = True
     PLURAL = False
     NONE = True
@@ -154,7 +153,6 @@ class ConditionController(object):
 
                 if not met and product not in messages:
                     messages[product] = message
-
 
         valid = defaultdict(lambda: True)
         for product in itertools.chain(mandatory, non_mandatory):

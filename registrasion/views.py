@@ -336,7 +336,9 @@ def set_quantities_from_products_form(products_form, current_cart):
     quantities = list(products_form.product_quantities())
 
     pks = [i[0] for i in quantities]
-    products = rego.Product.objects.filter(id__in=pks).select_related("category")
+    products = rego.Product.objects.filter(
+        id__in=pks,
+    ).select_related("category")
 
     product_quantities = [
         (products.get(pk=i[0]), i[1]) for i in quantities
@@ -405,6 +407,7 @@ def checkout(request):
 
     return redirect("invoice", current_invoice.invoice.id)
 
+
 def checkout_errors(request, errors):
 
     error_list = []
@@ -418,6 +421,7 @@ def checkout_errors(request, errors):
     }
 
     return render(request, "registrasion/checkout_errors.html", data)
+
 
 @login_required
 def invoice(request, invoice_id):

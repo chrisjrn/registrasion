@@ -148,6 +148,10 @@ class RegistrationCartTestCase(SetTimeMixin, TestCase):
         voucher.save()
         return voucher
 
+    @classmethod
+    def reget(cls, object):
+        return type(object).objects.get(id=object.id)
+
 
 class BasicCartTests(RegistrationCartTestCase):
 

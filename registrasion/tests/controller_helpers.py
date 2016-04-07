@@ -37,17 +37,8 @@ class TestingInvoiceController(InvoiceController):
     def pay(self, reference, amount):
         ''' Testing method for simulating an invoice paymenht by the given
         amount. '''
-        if self.invoice.cart:
-            cart = CartController(self.invoice.cart)
-            cart.validate_cart()  # Raises ValidationError if invalid
 
-        status = self.invoice.status
-        if status == rego.Invoice.STATUS_VOID:
-            raise ValidationError("Void invoices cannot be paid")
-        elif status == rego.Invoice.STATUS_PAID:
-            raise ValidationError("Paid invoices cannot be paid again")
-        elif status == rego.Invoice.STATUS_REFUNDED:
-            raise ValidationError("Refunded invoices cannot be paid")
+        self.validate_allowed_to_pay()
 
         ''' Adds a payment '''
         payment = rego.ManualPayment.objects.create(

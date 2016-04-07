@@ -126,6 +126,30 @@ class InvoiceController(object):
 
         return invoice
 
+    def _refresh(self):
+        ''' Refreshes the underlying invoice and cart objects. '''
+        self.invoice.refresh_from_db()
+        if self.invoice.cart:
+            self.invoice.cart.refresh_from_db()
+
+    def validate_allowed_to_pay(self):
+        ''' Passes cleanly if we're allowed to pay, otherwise raise
+        a ValidationError. '''
+
+        self._refresh()
+
+        if not self.invoice.is_unpaid:
+            raise ValidationError("You can only pay for unpaid invoices.")
+
+        if not self.invoice.cart:
+            return
+
+        if not self._invoice_matches_cart():
+            raise ValidationError("The registration has been amended since "
+                                  "generating this invoice.")
+
+        CartController(self.invoice.cart).validate_cart()
+
     def total_payments(self):
         ''' Returns the total amount paid towards this invoice. '''
 

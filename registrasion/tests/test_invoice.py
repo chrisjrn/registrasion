@@ -180,7 +180,7 @@ class InvoiceTestCase(RegistrationCartTestCase):
         invoice_1.void()
 
         with self.assertRaises(ValidationError):
-            invoice_1.pay("Reference", invoice_1.invoice.value)
+            invoice_1.validate_allowed_to_pay()
 
     def test_cannot_void_paid_invoice(self):
         current_cart = TestingCartController.for_user(self.USER_1)
@@ -199,9 +199,22 @@ class InvoiceTestCase(RegistrationCartTestCase):
         with self.assertRaises(ValidationError):
             invoice_1 = TestingInvoiceController.for_cart(current_cart.cart)
 
+    def test_cannot_pay_implicitly_void_invoice(self):
+        cart = TestingCartController.for_user(self.USER_1)
+        cart.add_to_cart(self.PROD_1, 1)
+        invoice = TestingInvoiceController.for_cart(self.reget(cart.cart))
+
+        # Implicitly void the invoice
+        cart.add_to_cart(self.PROD_1, 1)
+
+        with self.assertRaises(ValidationError):
+            invoice.validate_allowed_to_pay()
+
+
+
     # TODO: test partially paid invoice cannot be void until payments
     # are refunded
 
     # TODO: test overpaid invoice results in credit note
 
-    # TODO: test credit note generation more generally 
+    # TODO: test credit note generation more generally

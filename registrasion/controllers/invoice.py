@@ -73,6 +73,11 @@ class InvoiceController(object):
         # Never generate a due time that is before the issue time
         due = max(issued, reservation_limit)
 
+        # Get the invoice recipient
+        profile = rego.AttendeeProfileBase.objects.get_subclass(
+            id=cart.user.attendee.attendeeprofilebase.id,
+        )
+        recipient = profile.invoice_recipient()
         invoice = rego.Invoice.objects.create(
             user=cart.user,
             cart=cart,
@@ -81,7 +86,7 @@ class InvoiceController(object):
             value=Decimal(),
             issue_time=issued,
             due_time=due,
-            recipient="BOB_THOMAS", # TODO: add recipient generating code
+            recipient=recipient,
         )
 
         product_items = rego.ProductItem.objects.filter(cart=cart)

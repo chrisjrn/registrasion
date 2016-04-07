@@ -23,6 +23,9 @@ class RegistrationCartTestCase(SetTimeMixin, TestCase):
 
     @classmethod
     def setUpTestData(cls):
+
+        super(RegistrationCartTestCase, cls).setUpTestData()
+
         cls.USER_1 = User.objects.create_user(
             username='testuser',
             email='test@example.com',
@@ -32,6 +35,15 @@ class RegistrationCartTestCase(SetTimeMixin, TestCase):
             username='testuser2',
             email='test2@example.com',
             password='top_secret')
+
+        attendee1 = rego.Attendee.get_instance(cls.USER_1)
+        attendee1.save()
+        profile1 = rego.AttendeeProfileBase.objects.create(attendee=attendee1)
+        profile1.save()
+        attendee2 = rego.Attendee.get_instance(cls.USER_2)
+        attendee2.save()
+        profile2 = rego.AttendeeProfileBase.objects.create(attendee=attendee2)
+        profile2.save()
 
         cls.RESERVATION = datetime.timedelta(hours=1)
 

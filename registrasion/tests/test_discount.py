@@ -4,7 +4,8 @@ from decimal import Decimal
 
 from registrasion import models as rego
 from registrasion.controllers import discount
-from cart_controller_helper import TestingCartController
+from controller_helpers import TestingCartController
+from controller_helpers import TestingInvoiceController
 
 from test_cart import RegistrationCartTestCase
 

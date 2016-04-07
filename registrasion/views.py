@@ -16,6 +16,7 @@ from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError
 from django.http import Http404
+from django.shortcuts import get_object_or_404
 from django.shortcuts import redirect
 from django.shortcuts import render
 
@@ -443,15 +444,32 @@ def invoice(request, invoice_id):
 
 
 @login_required
-def pay_invoice(request, invoice_id):
-    ''' Marks the invoice with the given invoice id as paid.
-    WORK IN PROGRESS FUNCTION. Must be replaced with real payment workflow.
+def manual_payment(request, invoice_id):
+    ''' Allows staff to make manual payments or refunds on an invoice.'''
 
-    '''
+    FORM_PREFIX = "manual_payment"
+
+    if not request.user.is_staff:
+        raise Http404()
+
     invoice_id = int(invoice_id)
-    inv = rego.Invoice.objects.get(pk=invoice_id)
+    inv = get_object_or_404(rego.Invoice, pk=invoice_id)
     current_invoice = InvoiceController(inv)
-    if not current_invoice.invoice.paid and not current_invoice.invoice.void:
-        current_invoice.pay("Demo invoice payment", inv.value)
 
-    return redirect("invoice", current_invoice.invoice.id)
+    form = forms.ManualPaymentForm(
+        request.POST or None,
+        prefix=FORM_PREFIX,
+    )
+
+    if request.POST and form.is_valid():
+        form.instance.invoice = inv
+        form.save()
+        current_invoice.update_status()
+        form = forms.ManualPaymentForm(prefix=FORM_PREFIX)
+
+    data = {
+        "invoice": inv,
+        "form": form,
+    }
+
+    return render(request, "registrasion/manual_payment.html", data)

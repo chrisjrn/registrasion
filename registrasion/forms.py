@@ -3,6 +3,13 @@ import models as rego
 from django import forms
 
 
+class ManualPaymentForm(forms.ModelForm):
+
+    class Meta:
+        model = rego.ManualPayment
+        fields = ["reference", "amount"]
+
+
 # Products forms -- none of these have any fields: they are to be subclassed
 # and the fields added as needs be.
 

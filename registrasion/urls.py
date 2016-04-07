@@ -1,3 +1,5 @@
+import views
+
 from django.conf.urls import url, patterns
 
 urlpatterns = patterns(
@@ -5,7 +7,8 @@ urlpatterns = patterns(
     url(r"^category/([0-9]+)$", "product_category", name="product_category"),
     url(r"^checkout$", "checkout", name="checkout"),
     url(r"^invoice/([0-9]+)$", "invoice", name="invoice"),
-    url(r"^invoice/([0-9]+)/pay$", "pay_invoice", name="pay_invoice"),
+    url(r"^invoice/([0-9]+)/manual_payment$",
+        views.manual_payment, name="manual_payment"),
     url(r"^profile$", "edit_profile", name="attendee_edit"),
     url(r"^register$", "guided_registration", name="guided_registration"),
     url(r"^register/([0-9]+)$", "guided_registration",

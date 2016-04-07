@@ -1,6 +1,6 @@
 import pytz
 
-from cart_controller_helper import TestingCartController
+from controller_helpers import TestingCartController
 from registrasion.controllers.invoice import InvoiceController
 
 from test_cart import RegistrationCartTestCase

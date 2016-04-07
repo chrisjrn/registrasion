@@ -10,7 +10,7 @@ from django.test import TestCase
 from registrasion import models as rego
 from registrasion.controllers.product import ProductController
 
-from cart_controller_helper import TestingCartController
+from controller_helpers import TestingCartController
 from patch_datetime import SetTimeMixin
 
 UTC = pytz.timezone('UTC')

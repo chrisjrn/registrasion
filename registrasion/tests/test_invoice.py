@@ -5,7 +5,7 @@ from decimal import Decimal
 from django.core.exceptions import ValidationError
 
 from registrasion import models as rego
-from cart_controller_helper import TestingCartController
+from controller_helpers import TestingCartController
 from registrasion.controllers.invoice import InvoiceController
 
 from test_cart import RegistrationCartTestCase
@@ -197,4 +197,11 @@ class InvoiceTestCase(RegistrationCartTestCase):
     def test_cannot_generate_blank_invoice(self):
         current_cart = TestingCartController.for_user(self.USER_1)
         with self.assertRaises(ValidationError):
-            InvoiceController.for_cart(current_cart.cart)
+            invoice_1 = InvoiceController.for_cart(current_cart.cart)
+
+    # TODO: test partially paid invoice cannot be void until payments
+    # are refunded
+
+    # TODO: test overpaid invoice results in credit note
+
+    # TODO: test credit note generation more generally 

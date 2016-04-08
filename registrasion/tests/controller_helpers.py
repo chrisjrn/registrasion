@@ -3,7 +3,6 @@ from registrasion.controllers.invoice import InvoiceController
 from registrasion import models as rego
 
 from django.core.exceptions import ObjectDoesNotExist
-from django.core.exceptions import ValidationError
 
 
 class TestingCartController(CartController):
@@ -41,7 +40,7 @@ class TestingInvoiceController(InvoiceController):
         self.validate_allowed_to_pay()
 
         ''' Adds a payment '''
-        payment = rego.ManualPayment.objects.create(
+        rego.ManualPayment.objects.create(
             invoice=self.invoice,
             reference=reference,
             amount=amount,

@@ -484,7 +484,7 @@ def invoice(request, invoice_id, access_code=None):
     if not current_invoice.can_view(
             user=request.user,
             access_code=access_code,
-        ):
+            ):
         raise Http404()
 
     data = {

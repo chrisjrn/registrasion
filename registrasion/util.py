@@ -2,6 +2,7 @@ import string
 
 from django.utils.crypto import get_random_string
 
+
 def generate_access_code():
     ''' Generates an access code for users' payments as well as their
     fulfilment code for check-in.

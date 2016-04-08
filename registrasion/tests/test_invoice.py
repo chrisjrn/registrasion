@@ -197,7 +197,7 @@ class InvoiceTestCase(RegistrationCartTestCase):
     def test_cannot_generate_blank_invoice(self):
         current_cart = TestingCartController.for_user(self.USER_1)
         with self.assertRaises(ValidationError):
-            invoice_1 = TestingInvoiceController.for_cart(current_cart.cart)
+            TestingInvoiceController.for_cart(current_cart.cart)
 
     def test_cannot_pay_implicitly_void_invoice(self):
         cart = TestingCartController.for_user(self.USER_1)
@@ -209,8 +209,6 @@ class InvoiceTestCase(RegistrationCartTestCase):
 
         with self.assertRaises(ValidationError):
             invoice.validate_allowed_to_pay()
-
-
 
     # TODO: test partially paid invoice cannot be void until payments
     # are refunded

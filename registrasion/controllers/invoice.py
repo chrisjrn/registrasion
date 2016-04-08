@@ -142,7 +142,6 @@ class InvoiceController(object):
 
         return False
 
-
     def _refresh(self):
         ''' Refreshes the underlying invoice and cart objects. '''
         self.invoice.refresh_from_db()

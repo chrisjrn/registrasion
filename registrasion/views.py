@@ -53,6 +53,8 @@ def guided_registration(request, page_id=0):
     '''
 
     SESSION_KEY = "guided_registration_categories"
+    ASK_FOR_PROFILE = 777  # Magic number. Meh.
+
     next_step = redirect("guided_registration")
 
     sections = []
@@ -72,9 +74,19 @@ def guided_registration(request, page_id=0):
     except ObjectDoesNotExist:
         profile = None
 
-    if not profile:
-        # TODO: if voucherform is invalid, make sure
-        # that profileform does not save
+    # Figure out if we need to show the profile form and the voucher form
+    show_profile_and_voucher = False
+    if SESSION_KEY not in request.session:
+        if not profile:
+            show_profile_and_voucher = True
+    else:
+        if request.session[SESSION_KEY] == ASK_FOR_PROFILE:
+            show_profile_and_voucher = True
+
+    if show_profile_and_voucher:
+        # Keep asking for the profile until everything passes.
+        request.session[SESSION_KEY] = ASK_FOR_PROFILE
+
         voucher_form, voucher_handled = handle_voucher(request, "voucher")
         profile_form, profile_handled = handle_profile(request, "profile")
 

@@ -49,7 +49,7 @@ class Attendee(models.Model):
         db_index=True,
     )
     completed_registration = models.BooleanField(default=False)
-    highest_complete_category = models.IntegerField(default=0)
+    guided_categories_complete = models.ManyToManyField("category")
 
 
 class AttendeeProfileBase(models.Model):

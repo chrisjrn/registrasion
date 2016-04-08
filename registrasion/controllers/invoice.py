@@ -3,6 +3,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Sum
+from django.utils import timezone
 
 from registrasion import models as rego
 
@@ -13,6 +14,7 @@ class InvoiceController(object):
 
     def __init__(self, invoice):
         self.invoice = invoice
+        self.update_status()
         self.update_validity()  # Make sure this invoice is up-to-date
 
     @classmethod
@@ -22,21 +24,26 @@ class InvoiceController(object):
         an invoice is generated.'''
 
         try:
-            invoice = rego.Invoice.objects.get(
+            invoice = rego.Invoice.objects.exclude(
+                status=rego.Invoice.STATUS_VOID,
+            ).get(
                 cart=cart,
                 cart_revision=cart.revision,
-                void=False,
             )
         except ObjectDoesNotExist:
             cart_controller = CartController(cart)
             cart_controller.validate_cart()  # Raises ValidationError on fail.
 
-            # Void past invoices for this cart
-            rego.Invoice.objects.filter(cart=cart).update(void=True)
-
+            cls.void_all_invoices(cart)
             invoice = cls._generate(cart)
 
-        return InvoiceController(invoice)
+        return cls(invoice)
+
+    @classmethod
+    def void_all_invoices(cls, cart):
+        invoices = rego.Invoice.objects.filter(cart=cart).all()
+        for invoice in invoices:
+            cls(invoice).void()
 
     @classmethod
     def resolve_discount_value(cls, item):
@@ -60,11 +67,26 @@ class InvoiceController(object):
     @transaction.atomic
     def _generate(cls, cart):
         ''' Generates an invoice for the given cart. '''
+
+        issued = timezone.now()
+        reservation_limit = cart.reservation_duration + cart.time_last_updated
+        # Never generate a due time that is before the issue time
+        due = max(issued, reservation_limit)
+
+        # Get the invoice recipient
+        profile = rego.AttendeeProfileBase.objects.get_subclass(
+            id=cart.user.attendee.attendeeprofilebase.id,
+        )
+        recipient = profile.invoice_recipient()
         invoice = rego.Invoice.objects.create(
             user=cart.user,
             cart=cart,
             cart_revision=cart.revision,
-            value=Decimal()
+            status=rego.Invoice.STATUS_UNPAID,
+            value=Decimal(),
+            issue_time=issued,
+            due_time=due,
+            recipient=recipient,
         )
 
         product_items = rego.ProductItem.objects.filter(cart=cart)
@@ -84,6 +106,7 @@ class InvoiceController(object):
                 description="%s - %s" % (product.category.name, product.name),
                 quantity=item.quantity,
                 price=product.price,
+                product=product,
             )
             invoice_value += line_item.quantity * line_item.price
 
@@ -93,94 +116,162 @@ class InvoiceController(object):
                 description=item.discount.description,
                 quantity=item.quantity,
                 price=cls.resolve_discount_value(item) * -1,
+                product=item.product,
             )
             invoice_value += line_item.quantity * line_item.price
 
         invoice.value = invoice_value
 
-        if invoice.value == 0:
-            invoice.paid = True
-
         invoice.save()
 
         return invoice
 
+    def can_view(self, user=None, access_code=None):
+        ''' Returns true if the accessing user is allowed to view this invoice,
+        or if the given access code matches this invoice's user's access code.
+        '''
+
+        if user == self.invoice.user:
+            return True
+
+        if user.is_staff:
+            return True
+
+        if self.invoice.user.attendee.access_code == access_code:
+            return True
+
+        return False
+
+
+    def _refresh(self):
+        ''' Refreshes the underlying invoice and cart objects. '''
+        self.invoice.refresh_from_db()
+        if self.invoice.cart:
+            self.invoice.cart.refresh_from_db()
+
+    def validate_allowed_to_pay(self):
+        ''' Passes cleanly if we're allowed to pay, otherwise raise
+        a ValidationError. '''
+
+        self._refresh()
+
+        if not self.invoice.is_unpaid:
+            raise ValidationError("You can only pay for unpaid invoices.")
+
+        if not self.invoice.cart:
+            return
+
+        if not self._invoice_matches_cart():
+            raise ValidationError("The registration has been amended since "
+                                  "generating this invoice.")
+
+        CartController(self.invoice.cart).validate_cart()
+
+    def total_payments(self):
+        ''' Returns the total amount paid towards this invoice. '''
+
+        payments = rego.PaymentBase.objects.filter(invoice=self.invoice)
+        total_paid = payments.aggregate(Sum("amount"))["amount__sum"] or 0
+        return total_paid
+
+    def update_status(self):
+        ''' Updates the status of this invoice based upon the total
+        payments.'''
+
+        old_status = self.invoice.status
+        total_paid = self.total_payments()
+        num_payments = rego.PaymentBase.objects.filter(
+            invoice=self.invoice,
+        ).count()
+        remainder = self.invoice.value - total_paid
+
+        if old_status == rego.Invoice.STATUS_UNPAID:
+            # Invoice had an amount owing
+            if remainder <= 0:
+                # Invoice no longer has amount owing
+                self._mark_paid()
+            elif total_paid == 0 and num_payments > 0:
+                # Invoice has multiple payments totalling zero
+                self._mark_void()
+        elif old_status == rego.Invoice.STATUS_PAID:
+            if remainder > 0:
+                # Invoice went from having a remainder of zero or less
+                # to having a positive remainder -- must be a refund
+                self._mark_refunded()
+        elif old_status == rego.Invoice.STATUS_REFUNDED:
+            # Should not ever change from here
+            pass
+        elif old_status == rego.Invoice.STATUS_VOID:
+            # Should not ever change from here
+            pass
+
+    def _mark_paid(self):
+        ''' Marks the invoice as paid, and updates the attached cart if
+        necessary. '''
+        cart = self.invoice.cart
+        if cart:
+            cart.active = False
+            cart.save()
+        self.invoice.status = rego.Invoice.STATUS_PAID
+        self.invoice.save()
+
+    def _mark_refunded(self):
+        ''' Marks the invoice as refunded, and updates the attached cart if
+        necessary. '''
+        cart = self.invoice.cart
+        if cart:
+            cart.active = False
+            cart.released = True
+            cart.save()
+        self.invoice.status = rego.Invoice.STATUS_REFUNDED
+        self.invoice.save()
+
+    def _mark_void(self):
+        ''' Marks the invoice as refunded, and updates the attached cart if
+        necessary. '''
+        self.invoice.status = rego.Invoice.STATUS_VOID
+        self.invoice.save()
+
+    def _invoice_matches_cart(self):
+        ''' Returns true if there is no cart, or if the revision of this
+        invoice matches the current revision of the cart. '''
+        cart = self.invoice.cart
+        if not cart:
+            return True
+
+        return cart.revision == self.invoice.cart_revision
+
     def update_validity(self):
-        ''' Updates the validity of this invoice if the cart it is attached to
-        has updated. '''
-        if self.invoice.cart is not None:
-            if self.invoice.cart.revision != self.invoice.cart_revision:
-                self.void()
+        ''' Voids this invoice if the cart it is attached to has updated. '''
+        if not self._invoice_matches_cart():
+            self.void()
 
     def void(self):
         ''' Voids the invoice if it is valid to do so. '''
-        if self.invoice.paid:
+        if self.invoice.status == rego.Invoice.STATUS_PAID:
             raise ValidationError("Paid invoices cannot be voided, "
                                   "only refunded.")
-        self.invoice.void = True
-        self.invoice.save()
-
-    @transaction.atomic
-    def pay(self, reference, amount):
-        ''' Pays the invoice by the given amount. If the payment
-        equals the total on the invoice, finalise the invoice.
-        (NB should be transactional.)
-        '''
-        if self.invoice.cart:
-            cart = CartController(self.invoice.cart)
-            cart.validate_cart()  # Raises ValidationError if invalid
-
-        if self.invoice.void:
-            raise ValidationError("Void invoices cannot be paid")
-
-        if self.invoice.paid:
-            raise ValidationError("Paid invoices cannot be paid again")
-
-        ''' Adds a payment '''
-        payment = rego.Payment.objects.create(
-            invoice=self.invoice,
-            reference=reference,
-            amount=amount,
-        )
-        payment.save()
-
-        payments = rego.Payment.objects.filter(invoice=self.invoice)
-        agg = payments.aggregate(Sum("amount"))
-        total = agg["amount__sum"]
-
-        if total == self.invoice.value:
-            self.invoice.paid = True
-
-            if self.invoice.cart:
-                cart = self.invoice.cart
-                cart.active = False
-                cart.save()
-
-            self.invoice.save()
+        self._mark_void()
 
     @transaction.atomic
     def refund(self, reference, amount):
-        ''' Refunds the invoice by the given amount. The invoice is
-        marked as unpaid, and the underlying cart is marked as released.
+        ''' Refunds the invoice by the given amount.
+
+        The invoice is marked as refunded, and the underlying cart is marked
+        as released.
+
+        TODO: replace with credit notes work instead.
         '''
 
-        if self.invoice.void:
+        if self.invoice.is_void:
             raise ValidationError("Void invoices cannot be refunded")
 
-        ''' Adds a payment '''
-        payment = rego.Payment.objects.create(
+        # Adds a payment
+        # TODO: replace by creating a credit note instead
+        rego.ManualPayment.objects.create(
             invoice=self.invoice,
             reference=reference,
             amount=0 - amount,
         )
-        payment.save()
 
-        self.invoice.paid = False
-        self.invoice.void = True
-
-        if self.invoice.cart:
-            cart = self.invoice.cart
-            cart.released = True
-            cart.save()
-
-        self.invoice.save()
+        self.update_status()

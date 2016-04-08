@@ -1,7 +1,9 @@
 from registrasion.controllers.cart import CartController
+from registrasion.controllers.invoice import InvoiceController
 from registrasion import models as rego
 
 from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import ValidationError
 
 
 class TestingCartController(CartController):
@@ -28,3 +30,21 @@ class TestingCartController(CartController):
     def next_cart(self):
         self.cart.active = False
         self.cart.save()
+
+
+class TestingInvoiceController(InvoiceController):
+
+    def pay(self, reference, amount):
+        ''' Testing method for simulating an invoice paymenht by the given
+        amount. '''
+
+        self.validate_allowed_to_pay()
+
+        ''' Adds a payment '''
+        payment = rego.ManualPayment.objects.create(
+            invoice=self.invoice,
+            reference=reference,
+            amount=amount,
+        )
+
+        self.update_status()

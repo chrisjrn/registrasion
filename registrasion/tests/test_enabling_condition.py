@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError
 
 from registrasion import models as rego
 from registrasion.controllers.category import CategoryController
-from cart_controller_helper import TestingCartController
+from controller_helpers import TestingCartController
 from registrasion.controllers.product import ProductController
 
 from test_cart import RegistrationCartTestCase

@@ -3,7 +3,7 @@ import pytz
 
 from django.core.exceptions import ValidationError
 
-from cart_controller_helper import TestingCartController
+from controller_helpers import TestingCartController
 from test_cart import RegistrationCartTestCase
 
 from registrasion import models as rego

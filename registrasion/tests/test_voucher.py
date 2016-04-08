@@ -6,8 +6,8 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 
 from registrasion import models as rego
-from cart_controller_helper import TestingCartController
-from registrasion.controllers.invoice import InvoiceController
+from controller_helpers import TestingCartController
+from controller_helpers import TestingInvoiceController
 
 from test_cart import RegistrationCartTestCase
 
@@ -140,8 +140,8 @@ class VoucherTestCases(RegistrationCartTestCase):
         current_cart.apply_voucher(voucher.code)
         current_cart.add_to_cart(self.PROD_1, 1)
 
-        inv = InvoiceController.for_cart(current_cart.cart)
-        if not inv.invoice.paid:
+        inv = TestingInvoiceController.for_cart(current_cart.cart)
+        if not inv.invoice.is_paid:
             inv.pay("Hello!", inv.invoice.value)
 
         current_cart = TestingCartController.for_user(self.USER_1)

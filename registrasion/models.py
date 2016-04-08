@@ -1,5 +1,7 @@
 from __future__ import unicode_literals
 
+import util
+
 import datetime
 import itertools
 
@@ -32,8 +34,20 @@ class Attendee(models.Model):
         except ObjectDoesNotExist:
             return Attendee.objects.create(user=user)
 
+    def save(self, *a, **k):
+        while not self.access_code:
+            access_code = util.generate_access_code()
+            if Attendee.objects.filter(access_code=access_code).count() == 0:
+                self.access_code = access_code
+        return super(Attendee, self).save(*a, **k)
+
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     # Badge/profile is linked
+    access_code = models.CharField(
+        max_length=6,
+        unique=True,
+        db_index=True,
+    )
     completed_registration = models.BooleanField(default=False)
     highest_complete_category = models.IntegerField(default=0)
 

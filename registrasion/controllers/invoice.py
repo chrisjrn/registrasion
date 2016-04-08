@@ -126,6 +126,23 @@ class InvoiceController(object):
 
         return invoice
 
+    def can_view(self, user=None, access_code=None):
+        ''' Returns true if the accessing user is allowed to view this invoice,
+        or if the given access code matches this invoice's user's access code.
+        '''
+
+        if user == self.invoice.user:
+            return True
+
+        if user.is_staff:
+            return True
+
+        if self.invoice.user.attendee.access_code == access_code:
+            return True
+
+        return False
+
+
     def _refresh(self):
         ''' Refreshes the underlying invoice and cart objects. '''
         self.invoice.refresh_from_db()

@@ -424,17 +424,40 @@ def checkout_errors(request, errors):
     return render(request, "registrasion/checkout_errors.html", data)
 
 
-@login_required
-def invoice(request, invoice_id):
-    ''' Displays an invoice for a given invoice id. '''
+def invoice_access(request, access_code):
+    ''' Redirects to the first unpaid invoice for the attendee that matches
+    the given access code, if any. '''
+
+    invoices = rego.Invoice.objects.filter(
+        user__attendee__access_code=access_code,
+        status=rego.Invoice.STATUS_UNPAID,
+    ).order_by("issue_time")
+
+    if not invoices:
+        raise Http404()
+
+    invoice = invoices[0]
+
+    return redirect("invoice", invoice.id, access_code)
+
+
+def invoice(request, invoice_id, access_code=None):
+    ''' Displays an invoice for a given invoice id.
+    This view is not authenticated, but it will only allow access to either:
+    the user the invoice belongs to; staff; or a request made with the correct
+    access code.
+    '''
 
     invoice_id = int(invoice_id)
     inv = rego.Invoice.objects.get(pk=invoice_id)
 
-    if request.user != inv.cart.user and not request.user.is_staff:
-        raise Http404()
-
     current_invoice = InvoiceController(inv)
+
+    if not current_invoice.can_view(
+            user=request.user,
+            access_code=access_code,
+        ):
+        raise Http404()
 
     data = {
         "invoice": current_invoice.invoice,

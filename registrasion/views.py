@@ -52,6 +52,7 @@ def guided_registration(request, page_id=0):
     through each category one by one
     '''
 
+    SESSION_KEY = "guided_registration_categories"
     next_step = redirect("guided_registration")
 
     sections = []
@@ -94,19 +95,23 @@ def guided_registration(request, page_id=0):
     else:
         # We're selling products
 
-        last_category = attendee.highest_complete_category
+        starting = attendee.guided_categories_complete.count() == 0
 
         # Get the next category
         cats = rego.Category.objects
-        cats = cats.filter(id__gt=last_category).order_by("order")
+        if SESSION_KEY in request.session:
+            _cats = request.session[SESSION_KEY]
+            cats = cats.filter(id__in=_cats)
+        else:
+            cats = cats.exclude(
+                id__in=attendee.guided_categories_complete.all(),
+            )
 
-        if cats.count() == 0:
-            # We've filled in every category
-            attendee.completed_registration = True
-            attendee.save()
-            return next_step
+        cats = cats.order_by("order")
 
-        if last_category == 0:
+        request.session[SESSION_KEY] = []
+
+        if starting:
             # Only display the first Category
             title = "Select ticket type"
             current_step = 2
@@ -125,6 +130,12 @@ def guided_registration(request, page_id=0):
             products=all_products,
         ))
 
+        if len(available_products) == 0:
+            # We've filled in every category
+            attendee.completed_registration = True
+            attendee.save()
+            return next_step
+
         for category in cats:
             products = [
                 i for i in available_products
@@ -141,14 +152,17 @@ def guided_registration(request, page_id=0):
                 discounts=discounts,
                 form=products_form,
             )
-            if products:
-                # This product category does not exist for this user
-                sections.append(section)
 
-            if request.method == "POST" and not products_form.errors:
-                if category.id > attendee.highest_complete_category:
-                    # This is only saved if we pass each form with no errors.
-                    attendee.highest_complete_category = category.id
+            if products:
+                # This product category has items to show.
+                sections.append(section)
+                # Add this to the list of things to show if the form errors.
+                request.session[SESSION_KEY].append(category.id)
+
+                if request.method == "POST" and not products_form.errors:
+                    # This is only saved if we pass each form with no errors,
+                    # and if the form actually has products.
+                    attendee.guided_categories_complete.add(category)
 
     if sections and request.method == "POST":
         for section in sections:
@@ -156,6 +170,8 @@ def guided_registration(request, page_id=0):
                 break
         else:
             attendee.save()
+            if SESSION_KEY in request.session:
+                del request.session[SESSION_KEY]
             # We've successfully processed everything
             return next_step
 

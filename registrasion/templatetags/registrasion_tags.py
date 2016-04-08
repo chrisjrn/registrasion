@@ -30,7 +30,13 @@ def items_pending(context):
     all_items = rego.ProductItem.objects.filter(
         cart__user=context.request.user,
         cart__active=True,
-    ).select_related("product", "product__category")
+    ).select_related(
+        "product",
+        "product__category",
+    ).order_by(
+        "product__category__order",
+        "product__order",
+    )
     return all_items
 
 

@@ -1,4 +1,5 @@
 import itertools
+import operator
 
 from collections import defaultdict
 from collections import namedtuple
@@ -44,6 +45,25 @@ class ConditionController(object):
         except KeyError:
             return ConditionController()
 
+    SINGLE = True
+    PLURAL = False
+    NONE = True
+    SOME = False
+    MESSAGE = {
+        NONE: {
+            SINGLE:
+                "%(items)s is no longer available to you",
+            PLURAL:
+                "%(items)s are no longer available to you",
+        },
+        SOME: {
+            SINGLE:
+                "Only %(remainder)d of the following item remains: %(items)s",
+            PLURAL:
+                "Only %(remainder)d of the following items remain: %(items)s"
+        },
+    }
+
     @classmethod
     def test_enabling_conditions(
             cls, user, products=None, product_quantities=None):
@@ -70,18 +90,30 @@ class ConditionController(object):
             quantities = {}
 
         # Get the conditions covered by the products themselves
-        all_conditions = [
-            product.enablingconditionbase_set.select_subclasses() |
-            product.category.enablingconditionbase_set.select_subclasses()
+
+        prods = (
+            product.enablingconditionbase_set.select_subclasses()
             for product in products
-        ]
-        all_conditions = set(itertools.chain(*all_conditions))
+        )
+        # Get the conditions covered by their categories
+        cats = (
+            category.enablingconditionbase_set.select_subclasses()
+            for category in set(product.category for product in products)
+        )
+
+        if products:
+            # Simplify the query.
+            all_conditions = reduce(operator.or_, itertools.chain(prods, cats))
+        else:
+            all_conditions = []
 
         # All mandatory conditions on a product need to be met
         mandatory = defaultdict(lambda: True)
         # At least one non-mandatory condition on a product must be met
         # if there are no mandatory conditions
         non_mandatory = defaultdict(lambda: False)
+
+        messages = {}
 
         for condition in all_conditions:
             cond = cls.for_condition(condition)
@@ -93,10 +125,14 @@ class ConditionController(object):
             from_category = rego.Product.objects.filter(
                 category__in=condition.categories.all(),
             ).all()
-            all_products = set(itertools.chain(cond_products, from_category))
-
+            all_products = cond_products | from_category
+            all_products = all_products.select_related("category")
             # Remove the products that we aren't asking about
-            all_products = all_products & products
+            all_products = [
+                product
+                for product in all_products
+                if product in products
+            ]
 
             if quantities:
                 consumed = sum(quantities[i] for i in all_products)
@@ -104,11 +140,19 @@ class ConditionController(object):
                 consumed = 1
             met = consumed <= remainder
 
+            if not met:
+                items = ", ".join(str(product) for product in all_products)
+                base = cls.MESSAGE[remainder == 0][len(all_products) == 1]
+                message = base % {"items": items, "remainder": remainder}
+
             for product in all_products:
                 if condition.mandatory:
                     mandatory[product] &= met
                 else:
                     non_mandatory[product] |= met
+
+                if not met and product not in messages:
+                    messages[product] = message
 
         valid = defaultdict(lambda: True)
         for product in itertools.chain(mandatory, non_mandatory):
@@ -119,7 +163,11 @@ class ConditionController(object):
                 # Otherwise, we need just one non-mandatory condition met
                 valid[product] = non_mandatory[product]
 
-        error_fields = [product for product in valid if not valid[product]]
+        error_fields = [
+            (product, messages[product])
+            for product in valid if not valid[product]
+        ]
+
         return error_fields
 
     def user_quantity_remaining(self, user):

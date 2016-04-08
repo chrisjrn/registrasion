@@ -16,6 +16,7 @@ from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError
 from django.http import Http404
+from django.shortcuts import get_object_or_404
 from django.shortcuts import redirect
 from django.shortcuts import render
 
@@ -51,6 +52,9 @@ def guided_registration(request, page_id=0):
     through each category one by one
     '''
 
+    SESSION_KEY = "guided_registration_categories"
+    ASK_FOR_PROFILE = 777  # Magic number. Meh.
+
     next_step = redirect("guided_registration")
 
     sections = []
@@ -70,9 +74,19 @@ def guided_registration(request, page_id=0):
     except ObjectDoesNotExist:
         profile = None
 
-    if not profile:
-        # TODO: if voucherform is invalid, make sure
-        # that profileform does not save
+    # Figure out if we need to show the profile form and the voucher form
+    show_profile_and_voucher = False
+    if SESSION_KEY not in request.session:
+        if not profile:
+            show_profile_and_voucher = True
+    else:
+        if request.session[SESSION_KEY] == ASK_FOR_PROFILE:
+            show_profile_and_voucher = True
+
+    if show_profile_and_voucher:
+        # Keep asking for the profile until everything passes.
+        request.session[SESSION_KEY] = ASK_FOR_PROFILE
+
         voucher_form, voucher_handled = handle_voucher(request, "voucher")
         profile_form, profile_handled = handle_profile(request, "profile")
 
@@ -93,19 +107,23 @@ def guided_registration(request, page_id=0):
     else:
         # We're selling products
 
-        last_category = attendee.highest_complete_category
+        starting = attendee.guided_categories_complete.count() == 0
 
         # Get the next category
         cats = rego.Category.objects
-        cats = cats.filter(id__gt=last_category).order_by("order")
+        if SESSION_KEY in request.session:
+            _cats = request.session[SESSION_KEY]
+            cats = cats.filter(id__in=_cats)
+        else:
+            cats = cats.exclude(
+                id__in=attendee.guided_categories_complete.all(),
+            )
 
-        if cats.count() == 0:
-            # We've filled in every category
-            attendee.completed_registration = True
-            attendee.save()
-            return next_step
+        cats = cats.order_by("order")
 
-        if last_category == 0:
+        request.session[SESSION_KEY] = []
+
+        if starting:
             # Only display the first Category
             title = "Select ticket type"
             current_step = 2
@@ -115,11 +133,26 @@ def guided_registration(request, page_id=0):
             current_step = 3
             title = "Additional items"
 
+        all_products = rego.Product.objects.filter(
+            category__in=cats,
+        ).select_related("category")
+
+        available_products = set(ProductController.available_products(
+            request.user,
+            products=all_products,
+        ))
+
+        if len(available_products) == 0:
+            # We've filled in every category
+            attendee.completed_registration = True
+            attendee.save()
+            return next_step
+
         for category in cats:
-            products = ProductController.available_products(
-                request.user,
-                category=category,
-            )
+            products = [
+                i for i in available_products
+                if i.category == category
+            ]
 
             prefix = "category_" + str(category.id)
             p = handle_products(request, category, products, prefix)
@@ -131,14 +164,17 @@ def guided_registration(request, page_id=0):
                 discounts=discounts,
                 form=products_form,
             )
-            if products:
-                # This product category does not exist for this user
-                sections.append(section)
 
-            if request.method == "POST" and not products_form.errors:
-                if category.id > attendee.highest_complete_category:
-                    # This is only saved if we pass each form with no errors.
-                    attendee.highest_complete_category = category.id
+            if products:
+                # This product category has items to show.
+                sections.append(section)
+                # Add this to the list of things to show if the form errors.
+                request.session[SESSION_KEY].append(category.id)
+
+                if request.method == "POST" and not products_form.errors:
+                    # This is only saved if we pass each form with no errors,
+                    # and if the form actually has products.
+                    attendee.guided_categories_complete.add(category)
 
     if sections and request.method == "POST":
         for section in sections:
@@ -146,6 +182,8 @@ def guided_registration(request, page_id=0):
                 break
         else:
             attendee.save()
+            if SESSION_KEY in request.session:
+                del request.session[SESSION_KEY]
             # We've successfully processed everything
             return next_step
 
@@ -280,15 +318,17 @@ def handle_products(request, category, products, prefix):
     items = rego.ProductItem.objects.filter(
         product__in=products,
         cart=current_cart.cart,
-    )
+    ).select_related("product")
     quantities = []
-    for product in products:
-        # Only add items that are enabled.
-        try:
-            quantity = items.get(product=product).quantity
-        except ObjectDoesNotExist:
-            quantity = 0
-        quantities.append((product, quantity))
+    seen = set()
+
+    for item in items:
+        quantities.append((item.product, item.quantity))
+        seen.add(item.product)
+
+    zeros = set(products) - seen
+    for product in zeros:
+        quantities.append((product, 0))
 
     products_form = ProductsForm(
         request.POST or None,
@@ -323,8 +363,14 @@ def handle_products(request, category, products, prefix):
 def set_quantities_from_products_form(products_form, current_cart):
 
     quantities = list(products_form.product_quantities())
+
+    pks = [i[0] for i in quantities]
+    products = rego.Product.objects.filter(
+        id__in=pks,
+    ).select_related("category")
+
     product_quantities = [
-        (rego.Product.objects.get(pk=i[0]), i[1]) for i in quantities
+        (products.get(pk=i[0]), i[1]) for i in quantities
     ]
     field_names = dict(
         (i[0][0], i[1][2]) for i in zip(product_quantities, quantities)
@@ -337,6 +383,8 @@ def set_quantities_from_products_form(products_form, current_cart):
             product, message = ve_field.message
             if product in field_names:
                 field = field_names[product]
+            elif isinstance(product, rego.Product):
+                continue
             else:
                 field = None
             products_form.add_error(field, message)
@@ -377,22 +425,67 @@ def checkout(request):
     invoice. '''
 
     current_cart = CartController.for_user(request.user)
-    current_invoice = InvoiceController.for_cart(current_cart.cart)
+
+    if "fix_errors" in request.GET and request.GET["fix_errors"] == "true":
+        current_cart.fix_simple_errors()
+
+    try:
+        current_invoice = InvoiceController.for_cart(current_cart.cart)
+    except ValidationError as ve:
+        return checkout_errors(request, ve)
 
     return redirect("invoice", current_invoice.invoice.id)
 
 
-@login_required
-def invoice(request, invoice_id):
-    ''' Displays an invoice for a given invoice id. '''
+def checkout_errors(request, errors):
+
+    error_list = []
+    for error in errors.error_list:
+        if isinstance(error, tuple):
+            error = error[1]
+        error_list.append(error)
+
+    data = {
+        "error_list": error_list,
+    }
+
+    return render(request, "registrasion/checkout_errors.html", data)
+
+
+def invoice_access(request, access_code):
+    ''' Redirects to the first unpaid invoice for the attendee that matches
+    the given access code, if any. '''
+
+    invoices = rego.Invoice.objects.filter(
+        user__attendee__access_code=access_code,
+        status=rego.Invoice.STATUS_UNPAID,
+    ).order_by("issue_time")
+
+    if not invoices:
+        raise Http404()
+
+    invoice = invoices[0]
+
+    return redirect("invoice", invoice.id, access_code)
+
+
+def invoice(request, invoice_id, access_code=None):
+    ''' Displays an invoice for a given invoice id.
+    This view is not authenticated, but it will only allow access to either:
+    the user the invoice belongs to; staff; or a request made with the correct
+    access code.
+    '''
 
     invoice_id = int(invoice_id)
     inv = rego.Invoice.objects.get(pk=invoice_id)
 
-    if request.user != inv.cart.user and not request.user.is_staff:
-        raise Http404()
-
     current_invoice = InvoiceController(inv)
+
+    if not current_invoice.can_view(
+            user=request.user,
+            access_code=access_code,
+            ):
+        raise Http404()
 
     data = {
         "invoice": current_invoice.invoice,
@@ -402,15 +495,32 @@ def invoice(request, invoice_id):
 
 
 @login_required
-def pay_invoice(request, invoice_id):
-    ''' Marks the invoice with the given invoice id as paid.
-    WORK IN PROGRESS FUNCTION. Must be replaced with real payment workflow.
+def manual_payment(request, invoice_id):
+    ''' Allows staff to make manual payments or refunds on an invoice.'''
 
-    '''
+    FORM_PREFIX = "manual_payment"
+
+    if not request.user.is_staff:
+        raise Http404()
+
     invoice_id = int(invoice_id)
-    inv = rego.Invoice.objects.get(pk=invoice_id)
+    inv = get_object_or_404(rego.Invoice, pk=invoice_id)
     current_invoice = InvoiceController(inv)
-    if not current_invoice.invoice.paid and not current_invoice.invoice.void:
-        current_invoice.pay("Demo invoice payment", inv.value)
 
-    return redirect("invoice", current_invoice.invoice.id)
+    form = forms.ManualPaymentForm(
+        request.POST or None,
+        prefix=FORM_PREFIX,
+    )
+
+    if request.POST and form.is_valid():
+        form.instance.invoice = inv
+        form.save()
+        current_invoice.update_status()
+        form = forms.ManualPaymentForm(prefix=FORM_PREFIX)
+
+    data = {
+        "invoice": inv,
+        "form": form,
+    }
+
+    return render(request, "registrasion/manual_payment.html", data)

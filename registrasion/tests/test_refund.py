@@ -1,7 +1,7 @@
 import pytz
 
-from cart_controller_helper import TestingCartController
-from registrasion.controllers.invoice import InvoiceController
+from controller_helpers import TestingCartController
+from controller_helpers import TestingInvoiceController
 
 from test_cart import RegistrationCartTestCase
 
@@ -15,14 +15,16 @@ class RefundTestCase(RegistrationCartTestCase):
 
         # Should be able to create an invoice after the product is added
         current_cart.add_to_cart(self.PROD_1, 1)
-        invoice = InvoiceController.for_cart(current_cart.cart)
+        invoice = TestingInvoiceController.for_cart(current_cart.cart)
 
         invoice.pay("A Payment!", invoice.invoice.value)
-        self.assertFalse(invoice.invoice.void)
-        self.assertTrue(invoice.invoice.paid)
+        self.assertFalse(invoice.invoice.is_void)
+        self.assertTrue(invoice.invoice.is_paid)
+        self.assertFalse(invoice.invoice.is_refunded)
         self.assertFalse(invoice.invoice.cart.released)
 
         invoice.refund("A Refund!", invoice.invoice.value)
-        self.assertTrue(invoice.invoice.void)
-        self.assertFalse(invoice.invoice.paid)
+        self.assertFalse(invoice.invoice.is_void)
+        self.assertFalse(invoice.invoice.is_paid)
+        self.assertTrue(invoice.invoice.is_refunded)
         self.assertTrue(invoice.invoice.cart.released)

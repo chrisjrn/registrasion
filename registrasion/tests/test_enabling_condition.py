@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError
 
 from registrasion import models as rego
 from registrasion.controllers.category import CategoryController
-from cart_controller_helper import TestingCartController
+from controller_helpers import TestingCartController
 from registrasion.controllers.product import ProductController
 
 from test_cart import RegistrationCartTestCase
@@ -68,8 +68,8 @@ class EnablingConditionTestCases(RegistrationCartTestCase):
 
         current_cart = TestingCartController.for_user(self.USER_1)
         current_cart.add_to_cart(self.PROD_2, 1)
-        current_cart.cart.active = False
-        current_cart.cart.save()
+
+        current_cart.next_cart()
 
         # Create new cart and try to add PROD_1
         current_cart = TestingCartController.for_user(self.USER_1)
@@ -103,8 +103,8 @@ class EnablingConditionTestCases(RegistrationCartTestCase):
 
         current_cart = TestingCartController.for_user(self.USER_1)
         current_cart.add_to_cart(self.PROD_3, 1)
-        current_cart.cart.active = False
-        current_cart.cart.save()
+
+        current_cart.next_cart()
 
         # Create new cart and try to add PROD_1
         current_cart = TestingCartController.for_user(self.USER_1)
@@ -241,15 +241,14 @@ class EnablingConditionTestCases(RegistrationCartTestCase):
         cart = TestingCartController.for_user(self.USER_1)
         cart.add_to_cart(self.PROD_3, 1)
 
-        cart.cart.active = False
-        cart.cart.save()
+        cart.next_cart()
 
         cart_2 = TestingCartController.for_user(self.USER_1)
         cart_2.add_to_cart(self.PROD_1, 1)
         cart_2.set_quantity(self.PROD_1, 0)
 
         cart.cart.released = True
-        cart.cart.save()
+        cart.next_cart()
 
         with self.assertRaises(ValidationError):
             cart_2.set_quantity(self.PROD_1, 1)
@@ -260,15 +259,14 @@ class EnablingConditionTestCases(RegistrationCartTestCase):
         cart = TestingCartController.for_user(self.USER_1)
         cart.add_to_cart(self.PROD_2, 1)
 
-        cart.cart.active = False
-        cart.cart.save()
+        cart.next_cart()
 
         cart_2 = TestingCartController.for_user(self.USER_1)
         cart_2.add_to_cart(self.PROD_1, 1)
         cart_2.set_quantity(self.PROD_1, 0)
 
         cart.cart.released = True
-        cart.cart.save()
+        cart.next_cart()
 
         with self.assertRaises(ValidationError):
             cart_2.set_quantity(self.PROD_1, 1)
@@ -293,3 +291,48 @@ class EnablingConditionTestCases(RegistrationCartTestCase):
 
         self.assertTrue(self.CAT_1 in cats)
         self.assertTrue(self.CAT_2 in cats)
+
+    def test_validate_cart_when_enabling_conditions_become_unmet(self):
+        self.add_product_enabling_condition(mandatory=False)
+
+        cart = TestingCartController.for_user(self.USER_1)
+        cart.add_to_cart(self.PROD_2, 1)
+        cart.add_to_cart(self.PROD_1, 1)
+
+        # Should pass
+        cart.validate_cart()
+
+        cart.set_quantity(self.PROD_2, 0)
+
+        # Should fail
+        with self.assertRaises(ValidationError):
+            cart.validate_cart()
+
+    def test_fix_simple_errors_resolves_unavailable_products(self):
+        self.test_validate_cart_when_enabling_conditions_become_unmet()
+        cart = TestingCartController.for_user(self.USER_1)
+
+        # Should just remove all of the unavailable products
+        cart.fix_simple_errors()
+        # Should now succeed
+        cart.validate_cart()
+
+        # Should keep PROD_2 in the cart
+        items = rego.ProductItem.objects.filter(cart=cart.cart)
+        self.assertFalse([i for i in items if i.product == self.PROD_1])
+
+    def test_fix_simple_errors_does_not_remove_limited_items(self):
+        cart = TestingCartController.for_user(self.USER_1)
+
+        cart.add_to_cart(self.PROD_2, 1)
+        cart.add_to_cart(self.PROD_1, 10)
+
+        # Should just remove all of the unavailable products
+        cart.fix_simple_errors()
+        # Should now succeed
+        cart.validate_cart()
+
+        # Should keep PROD_2 in the cart
+        # and also PROD_1, which is now exhausted for user.
+        items = rego.ProductItem.objects.filter(cart=cart.cart)
+        self.assertTrue([i for i in items if i.product == self.PROD_1])

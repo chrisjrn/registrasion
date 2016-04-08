@@ -1,4 +1,5 @@
 from registrasion.controllers.cart import CartController
+from registrasion.controllers.invoice import InvoiceController
 from registrasion import models as rego
 
 from django.core.exceptions import ObjectDoesNotExist
@@ -24,3 +25,25 @@ class TestingCartController(CartController):
         except ObjectDoesNotExist:
             old_quantity = 0
         self.set_quantity(product, old_quantity + quantity)
+
+    def next_cart(self):
+        self.cart.active = False
+        self.cart.save()
+
+
+class TestingInvoiceController(InvoiceController):
+
+    def pay(self, reference, amount):
+        ''' Testing method for simulating an invoice paymenht by the given
+        amount. '''
+
+        self.validate_allowed_to_pay()
+
+        ''' Adds a payment '''
+        rego.ManualPayment.objects.create(
+            invoice=self.invoice,
+            reference=reference,
+            amount=amount,
+        )
+
+        self.update_status()

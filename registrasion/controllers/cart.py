@@ -80,6 +80,11 @@ class CartController(object):
         pairs. '''
 
         items_in_cart = rego.ProductItem.objects.filter(cart=self.cart)
+        items_in_cart = items_in_cart.select_related(
+            "product",
+            "product__category",
+        )
+
         product_quantities = list(product_quantities)
 
         # n.b need to add have the existing items first so that the new
@@ -120,14 +125,12 @@ class CartController(object):
         # Test each product limit here
         for product, quantity in product_quantities:
             if quantity < 0:
-                # TODO: batch errors
                 errors.append((product, "Value must be zero or greater."))
 
             prod = ProductController(product)
             limit = prod.user_quantity_remaining(self.cart.user)
 
             if quantity > limit:
-                # TODO: batch errors
                 errors.append((
                     product,
                     "You may only have %d of product: %s" % (
@@ -149,7 +152,6 @@ class CartController(object):
             to_add = sum(i[1] for i in by_cat[category])
 
             if to_add > limit:
-                # TODO: batch errors
                 errors.append((
                     category,
                     "You may only have %d items in category: %s" % (
@@ -164,10 +166,8 @@ class CartController(object):
         )
 
         if errs:
-            # TODO: batch errors
-            errors.append(
-                ("enabling_conditions", "An enabling condition failed")
-            )
+            for error in errs:
+                errors.append(error)
 
         if errors:
             raise CartValidationError(errors)
@@ -175,43 +175,80 @@ class CartController(object):
     def apply_voucher(self, voucher_code):
         ''' Applies the voucher with the given code to this cart. '''
 
-        # Is voucher exhausted?
-        active_carts = rego.Cart.reserved_carts()
-
         # Try and find the voucher
         voucher = rego.Voucher.objects.get(code=voucher_code.upper())
 
-        # It's invalid for a user to enter a voucher that's exhausted
-        carts_with_voucher = active_carts.filter(vouchers=voucher)
-        if len(carts_with_voucher) >= voucher.limit:
-            raise ValidationError("This voucher is no longer available")
+        # Re-applying vouchers should be idempotent
+        if voucher in self.cart.vouchers.all():
+            return
 
-        # It's not valid for users to re-enter a voucher they already have
-        user_carts_with_voucher = rego.Cart.objects.filter(
-            user=self.cart.user,
-            released=False,
-            vouchers=voucher,
-        )
-        if len(user_carts_with_voucher) > 0:
-            raise ValidationError("You have already entered this voucher.")
+        self._test_voucher(voucher)
 
         # If successful...
         self.cart.vouchers.add(voucher)
         self.end_batch()
 
+    def _test_voucher(self, voucher):
+        ''' Tests whether this voucher is allowed to be applied to this cart.
+        Raises ValidationError if not. '''
+
+        # Is voucher exhausted?
+        active_carts = rego.Cart.reserved_carts()
+
+        # It's invalid for a user to enter a voucher that's exhausted
+        carts_with_voucher = active_carts.filter(vouchers=voucher)
+        carts_with_voucher = carts_with_voucher.exclude(pk=self.cart.id)
+        if carts_with_voucher.count() >= voucher.limit:
+            raise ValidationError(
+                "Voucher %s is no longer available" % voucher.code)
+
+        # It's not valid for users to re-enter a voucher they already have
+        user_carts_with_voucher = carts_with_voucher.filter(
+            user=self.cart.user,
+        )
+
+        if user_carts_with_voucher.count() > 0:
+            raise ValidationError("You have already entered this voucher.")
+
+    def _test_vouchers(self, vouchers):
+        ''' Tests each of the vouchers against self._test_voucher() and raises
+        the collective ValidationError.
+        Future work will refactor _test_voucher in terms of this, and save some
+        queries. '''
+        errors = []
+        for voucher in vouchers:
+            try:
+                self._test_voucher(voucher)
+            except ValidationError as ve:
+                errors.append(ve)
+
+        if errors:
+            raise(ValidationError(ve))
+
     def validate_cart(self):
         ''' Determines whether the status of the current cart is valid;
         this is normally called before generating or paying an invoice '''
 
-        # TODO: validate vouchers
+        cart = self.cart
+        user = self.cart.user
+        errors = []
 
-        items = rego.ProductItem.objects.filter(cart=self.cart)
+        try:
+            self._test_vouchers(self.cart.vouchers.all())
+        except ValidationError as ve:
+            errors.append(ve)
+
+        items = rego.ProductItem.objects.filter(cart=cart)
 
         product_quantities = list((i.product, i.quantity) for i in items)
-        self._test_limits(product_quantities)
+        try:
+            self._test_limits(product_quantities)
+        except ValidationError as ve:
+            for error in ve.error_list:
+                errors.append(error.message[1])
 
         # Validate the discounts
-        discount_items = rego.DiscountItem.objects.filter(cart=self.cart)
+        discount_items = rego.DiscountItem.objects.filter(cart=cart)
         seen_discounts = set()
 
         for discount_item in discount_items:
@@ -223,18 +260,57 @@ class CartController(object):
                 pk=discount.pk)
             cond = ConditionController.for_condition(real_discount)
 
-            if not cond.is_met(self.cart.user):
-                raise ValidationError("Discounts are no longer available")
+            if not cond.is_met(user):
+                errors.append(
+                    ValidationError("Discounts are no longer available")
+                )
 
+        if errors:
+            raise ValidationError(errors)
+
+    @transaction.atomic
+    def fix_simple_errors(self):
+        ''' This attempts to fix the easy errors raised by ValidationError.
+        This includes removing items from the cart that are no longer
+        available, recalculating all of the discounts, and removing voucher
+        codes that are no longer available. '''
+
+        # Fix vouchers first (this affects available discounts)
+        to_remove = []
+        for voucher in self.cart.vouchers.all():
+            try:
+                self._test_voucher(voucher)
+            except ValidationError:
+                to_remove.append(voucher)
+
+        for voucher in to_remove:
+            self.cart.vouchers.remove(voucher)
+
+        # Fix products and discounts
+        items = rego.ProductItem.objects.filter(cart=self.cart)
+        items = items.select_related("product")
+        products = set(i.product for i in items)
+        available = set(ProductController.available_products(
+            self.cart.user,
+            products=products,
+        ))
+
+        not_available = products - available
+        zeros = [(product, 0) for product in not_available]
+
+        self.set_quantities(zeros)
+
+    @transaction.atomic
     def recalculate_discounts(self):
         ''' Calculates all of the discounts available for this product.
-        NB should be transactional, and it's terribly inefficient.
         '''
 
         # Delete the existing entries.
         rego.DiscountItem.objects.filter(cart=self.cart).delete()
 
-        product_items = self.cart.productitem_set.all()
+        product_items = self.cart.productitem_set.all().select_related(
+            "product", "product__category",
+        )
 
         products = [i.product for i in product_items]
         discounts = discount.available_discounts(self.cart.user, [], products)
@@ -242,6 +318,7 @@ class CartController(object):
         # The highest-value discounts will apply to the highest-value
         # products first.
         product_items = self.cart.productitem_set.all()
+        product_items = product_items.select_related("product")
         product_items = product_items.order_by('product__price')
         product_items = reversed(product_items)
         for item in product_items:

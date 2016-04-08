@@ -3,6 +3,13 @@ import models as rego
 from django import forms
 
 
+class ManualPaymentForm(forms.ModelForm):
+
+    class Meta:
+        model = rego.ManualPayment
+        fields = ["reference", "amount"]
+
+
 # Products forms -- none of these have any fields: they are to be subclassed
 # and the fields added as needs be.
 
@@ -47,11 +54,18 @@ class _QuantityBoxProductsForm(_ProductsForm):
     @classmethod
     def set_fields(cls, category, products):
         for product in products:
-            help_text = "$%d -- %s" % (product.price, product.description)
+            if product.description:
+                help_text = "$%d each -- %s" % (
+                    product.price,
+                    product.description,
+                )
+            else:
+                help_text = "$%d each" % product.price
 
             field = forms.IntegerField(
                 label=product.name,
                 help_text=help_text,
+                min_value=0,
             )
             cls.base_fields[cls.field_name(product)] = field
 

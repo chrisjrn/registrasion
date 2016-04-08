@@ -10,7 +10,7 @@ from django.test import TestCase
 from registrasion import models as rego
 from registrasion.controllers.product import ProductController
 
-from cart_controller_helper import TestingCartController
+from controller_helpers import TestingCartController
 from patch_datetime import SetTimeMixin
 
 UTC = pytz.timezone('UTC')
@@ -23,6 +23,9 @@ class RegistrationCartTestCase(SetTimeMixin, TestCase):
 
     @classmethod
     def setUpTestData(cls):
+
+        super(RegistrationCartTestCase, cls).setUpTestData()
+
         cls.USER_1 = User.objects.create_user(
             username='testuser',
             email='test@example.com',
@@ -32,6 +35,15 @@ class RegistrationCartTestCase(SetTimeMixin, TestCase):
             username='testuser2',
             email='test2@example.com',
             password='top_secret')
+
+        attendee1 = rego.Attendee.get_instance(cls.USER_1)
+        attendee1.save()
+        profile1 = rego.AttendeeProfileBase.objects.create(attendee=attendee1)
+        profile1.save()
+        attendee2 = rego.Attendee.get_instance(cls.USER_2)
+        attendee2.save()
+        profile2 = rego.AttendeeProfileBase.objects.create(attendee=attendee2)
+        profile2.save()
 
         cls.RESERVATION = datetime.timedelta(hours=1)
 
@@ -74,12 +86,12 @@ class RegistrationCartTestCase(SetTimeMixin, TestCase):
 
         # Burn through some carts -- this made some past EC tests fail
         current_cart = TestingCartController.for_user(cls.USER_1)
-        current_cart.cart.active = False
-        current_cart.cart.save()
+
+        current_cart.next_cart()
 
         current_cart = TestingCartController.for_user(cls.USER_2)
-        current_cart.cart.active = False
-        current_cart.cart.save()
+
+        current_cart.next_cart()
 
     @classmethod
     def make_ceiling(cls, name, limit=None, start_time=None, end_time=None):
@@ -136,14 +148,17 @@ class RegistrationCartTestCase(SetTimeMixin, TestCase):
         voucher.save()
         return voucher
 
+    @classmethod
+    def reget(cls, object):
+        return type(object).objects.get(id=object.id)
+
 
 class BasicCartTests(RegistrationCartTestCase):
 
     def test_get_cart(self):
         current_cart = TestingCartController.for_user(self.USER_1)
 
-        current_cart.cart.active = False
-        current_cart.cart.save()
+        current_cart.next_cart()
 
         old_cart = current_cart
 
@@ -214,8 +229,7 @@ class BasicCartTests(RegistrationCartTestCase):
         with self.assertRaises(ValidationError):
             current_cart.add_to_cart(self.PROD_1, 10)
 
-        current_cart.cart.active = False
-        current_cart.cart.save()
+        current_cart.next_cart()
 
         current_cart = TestingCartController.for_user(self.USER_1)
         # User should not be able to add 10 of PROD_1 to the current cart now,
@@ -272,8 +286,7 @@ class BasicCartTests(RegistrationCartTestCase):
         with self.assertRaises(ValidationError):
             current_cart.add_to_cart(self.PROD_3, 1)
 
-        current_cart.cart.active = False
-        current_cart.cart.save()
+        current_cart.next_cart()
 
         current_cart = TestingCartController.for_user(self.USER_1)
         # The category limit should extend across carts
@@ -298,8 +311,8 @@ class BasicCartTests(RegistrationCartTestCase):
             current_cart.add_to_cart(self.PROD_4, 1)
 
         # The limits should extend across carts...
-        current_cart.cart.active = False
-        current_cart.cart.save()
+
+        current_cart.next_cart()
 
         current_cart = TestingCartController.for_user(self.USER_1)
         current_cart.set_quantity(self.PROD_3, 4)
@@ -325,8 +338,7 @@ class BasicCartTests(RegistrationCartTestCase):
         current_cart.add_to_cart(item, quantity)
         self.assertTrue(item in prods)
 
-        current_cart.cart.active = False
-        current_cart.cart.save()
+        current_cart.next_cart()
 
         current_cart = TestingCartController.for_user(self.USER_1)
 

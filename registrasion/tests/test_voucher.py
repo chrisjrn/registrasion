@@ -148,7 +148,7 @@ class VoucherTestCases(RegistrationCartTestCase):
         with self.assertRaises(ValidationError):
             current_cart.apply_voucher(voucher.code)
 
-        inv.refund("Hello!", inv.invoice.value)
+        inv.refund()
         current_cart.apply_voucher(voucher.code)
 
     def test_fix_simple_errors_does_not_remove_limited_voucher(self):

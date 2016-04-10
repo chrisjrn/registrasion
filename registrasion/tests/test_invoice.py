@@ -6,6 +6,7 @@ from django.core.exceptions import ValidationError
 
 from registrasion import models as rego
 from controller_helpers import TestingCartController
+from controller_helpers import TestingCreditNoteController
 from controller_helpers import TestingInvoiceController
 
 from test_cart import RegistrationCartTestCase
@@ -187,12 +188,25 @@ class InvoiceTestCase(RegistrationCartTestCase):
 
         # Should be able to create an invoice after the product is added
         current_cart.add_to_cart(self.PROD_1, 1)
-        invoice_1 = TestingInvoiceController.for_cart(current_cart.cart)
+        invoice = TestingInvoiceController.for_cart(current_cart.cart)
 
-        invoice_1.pay("Reference", invoice_1.invoice.value)
+        invoice.pay("Reference", invoice.invoice.value)
 
         with self.assertRaises(ValidationError):
-            invoice_1.void()
+            invoice.void()
+
+    def test_cannot_void_partially_paid_invoice(self):
+        current_cart = TestingCartController.for_user(self.USER_1)
+
+        # Should be able to create an invoice after the product is added
+        current_cart.add_to_cart(self.PROD_1, 1)
+        invoice = TestingInvoiceController.for_cart(current_cart.cart)
+
+        invoice.pay("Reference", invoice.invoice.value - 1)
+        self.assertTrue(invoice.invoice.is_unpaid)
+
+        with self.assertRaises(ValidationError):
+            invoice.void()
 
     def test_cannot_generate_blank_invoice(self):
         current_cart = TestingCartController.for_user(self.USER_1)
@@ -210,9 +224,255 @@ class InvoiceTestCase(RegistrationCartTestCase):
         with self.assertRaises(ValidationError):
             invoice.validate_allowed_to_pay()
 
-    # TODO: test partially paid invoice cannot be void until payments
-    # are refunded
+    def test_overpaid_invoice_results_in_credit_note(self):
+        cart = TestingCartController.for_user(self.USER_1)
+        cart.add_to_cart(self.PROD_1, 1)
 
-    # TODO: test overpaid invoice results in credit note
+        invoice = TestingInvoiceController.for_cart(self.reget(cart.cart))
 
-    # TODO: test credit note generation more generally
+        # Invoice is overpaid by 1 unit
+        to_pay = invoice.invoice.value + 1
+        invoice.pay("Reference", to_pay)
+
+        # The total paid should be equal to the value of the invoice only
+        self.assertEqual(invoice.invoice.value, invoice.total_payments())
+        self.assertTrue(invoice.invoice.is_paid)
+
+        # There should be a credit note generated out of the invoice.
+        credit_notes = rego.CreditNote.objects.filter(invoice=invoice.invoice)
+        self.assertEqual(1, credit_notes.count())
+        self.assertEqual(to_pay - invoice.invoice.value, credit_notes[0].value)
+
+    def test_full_paid_invoice_does_not_generate_credit_note(self):
+        cart = TestingCartController.for_user(self.USER_1)
+        cart.add_to_cart(self.PROD_1, 1)
+
+        invoice = TestingInvoiceController.for_cart(self.reget(cart.cart))
+
+        # Invoice is paid evenly
+        invoice.pay("Reference", invoice.invoice.value)
+
+        # The total paid should be equal to the value of the invoice only
+        self.assertEqual(invoice.invoice.value, invoice.total_payments())
+        self.assertTrue(invoice.invoice.is_paid)
+
+        # There should be no credit notes
+        credit_notes = rego.CreditNote.objects.filter(invoice=invoice.invoice)
+        self.assertEqual(0, credit_notes.count())
+
+    def test_refund_partially_paid_invoice_generates_correct_credit_note(self):
+        cart = TestingCartController.for_user(self.USER_1)
+        cart.add_to_cart(self.PROD_1, 1)
+
+        invoice = TestingInvoiceController.for_cart(self.reget(cart.cart))
+
+        # Invoice is underpaid by 1 unit
+        to_pay = invoice.invoice.value - 1
+        invoice.pay("Reference", to_pay)
+        invoice.refund()
+
+        # The total paid should be zero
+        self.assertEqual(0, invoice.total_payments())
+        self.assertTrue(invoice.invoice.is_void)
+
+        # There should be a credit note generated out of the invoice.
+        credit_notes = rego.CreditNote.objects.filter(invoice=invoice.invoice)
+        self.assertEqual(1, credit_notes.count())
+        self.assertEqual(to_pay, credit_notes[0].value)
+
+    def test_refund_fully_paid_invoice_generates_correct_credit_note(self):
+        cart = TestingCartController.for_user(self.USER_1)
+        cart.add_to_cart(self.PROD_1, 1)
+
+        invoice = TestingInvoiceController.for_cart(self.reget(cart.cart))
+
+        to_pay = invoice.invoice.value
+        invoice.pay("Reference", to_pay)
+        self.assertTrue(invoice.invoice.is_paid)
+
+        invoice.refund()
+
+        # The total paid should be zero
+        self.assertEqual(0, invoice.total_payments())
+        self.assertTrue(invoice.invoice.is_refunded)
+
+        # There should be a credit note generated out of the invoice.
+        credit_notes = rego.CreditNote.objects.filter(invoice=invoice.invoice)
+        self.assertEqual(1, credit_notes.count())
+        self.assertEqual(to_pay, credit_notes[0].value)
+
+    def test_apply_credit_note_pays_invoice(self):
+        cart = TestingCartController.for_user(self.USER_1)
+        cart.add_to_cart(self.PROD_1, 1)
+
+        invoice = TestingInvoiceController.for_cart(self.reget(cart.cart))
+
+        to_pay = invoice.invoice.value
+        invoice.pay("Reference", to_pay)
+        self.assertTrue(invoice.invoice.is_paid)
+
+        invoice.refund()
+
+        # There should be one credit note generated out of the invoice.
+        credit_note = rego.CreditNote.objects.get(invoice=invoice.invoice)
+        cn = TestingCreditNoteController(credit_note)
+
+        # That credit note should be in the unclaimed pile
+        self.assertEquals(1, rego.CreditNote.unclaimed().count())
+
+        # Create a new (identical) cart with invoice
+        cart = TestingCartController.for_user(self.USER_1)
+        cart.add_to_cart(self.PROD_1, 1)
+
+        invoice2 = TestingInvoiceController.for_cart(self.reget(cart.cart))
+
+        cn.apply_to_invoice(invoice2.invoice)
+        self.assertTrue(invoice2.invoice.is_paid)
+
+        # That invoice should not show up as unclaimed any more
+        self.assertEquals(0, rego.CreditNote.unclaimed().count())
+
+    def test_apply_credit_note_generates_new_credit_note_if_overpaying(self):
+        cart = TestingCartController.for_user(self.USER_1)
+        cart.add_to_cart(self.PROD_1, 2)
+
+        invoice = TestingInvoiceController.for_cart(self.reget(cart.cart))
+
+        to_pay = invoice.invoice.value
+        invoice.pay("Reference", to_pay)
+        self.assertTrue(invoice.invoice.is_paid)
+
+        invoice.refund()
+
+        # There should be one credit note generated out of the invoice.
+        credit_note = rego.CreditNote.objects.get(invoice=invoice.invoice)
+        cn = TestingCreditNoteController(credit_note)
+
+        self.assertEquals(1, rego.CreditNote.unclaimed().count())
+
+        # Create a new cart (of half value of inv 1) and get invoice
+        cart = TestingCartController.for_user(self.USER_1)
+        cart.add_to_cart(self.PROD_1, 1)
+
+        invoice2 = TestingInvoiceController.for_cart(self.reget(cart.cart))
+
+        cn.apply_to_invoice(invoice2.invoice)
+        self.assertTrue(invoice2.invoice.is_paid)
+
+        # We generated a new credit note, and spent the old one,
+        # unclaimed should still be 1.
+        self.assertEquals(1, rego.CreditNote.unclaimed().count())
+
+        credit_note2 = rego.CreditNote.objects.get(invoice=invoice2.invoice)
+
+        # The new credit note should be the residual of the cost of cart 1
+        # minus the cost of cart 2.
+        self.assertEquals(
+            invoice.invoice.value - invoice2.invoice.value,
+            credit_note2.value,
+        )
+
+    def test_cannot_apply_credit_note_on_invalid_invoices(self):
+        cart = TestingCartController.for_user(self.USER_1)
+        cart.add_to_cart(self.PROD_1, 1)
+
+        invoice = TestingInvoiceController.for_cart(self.reget(cart.cart))
+
+        to_pay = invoice.invoice.value
+        invoice.pay("Reference", to_pay)
+        self.assertTrue(invoice.invoice.is_paid)
+
+        invoice.refund()
+
+        # There should be one credit note generated out of the invoice.
+        credit_note = rego.CreditNote.objects.get(invoice=invoice.invoice)
+        cn = TestingCreditNoteController(credit_note)
+
+        # Create a new cart with invoice, pay it
+        cart = TestingCartController.for_user(self.USER_1)
+        cart.add_to_cart(self.PROD_1, 1)
+
+        invoice_2 = TestingInvoiceController.for_cart(self.reget(cart.cart))
+        invoice_2.pay("LOL", invoice_2.invoice.value)
+
+        # Cannot pay paid invoice
+        with self.assertRaises(ValidationError):
+            cn.apply_to_invoice(invoice_2.invoice)
+
+        invoice_2.refund()
+        # Cannot pay refunded invoice
+        with self.assertRaises(ValidationError):
+            cn.apply_to_invoice(invoice_2.invoice)
+
+        # Create a new cart with invoice
+        cart = TestingCartController.for_user(self.USER_1)
+        cart.add_to_cart(self.PROD_1, 1)
+
+        invoice_2 = TestingInvoiceController.for_cart(self.reget(cart.cart))
+        invoice_2.void()
+        # Cannot pay void invoice
+        with self.assertRaises(ValidationError):
+            cn.apply_to_invoice(invoice_2.invoice)
+
+    def test_cannot_apply_a_refunded_credit_note(self):
+        cart = TestingCartController.for_user(self.USER_1)
+        cart.add_to_cart(self.PROD_1, 1)
+
+        invoice = TestingInvoiceController.for_cart(self.reget(cart.cart))
+
+        to_pay = invoice.invoice.value
+        invoice.pay("Reference", to_pay)
+        self.assertTrue(invoice.invoice.is_paid)
+
+        invoice.refund()
+
+        self.assertEquals(1, rego.CreditNote.unclaimed().count())
+
+        credit_note = rego.CreditNote.objects.get(invoice=invoice.invoice)
+
+        cn = TestingCreditNoteController(credit_note)
+        cn.refund()
+
+        # Refunding a credit note should mark it as claimed
+        self.assertEquals(0, rego.CreditNote.unclaimed().count())
+
+        # Create a new cart with invoice
+        cart = TestingCartController.for_user(self.USER_1)
+        cart.add_to_cart(self.PROD_1, 1)
+
+        invoice_2 = TestingInvoiceController.for_cart(self.reget(cart.cart))
+
+        # Cannot pay with this credit note.
+        with self.assertRaises(ValidationError):
+            cn.apply_to_invoice(invoice_2.invoice)
+
+    def test_cannot_refund_an_applied_credit_note(self):
+        cart = TestingCartController.for_user(self.USER_1)
+        cart.add_to_cart(self.PROD_1, 1)
+
+        invoice = TestingInvoiceController.for_cart(self.reget(cart.cart))
+
+        to_pay = invoice.invoice.value
+        invoice.pay("Reference", to_pay)
+        self.assertTrue(invoice.invoice.is_paid)
+
+        invoice.refund()
+
+        self.assertEquals(1, rego.CreditNote.unclaimed().count())
+
+        credit_note = rego.CreditNote.objects.get(invoice=invoice.invoice)
+
+        cn = TestingCreditNoteController(credit_note)
+
+        # Create a new cart with invoice
+        cart = TestingCartController.for_user(self.USER_1)
+        cart.add_to_cart(self.PROD_1, 1)
+
+        invoice_2 = TestingInvoiceController.for_cart(self.reget(cart.cart))
+        cn.apply_to_invoice(invoice_2.invoice)
+
+        self.assertEquals(0, rego.CreditNote.unclaimed().count())
+
+        # Cannot refund this credit note as it is already applied.
+        with self.assertRaises(ValidationError):
+            cn.refund()

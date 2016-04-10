@@ -8,6 +8,7 @@ from django.utils import timezone
 from registrasion import models as rego
 
 from cart import CartController
+from credit_note import CreditNoteController
 
 
 class InvoiceController(object):
@@ -189,6 +190,12 @@ class InvoiceController(object):
             if remainder <= 0:
                 # Invoice no longer has amount owing
                 self._mark_paid()
+
+                if remainder < 0:
+                    CreditNoteController.generate_from_invoice(
+                        self.invoice,
+                        0 - remainder,
+                    )
             elif total_paid == 0 and num_payments > 0:
                 # Invoice has multiple payments totalling zero
                 self._mark_void()
@@ -247,30 +254,31 @@ class InvoiceController(object):
 
     def void(self):
         ''' Voids the invoice if it is valid to do so. '''
-        if self.invoice.status == rego.Invoice.STATUS_PAID:
-            raise ValidationError("Paid invoices cannot be voided, "
-                                  "only refunded.")
+        if self.total_payments() > 0:
+            raise ValidationError("Invoices with payments must be refunded.")
+        elif self.invoice.is_refunded:
+            raise ValidationError("Refunded invoices may not be voided.")
         self._mark_void()
 
     @transaction.atomic
-    def refund(self, reference, amount):
-        ''' Refunds the invoice by the given amount.
+    def refund(self):
+        ''' Refunds the invoice by generating a CreditNote for the value of
+        all of the payments against the cart.
 
         The invoice is marked as refunded, and the underlying cart is marked
         as released.
 
-        TODO: replace with credit notes work instead.
         '''
 
         if self.invoice.is_void:
             raise ValidationError("Void invoices cannot be refunded")
 
-        # Adds a payment
-        # TODO: replace by creating a credit note instead
-        rego.ManualPayment.objects.create(
-            invoice=self.invoice,
-            reference=reference,
-            amount=0 - amount,
-        )
+        # Raises a credit note fot the value of the invoice.
+        amount = self.total_payments()
 
+        if amount == 0:
+            self.void()
+            return
+
+        CreditNoteController.generate_from_invoice(self.invoice, amount)
         self.update_status()

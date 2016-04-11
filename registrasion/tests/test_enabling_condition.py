@@ -15,45 +15,45 @@ UTC = pytz.timezone('UTC')
 class FlagTestCases(RegistrationCartTestCase):
 
     @classmethod
-    def add_product_enabling_condition(cls, mandatory=False):
+    def add_product_flag(cls, mandatory=False):
         ''' Adds a product enabling condition: adding PROD_1 to a cart is
         predicated on adding PROD_2 beforehand. '''
-        enabling_condition = rego.ProductFlag.objects.create(
+        flag = rego.ProductFlag.objects.create(
             description="Product condition",
             mandatory=mandatory,
         )
-        enabling_condition.save()
-        enabling_condition.products.add(cls.PROD_1)
-        enabling_condition.enabling_products.add(cls.PROD_2)
-        enabling_condition.save()
+        flag.save()
+        flag.products.add(cls.PROD_1)
+        flag.enabling_products.add(cls.PROD_2)
+        flag.save()
 
     @classmethod
-    def add_product_enabling_condition_on_category(cls, mandatory=False):
+    def add_product_flag_on_category(cls, mandatory=False):
         ''' Adds a product enabling condition that operates on a category:
         adding an item from CAT_1 is predicated on adding PROD_3 beforehand '''
-        enabling_condition = rego.ProductFlag.objects.create(
+        flag = rego.ProductFlag.objects.create(
             description="Product condition",
             mandatory=mandatory,
         )
-        enabling_condition.save()
-        enabling_condition.categories.add(cls.CAT_1)
-        enabling_condition.enabling_products.add(cls.PROD_3)
-        enabling_condition.save()
+        flag.save()
+        flag.categories.add(cls.CAT_1)
+        flag.enabling_products.add(cls.PROD_3)
+        flag.save()
 
-    def add_category_enabling_condition(cls, mandatory=False):
+    def add_category_flag(cls, mandatory=False):
         ''' Adds a category enabling condition: adding PROD_1 to a cart is
         predicated on adding an item from CAT_2 beforehand.'''
-        enabling_condition = rego.CategoryFlag.objects.create(
+        flag = rego.CategoryFlag.objects.create(
             description="Category condition",
             mandatory=mandatory,
             enabling_category=cls.CAT_2,
         )
-        enabling_condition.save()
-        enabling_condition.products.add(cls.PROD_1)
-        enabling_condition.save()
+        flag.save()
+        flag.products.add(cls.PROD_1)
+        flag.save()
 
-    def test_product_enabling_condition_enables_product(self):
-        self.add_product_enabling_condition()
+    def test_product_flag_enables_product(self):
+        self.add_product_flag()
 
         # Cannot buy PROD_1 without buying PROD_2
         current_cart = TestingCartController.for_user(self.USER_1)
@@ -64,7 +64,7 @@ class FlagTestCases(RegistrationCartTestCase):
         current_cart.add_to_cart(self.PROD_1, 1)
 
     def test_product_enabled_by_product_in_previous_cart(self):
-        self.add_product_enabling_condition()
+        self.add_product_flag()
 
         current_cart = TestingCartController.for_user(self.USER_1)
         current_cart.add_to_cart(self.PROD_2, 1)
@@ -75,8 +75,8 @@ class FlagTestCases(RegistrationCartTestCase):
         current_cart = TestingCartController.for_user(self.USER_1)
         current_cart.add_to_cart(self.PROD_1, 1)
 
-    def test_product_enabling_condition_enables_category(self):
-        self.add_product_enabling_condition_on_category()
+    def test_product_flag_enables_category(self):
+        self.add_product_flag_on_category()
 
         # Cannot buy PROD_1 without buying item from CAT_2
         current_cart = TestingCartController.for_user(self.USER_1)
@@ -86,8 +86,8 @@ class FlagTestCases(RegistrationCartTestCase):
         current_cart.add_to_cart(self.PROD_3, 1)
         current_cart.add_to_cart(self.PROD_1, 1)
 
-    def test_category_enabling_condition_enables_product(self):
-        self.add_category_enabling_condition()
+    def test_category_flag_enables_product(self):
+        self.add_category_flag()
 
         # Cannot buy PROD_1 without buying PROD_2
         current_cart = TestingCartController.for_user(self.USER_1)
@@ -99,7 +99,7 @@ class FlagTestCases(RegistrationCartTestCase):
         current_cart.add_to_cart(self.PROD_1, 1)
 
     def test_product_enabled_by_category_in_previous_cart(self):
-        self.add_category_enabling_condition()
+        self.add_category_flag()
 
         current_cart = TestingCartController.for_user(self.USER_1)
         current_cart.add_to_cart(self.PROD_3, 1)
@@ -111,8 +111,8 @@ class FlagTestCases(RegistrationCartTestCase):
         current_cart.add_to_cart(self.PROD_1, 1)
 
     def test_multiple_non_mandatory_conditions(self):
-        self.add_product_enabling_condition()
-        self.add_category_enabling_condition()
+        self.add_product_flag()
+        self.add_category_flag()
 
         # User 1 is testing the product enabling condition
         cart_1 = TestingCartController.for_user(self.USER_1)
@@ -131,8 +131,8 @@ class FlagTestCases(RegistrationCartTestCase):
         cart_2.add_to_cart(self.PROD_1, 1)
 
     def test_multiple_mandatory_conditions(self):
-        self.add_product_enabling_condition(mandatory=True)
-        self.add_category_enabling_condition(mandatory=True)
+        self.add_product_flag(mandatory=True)
+        self.add_category_flag(mandatory=True)
 
         cart_1 = TestingCartController.for_user(self.USER_1)
         # Cannot add PROD_1 until both conditions are met
@@ -145,8 +145,8 @@ class FlagTestCases(RegistrationCartTestCase):
         cart_1.add_to_cart(self.PROD_1, 1)
 
     def test_mandatory_conditions_are_mandatory(self):
-        self.add_product_enabling_condition(mandatory=False)
-        self.add_category_enabling_condition(mandatory=True)
+        self.add_product_flag(mandatory=False)
+        self.add_category_flag(mandatory=True)
 
         cart_1 = TestingCartController.for_user(self.USER_1)
         # Cannot add PROD_1 until both conditions are met
@@ -186,7 +186,7 @@ class FlagTestCases(RegistrationCartTestCase):
         self.assertTrue(self.PROD_4 in prods)
 
     def test_available_products_on_category_works_when_condition_not_met(self):
-        self.add_product_enabling_condition(mandatory=False)
+        self.add_product_flag(mandatory=False)
 
         prods = ProductController.available_products(
             self.USER_1,
@@ -197,7 +197,7 @@ class FlagTestCases(RegistrationCartTestCase):
         self.assertTrue(self.PROD_2 in prods)
 
     def test_available_products_on_category_works_when_condition_is_met(self):
-        self.add_product_enabling_condition(mandatory=False)
+        self.add_product_flag(mandatory=False)
 
         cart_1 = TestingCartController.for_user(self.USER_1)
         cart_1.add_to_cart(self.PROD_2, 1)
@@ -211,7 +211,7 @@ class FlagTestCases(RegistrationCartTestCase):
         self.assertTrue(self.PROD_2 in prods)
 
     def test_available_products_on_products_works_when_condition_not_met(self):
-        self.add_product_enabling_condition(mandatory=False)
+        self.add_product_flag(mandatory=False)
 
         prods = ProductController.available_products(
             self.USER_1,
@@ -222,7 +222,7 @@ class FlagTestCases(RegistrationCartTestCase):
         self.assertTrue(self.PROD_2 in prods)
 
     def test_available_products_on_products_works_when_condition_is_met(self):
-        self.add_product_enabling_condition(mandatory=False)
+        self.add_product_flag(mandatory=False)
 
         cart_1 = TestingCartController.for_user(self.USER_1)
         cart_1.add_to_cart(self.PROD_2, 1)
@@ -235,8 +235,8 @@ class FlagTestCases(RegistrationCartTestCase):
         self.assertTrue(self.PROD_1 in prods)
         self.assertTrue(self.PROD_2 in prods)
 
-    def test_category_enabling_condition_fails_if_cart_refunded(self):
-        self.add_category_enabling_condition(mandatory=False)
+    def test_category_flag_fails_if_cart_refunded(self):
+        self.add_category_flag(mandatory=False)
 
         cart = TestingCartController.for_user(self.USER_1)
         cart.add_to_cart(self.PROD_3, 1)
@@ -253,8 +253,8 @@ class FlagTestCases(RegistrationCartTestCase):
         with self.assertRaises(ValidationError):
             cart_2.set_quantity(self.PROD_1, 1)
 
-    def test_product_enabling_condition_fails_if_cart_refunded(self):
-        self.add_product_enabling_condition(mandatory=False)
+    def test_product_flag_fails_if_cart_refunded(self):
+        self.add_product_flag(mandatory=False)
 
         cart = TestingCartController.for_user(self.USER_1)
         cart.add_to_cart(self.PROD_2, 1)
@@ -272,7 +272,7 @@ class FlagTestCases(RegistrationCartTestCase):
             cart_2.set_quantity(self.PROD_1, 1)
 
     def test_available_categories(self):
-        self.add_product_enabling_condition_on_category(mandatory=False)
+        self.add_product_flag_on_category(mandatory=False)
 
         cart_1 = TestingCartController.for_user(self.USER_1)
 
@@ -292,8 +292,8 @@ class FlagTestCases(RegistrationCartTestCase):
         self.assertTrue(self.CAT_1 in cats)
         self.assertTrue(self.CAT_2 in cats)
 
-    def test_validate_cart_when_enabling_conditions_become_unmet(self):
-        self.add_product_enabling_condition(mandatory=False)
+    def test_validate_cart_when_flags_become_unmet(self):
+        self.add_product_flag(mandatory=False)
 
         cart = TestingCartController.for_user(self.USER_1)
         cart.add_to_cart(self.PROD_2, 1)
@@ -309,7 +309,7 @@ class FlagTestCases(RegistrationCartTestCase):
             cart.validate_cart()
 
     def test_fix_simple_errors_resolves_unavailable_products(self):
-        self.test_validate_cart_when_enabling_conditions_become_unmet()
+        self.test_validate_cart_when_flags_become_unmet()
         cart = TestingCartController.for_user(self.USER_1)
 
         # Should just remove all of the unavailable products

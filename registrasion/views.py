@@ -561,8 +561,39 @@ def credit_note(request, note_id, access_code=None):
 
     current_note = CreditNoteController(note)
 
+    apply_form = forms.ApplyCreditNoteForm(
+        note.invoice.user,
+        request.POST or None,
+        prefix="apply_note"
+    )
+
+    refund_form = forms.ManualCreditNoteRefundForm(
+        request.POST or None,
+        prefix="refund_note"
+    )
+
+    if request.POST and apply_form.is_valid():
+        inv_id = apply_form.cleaned_data["invoice"]
+        invoice = rego.Invoice.objects.get(pk=inv_id)
+        current_note.apply_to_invoice(invoice)
+        messages.success(request,
+            "Applied credit note %d to invoice." % note_id
+        )
+        return redirect("invoice", invoice.id)
+
+    elif request.POST and refund_form.is_valid():
+        refund_form.instance.entered_by = request.user
+        refund_form.instance.parent = note
+        refund_form.save()
+        messages.success(request,
+            "Applied manual refund to credit note."
+        )
+        return redirect("invoice", invoice.id)
+
     data = {
         "credit_note": current_note.credit_note,
+        "apply_form": apply_form,
+        "refund_form": refund_form,
     }
 
     return render(request, "registrasion/credit_note.html", data)

@@ -17,6 +17,16 @@ def available_categories(context):
 
 
 @register.assignment_tag(takes_context=True)
+def available_credit(context):
+    ''' Returns the amount of unclaimed credit available for this user. '''
+    notes = rego.CreditNote.unclaimed().filter(
+        invoice__user=context.request.user,
+    )
+    ret = notes.values("amount").aggregate(Sum("amount"))["amount__sum"] or 0
+    return 0 - ret
+
+
+@register.assignment_tag(takes_context=True)
 def invoices(context):
     ''' Returns all of the invoices that this user has. '''
     return rego.Invoice.objects.filter(cart__user=context.request.user)

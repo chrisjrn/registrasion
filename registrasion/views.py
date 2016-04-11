@@ -524,3 +524,24 @@ def manual_payment(request, invoice_id):
     }
 
     return render(request, "registrasion/manual_payment.html", data)
+
+
+@login_required
+def refund(request, invoice_id):
+    ''' Allows staff to refund payments against an invoice and request a
+    credit note.'''
+
+    if not request.user.is_staff:
+        raise Http404()
+
+    invoice_id = int(invoice_id)
+    inv = get_object_or_404(rego.Invoice, pk=invoice_id)
+    current_invoice = InvoiceController(inv)
+
+    try:
+        current_invoice.refund()
+        messages.success(request, "This invoice has been refunded.")
+    except ValidationError as ve:
+        messages.error(request, ve)
+
+    return redirect("invoice", invoice_id)

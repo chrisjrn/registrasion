@@ -6,6 +6,7 @@ urlpatterns = patterns(
     "registrasion.views",
     url(r"^category/([0-9]+)$", "product_category", name="product_category"),
     url(r"^checkout$", "checkout", name="checkout"),
+    url(r"^credit_note/([0-9]+)$", views.credit_note, name="credit_note"),
     url(r"^invoice/([0-9]+)$", "invoice", name="invoice"),
     url(r"^invoice/([0-9]+)/([A-Z0-9]+)$", views.invoice, name="invoice"),
     url(r"^invoice/([0-9]+)/manual_payment$",

@@ -4,6 +4,7 @@ from registrasion import forms
 from registrasion import models as rego
 from registrasion.controllers import discount
 from registrasion.controllers.cart import CartController
+from registrasion.controllers.credit_note import CreditNoteController
 from registrasion.controllers.invoice import InvoiceController
 from registrasion.controllers.product import ProductController
 from registrasion.exceptions import CartValidationError
@@ -545,3 +546,23 @@ def refund(request, invoice_id):
         messages.error(request, ve)
 
     return redirect("invoice", invoice_id)
+
+
+def credit_note(request, note_id, access_code=None):
+    ''' Displays an credit note for a given id.
+    This view can only be seen by staff.
+    '''
+
+    if not request.user.is_staff:
+        raise Http404()
+
+    note_id = int(note_id)
+    note = rego.CreditNote.objects.get(pk=note_id)
+
+    current_note = CreditNoteController(note)
+
+    data = {
+        "credit_note": current_note.credit_note,
+    }
+
+    return render(request, "registrasion/credit_note.html", data)

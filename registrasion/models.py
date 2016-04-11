@@ -366,15 +366,8 @@ class RoleDiscount(object):
     pass
 
 
-class FlagBase(object):
-    ''' This will replace EnablingConditionBase once it's ready. '''
-
-    DISABLE_IF_FALSE = 1
-    ENABLE_IF_TRUE = 2
-
-
 @python_2_unicode_compatible
-class EnablingConditionBase(models.Model):
+class FlagBase(models.Model):
     ''' This defines a condition which allows products or categories to
     be made visible, or be prevented from being visible.
 
@@ -387,10 +380,14 @@ class EnablingConditionBase(models.Model):
 
     If both types of conditions exist on a product, both of these rules apply.
     '''
-    # TODO: rename to FlagBase once
-    # https://code.djangoproject.com/ticket/26488 is solved.
 
-    objects = InheritanceManager()
+    class Meta:
+        # TODO: make concrete once https://code.djangoproject.com/ticket/26488
+        # is solved.
+        abstract = True
+
+    DISABLE_IF_FALSE = 1
+    ENABLE_IF_TRUE = 2
 
     def __str__(self):
         return self.description
@@ -409,10 +406,10 @@ class EnablingConditionBase(models.Model):
 
     description = models.CharField(max_length=255)
     condition = models.IntegerField(
-        default=FlagBase.ENABLE_IF_TRUE,
+        default=ENABLE_IF_TRUE,
         choices=(
-            (FlagBase.DISABLE_IF_FALSE, _("Disable if false")),
-            (FlagBase.ENABLE_IF_TRUE, _("Enable if true")),
+            (DISABLE_IF_FALSE, _("Disable if false")),
+            (ENABLE_IF_TRUE, _("Enable if true")),
         ),
         help_text=_("If there is at least one 'disable if false' flag "
                     "defined on a product or category, all such flag "
@@ -426,6 +423,7 @@ class EnablingConditionBase(models.Model):
         Product,
         blank=True,
         help_text=_("Products affected by this flag's condition."),
+        related_name="flagbase_set",
     )
     categories = models.ManyToManyField(
         Category,
@@ -433,7 +431,17 @@ class EnablingConditionBase(models.Model):
         help_text=_("Categories whose products are affected by this flag's "
                     "condition."
         ),
+        related_name="flagbase_set",
     )
+
+
+class EnablingConditionBase(FlagBase):
+    ''' Reifies the abstract FlagBase. This is necessary because django
+    prevents renaming base classes in migrations. '''
+    # TODO: remove this, and make subclasses subclass FlagBase once
+    # https://code.djangoproject.com/ticket/26488 is solved.
+
+    objects = InheritanceManager()
 
 
 class TimeOrStockLimitFlag(EnablingConditionBase):

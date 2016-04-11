@@ -15,9 +15,9 @@ class ProductController(object):
     @classmethod
     def available_products(cls, user, category=None, products=None):
         ''' Returns a list of all of the products that are available per
-        enabling conditions from the given categories.
+        flag conditions from the given categories.
         TODO: refactor so that all conditions are tested here and
-        can_add_with_enabling_conditions calls this method. '''
+        can_add_with_flags calls this method. '''
         if category is None and products is None:
             raise ValueError("You must provide products or a category")
 
@@ -45,7 +45,7 @@ class ProductController(object):
             if cls(product).user_quantity_remaining(user) > 0
         )
 
-        failed_and_messages = ConditionController.test_enabling_conditions(
+        failed_and_messages = ConditionController.test_flags(
             user, products=passed_limits
         )
         failed_conditions = set(i[0] for i in failed_and_messages)

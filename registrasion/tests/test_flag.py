@@ -16,7 +16,7 @@ class FlagTestCases(RegistrationCartTestCase):
 
     @classmethod
     def add_product_flag(cls, condition=rego.FlagBase.ENABLE_IF_TRUE):
-        ''' Adds a product enabling condition: adding PROD_1 to a cart is
+        ''' Adds a product flag condition: adding PROD_1 to a cart is
         predicated on adding PROD_2 beforehand. '''
         flag = rego.ProductFlag.objects.create(
             description="Product condition",
@@ -29,7 +29,7 @@ class FlagTestCases(RegistrationCartTestCase):
 
     @classmethod
     def add_product_flag_on_category(cls, condition=rego.FlagBase.ENABLE_IF_TRUE):
-        ''' Adds a product enabling condition that operates on a category:
+        ''' Adds a product flag condition that operates on a category:
         adding an item from CAT_1 is predicated on adding PROD_3 beforehand '''
         flag = rego.ProductFlag.objects.create(
             description="Product condition",
@@ -41,7 +41,7 @@ class FlagTestCases(RegistrationCartTestCase):
         flag.save()
 
     def add_category_flag(cls, condition=rego.FlagBase.ENABLE_IF_TRUE):
-        ''' Adds a category enabling condition: adding PROD_1 to a cart is
+        ''' Adds a category flag condition: adding PROD_1 to a cart is
         predicated on adding an item from CAT_2 beforehand.'''
         flag = rego.CategoryFlag.objects.create(
             description="Category condition",
@@ -114,7 +114,7 @@ class FlagTestCases(RegistrationCartTestCase):
         self.add_product_flag()
         self.add_category_flag()
 
-        # User 1 is testing the product enabling condition
+        # User 1 is testing the product flag condition
         cart_1 = TestingCartController.for_user(self.USER_1)
         # Cannot add PROD_1 until a condition is met
         with self.assertRaises(ValidationError):
@@ -122,7 +122,7 @@ class FlagTestCases(RegistrationCartTestCase):
         cart_1.add_to_cart(self.PROD_2, 1)
         cart_1.add_to_cart(self.PROD_1, 1)
 
-        # User 2 is testing the category enabling condition
+        # User 2 is testing the category flag condition
         cart_2 = TestingCartController.for_user(self.USER_2)
         # Cannot add PROD_1 until a condition is met
         with self.assertRaises(ValidationError):

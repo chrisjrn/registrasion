@@ -65,16 +65,16 @@ class ConditionController(object):
     }
 
     @classmethod
-    def test_enabling_conditions(
+    def test_flags(
             cls, user, products=None, product_quantities=None):
-        ''' Evaluates all of the enabling conditions on the given products.
+        ''' Evaluates all of the flag conditions on the given products.
 
         If `product_quantities` is supplied, the condition is only met if it
         will permit the sum of the product quantities for all of the products
         it covers. Otherwise, it will be met if at least one item can be
         accepted.
 
-        If all enabling conditions pass, an empty list is returned, otherwise
+        If all flag conditions pass, an empty list is returned, otherwise
         a list is returned containing all of the products that are *not
         enabled*. '''
 
@@ -90,14 +90,13 @@ class ConditionController(object):
             quantities = {}
 
         # Get the conditions covered by the products themselves
-
         prods = (
-            product.enablingconditionbase_set.select_subclasses()
+            product.flagbase_set.select_subclasses()
             for product in products
         )
         # Get the conditions covered by their categories
         cats = (
-            category.enablingconditionbase_set.select_subclasses()
+            category.flagbase_set.select_subclasses()
             for category in set(product.category for product in products)
         )
 
@@ -172,7 +171,7 @@ class ConditionController(object):
         return error_fields
 
     def user_quantity_remaining(self, user):
-        ''' Returns the number of items covered by this enabling condition the
+        ''' Returns the number of items covered by this flag condition the
         user can add to the current cart. This default implementation returns
         a big number if is_met() is true, otherwise 0.
 
@@ -182,7 +181,7 @@ class ConditionController(object):
         return 99999999 if self.is_met(user) else 0
 
     def is_met(self, user):
-        ''' Returns True if this enabling condition is met, otherwise returns
+        ''' Returns True if this flag condition is met, otherwise returns
         False.
 
         Either this method, or user_quantity_remaining() must be overridden

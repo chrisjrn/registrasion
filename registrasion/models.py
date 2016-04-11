@@ -375,8 +375,8 @@ class EnablingConditionBase(models.Model):
     condition defined on a Product or Category, it will only be enabled if at
     least one condition is met. '''
 
-    # TODO: rename to EnablingConditionBase once https://code.djangoproject.com/ticket/26488
-    # is solved.
+    # TODO: rename to EnablingConditionBase once
+    # https://code.djangoproject.com/ticket/26488 is solved.
 
     objects = InheritanceManager()
 
@@ -412,7 +412,8 @@ class TimeOrStockLimitFlag(EnablingConditionBase):
     ''' Registration product ceilings '''
 
     class Meta:
-        verbose_name = _("ceiling")
+        verbose_name = _("flag (time/stock limit)")
+        verbose_name_plural = _("flags (time/stock limit)")
 
     start_time = models.DateTimeField(
         null=True,
@@ -438,6 +439,10 @@ class TimeOrStockLimitFlag(EnablingConditionBase):
 class ProductFlag(EnablingConditionBase):
     ''' The condition is met because a specific product is purchased. '''
 
+    class Meta:
+        verbose_name = _("flag (dependency on product)")
+        verbose_name_plural = _("flags (dependency on product)")
+
     def __str__(self):
         return "Enabled by products: " + str(self.enabling_products.all())
 
@@ -453,6 +458,10 @@ class CategoryFlag(EnablingConditionBase):
     ''' The condition is met because a product in a particular product is
     purchased. '''
 
+    class Meta:
+        verbose_name = _("flag (dependency on product from category)")
+        verbose_name_plural = _("flags (dependency on product from category)")
+
     def __str__(self):
         return "Enabled by product in category: " + str(self.enabling_category)
 
@@ -467,6 +476,10 @@ class CategoryFlag(EnablingConditionBase):
 class VoucherFlag(EnablingConditionBase):
     ''' The condition is met because a Voucher is present. This is for e.g.
     enabling sponsor tickets. '''
+
+    class Meta:
+        verbose_name = _("flag (dependency on voucher)")
+        verbose_name_plural = _("flags (dependency on voucher)")
 
     def __str__(self):
         return "Enabled by voucher: %s" % self.voucher

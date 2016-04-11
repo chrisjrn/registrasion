@@ -102,8 +102,8 @@ class VoucherDiscountInline(nested_admin.NestedStackedInline):
     ]
 
 
-class VoucherEnablingConditionInline(nested_admin.NestedStackedInline):
-    model = rego.VoucherEnablingCondition
+class VoucherFlagInline(nested_admin.NestedStackedInline):
+    model = rego.VoucherFlag
     verbose_name = _("Product and category enabled by voucher")
     verbose_name_plural = _("Products and categories enabled by voucher")
 
@@ -125,7 +125,7 @@ class VoucherAdmin(nested_admin.NestedAdmin):
             discount_effects = None
 
         try:
-            enabling_effects = obj.voucherenablingcondition.effects()
+            enabling_effects = obj.voucherflag.effects()
         except ObjectDoesNotExist:
             enabling_effects = None
 
@@ -140,20 +140,20 @@ class VoucherAdmin(nested_admin.NestedAdmin):
     list_display = ("recipient", "code", "effects")
     inlines = [
         VoucherDiscountInline,
-        VoucherEnablingConditionInline,
+        VoucherFlagInline,
     ]
 
 
 # Enabling conditions
-@admin.register(rego.ProductEnablingCondition)
-class ProductEnablingConditionAdmin(
+@admin.register(rego.ProductFlag)
+class ProductFlagAdmin(
         nested_admin.NestedAdmin,
         EffectsDisplayMixin):
 
     def enablers(self, obj):
         return list(obj.enabling_products.all())
 
-    model = rego.ProductEnablingCondition
+    model = rego.ProductFlag
     fields = ("description", "enabling_products", "mandatory", "products",
               "categories"),
 
@@ -161,12 +161,12 @@ class ProductEnablingConditionAdmin(
 
 
 # Enabling conditions
-@admin.register(rego.CategoryEnablingCondition)
-class CategoryEnablingConditionAdmin(
+@admin.register(rego.CategoryFlag)
+class CategoryFlagAdmin(
         nested_admin.NestedAdmin,
         EffectsDisplayMixin):
 
-    model = rego.CategoryEnablingCondition
+    model = rego.CategoryFlag
     fields = ("description", "enabling_category", "mandatory", "products",
               "categories"),
 
@@ -175,11 +175,11 @@ class CategoryEnablingConditionAdmin(
 
 
 # Enabling conditions
-@admin.register(rego.TimeOrStockLimitEnablingCondition)
-class TimeOrStockLimitEnablingConditionAdmin(
+@admin.register(rego.TimeOrStockLimitFlag)
+class TimeOrStockLimitFlagAdmin(
         nested_admin.NestedAdmin,
         EffectsDisplayMixin):
-    model = rego.TimeOrStockLimitEnablingCondition
+    model = rego.TimeOrStockLimitFlag
 
     list_display = (
         "description",

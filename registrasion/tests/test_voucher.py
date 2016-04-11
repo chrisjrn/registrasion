@@ -58,14 +58,14 @@ class VoucherTestCases(RegistrationCartTestCase):
     def test_voucher_enables_item(self):
         voucher = self.new_voucher()
 
-        enabling_condition = rego.VoucherEnablingCondition.objects.create(
+        flag = rego.VoucherFlag.objects.create(
             description="Voucher condition",
             voucher=voucher,
-            mandatory=False,
+            condition=rego.FlagBase.ENABLE_IF_TRUE,
         )
-        enabling_condition.save()
-        enabling_condition.products.add(self.PROD_1)
-        enabling_condition.save()
+        flag.save()
+        flag.products.add(self.PROD_1)
+        flag.save()
 
         # Adding the product without a voucher will not work
         current_cart = TestingCartController.for_user(self.USER_1)

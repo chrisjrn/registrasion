@@ -367,49 +367,89 @@ class RoleDiscount(object):
 
 
 @python_2_unicode_compatible
-class EnablingConditionBase(models.Model):
+class FlagBase(models.Model):
     ''' This defines a condition which allows products or categories to
-    be made visible. If there is at least one mandatory enabling condition
-    defined on a Product or Category, it will only be enabled if *all*
-    mandatory conditions are met, otherwise, if there is at least one enabling
-    condition defined on a Product or Category, it will only be enabled if at
-    least one condition is met. '''
+    be made visible, or be prevented from being visible.
 
-    objects = InheritanceManager()
+    The various subclasses of this can define the conditions that enable
+    or disable products, by the following rules:
+
+    If there is at least one 'disable if false' flag defined on a product or
+    category, all such flag conditions must be met. If there is at least one
+    'enable if true' flag, at least one such condition must be met.
+
+    If both types of conditions exist on a product, both of these rules apply.
+    '''
+
+    class Meta:
+        # TODO: make concrete once https://code.djangoproject.com/ticket/26488
+        # is solved.
+        abstract = True
+
+    DISABLE_IF_FALSE = 1
+    ENABLE_IF_TRUE = 2
 
     def __str__(self):
         return self.description
 
     def effects(self):
-        ''' Returns all of the items enabled by this condition. '''
+        ''' Returns all of the items affected by this condition. '''
         return itertools.chain(self.products.all(), self.categories.all())
 
+    @property
+    def is_disable_if_false(self):
+        return self.condition == FlagBase.DISABLE_IF_FALSE
+
+    @property
+    def is_enable_if_true(self):
+        return self.condition == FlagBase.ENABLE_IF_TRUE
+
     description = models.CharField(max_length=255)
-    mandatory = models.BooleanField(
-        default=False,
-        help_text=_("If there is at least one mandatory condition defined on "
-                    "a product or category, all such conditions must be met. "
-                    "Otherwise, at least one non-mandatory condition must be "
-                    "met."),
+    condition = models.IntegerField(
+        default=ENABLE_IF_TRUE,
+        choices=(
+            (DISABLE_IF_FALSE, _("Disable if false")),
+            (ENABLE_IF_TRUE, _("Enable if true")),
+        ),
+        help_text=_("If there is at least one 'disable if false' flag "
+                    "defined on a product or category, all such flag "
+                    " conditions must be met. If there is at least one "
+                    "'enable if true' flag, at least one such condition must "
+                    "be met. If both types of conditions exist on a product, "
+                    "both of these rules apply."
+        ),
     )
     products = models.ManyToManyField(
         Product,
         blank=True,
-        help_text=_("Products that are enabled if this condition is met."),
+        help_text=_("Products affected by this flag's condition."),
+        related_name="flagbase_set",
     )
     categories = models.ManyToManyField(
         Category,
         blank=True,
-        help_text=_("Categories whose products are enabled if this condition "
-                    "is met."),
+        help_text=_("Categories whose products are affected by this flag's "
+                    "condition."
+        ),
+        related_name="flagbase_set",
     )
 
 
-class TimeOrStockLimitEnablingCondition(EnablingConditionBase):
+class EnablingConditionBase(FlagBase):
+    ''' Reifies the abstract FlagBase. This is necessary because django
+    prevents renaming base classes in migrations. '''
+    # TODO: remove this, and make subclasses subclass FlagBase once
+    # https://code.djangoproject.com/ticket/26488 is solved.
+
+    objects = InheritanceManager()
+
+
+class TimeOrStockLimitFlag(EnablingConditionBase):
     ''' Registration product ceilings '''
 
     class Meta:
-        verbose_name = _("ceiling")
+        verbose_name = _("flag (time/stock limit)")
+        verbose_name_plural = _("flags (time/stock limit)")
 
     start_time = models.DateTimeField(
         null=True,
@@ -432,8 +472,12 @@ class TimeOrStockLimitEnablingCondition(EnablingConditionBase):
 
 
 @python_2_unicode_compatible
-class ProductEnablingCondition(EnablingConditionBase):
+class ProductFlag(EnablingConditionBase):
     ''' The condition is met because a specific product is purchased. '''
+
+    class Meta:
+        verbose_name = _("flag (dependency on product)")
+        verbose_name_plural = _("flags (dependency on product)")
 
     def __str__(self):
         return "Enabled by products: " + str(self.enabling_products.all())
@@ -446,9 +490,13 @@ class ProductEnablingCondition(EnablingConditionBase):
 
 
 @python_2_unicode_compatible
-class CategoryEnablingCondition(EnablingConditionBase):
+class CategoryFlag(EnablingConditionBase):
     ''' The condition is met because a product in a particular product is
     purchased. '''
+
+    class Meta:
+        verbose_name = _("flag (dependency on product from category)")
+        verbose_name_plural = _("flags (dependency on product from category)")
 
     def __str__(self):
         return "Enabled by product in category: " + str(self.enabling_category)
@@ -461,9 +509,13 @@ class CategoryEnablingCondition(EnablingConditionBase):
 
 
 @python_2_unicode_compatible
-class VoucherEnablingCondition(EnablingConditionBase):
+class VoucherFlag(EnablingConditionBase):
     ''' The condition is met because a Voucher is present. This is for e.g.
     enabling sponsor tickets. '''
+
+    class Meta:
+        verbose_name = _("flag (dependency on voucher)")
+        verbose_name_plural = _("flags (dependency on voucher)")
 
     def __str__(self):
         return "Enabled by voucher: %s" % self.voucher
@@ -472,10 +524,10 @@ class VoucherEnablingCondition(EnablingConditionBase):
 
 
 # @python_2_unicode_compatible
-class RoleEnablingCondition(object):
+class RoleFlag(object):
     ''' The condition is met because the active user has a particular Role.
     This is for e.g. enabling Team tickets. '''
-    # TODO: implement RoleEnablingCondition
+    # TODO: implement RoleFlag
     pass
 
 

@@ -61,7 +61,7 @@ class VoucherTestCases(RegistrationCartTestCase):
         flag = rego.VoucherFlag.objects.create(
             description="Voucher condition",
             voucher=voucher,
-            mandatory=False,
+            condition=rego.FlagBase.ENABLE_IF_TRUE,
         )
         flag.save()
         flag.products.add(self.PROD_1)

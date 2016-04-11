@@ -107,11 +107,11 @@ class ConditionController(object):
         else:
             all_conditions = []
 
-        # All mandatory conditions on a product need to be met
-        mandatory = defaultdict(lambda: True)
-        # At least one non-mandatory condition on a product must be met
-        # if there are no mandatory conditions
-        non_mandatory = defaultdict(lambda: False)
+        # All disable-if-false conditions on a product need to be met
+        do_not_disable = defaultdict(lambda: True)
+        # At least one enable-if-true condition on a product must be met
+        do_enable = defaultdict(lambda: False)
+        # (if either sort of condition is present)
 
         messages = {}
 
@@ -146,22 +146,23 @@ class ConditionController(object):
                 message = base % {"items": items, "remainder": remainder}
 
             for product in all_products:
-                if condition.mandatory:
-                    mandatory[product] &= met
+                if condition.is_disable_if_false:
+                    do_not_disable[product] &= met
                 else:
-                    non_mandatory[product] |= met
+                    do_enable[product] |= met
 
                 if not met and product not in messages:
                     messages[product] = message
 
-        valid = defaultdict(lambda: True)
-        for product in itertools.chain(mandatory, non_mandatory):
-            if product in mandatory:
-                # If there's a mandatory condition, all must be met
-                valid[product] = mandatory[product]
-            else:
-                # Otherwise, we need just one non-mandatory condition met
-                valid[product] = non_mandatory[product]
+        valid = {}
+        for product in itertools.chain(do_not_disable, do_enable):
+            if product in do_enable:
+                # If there's an enable-if-true, we need need of those met too.
+                # (do_not_disable will default to true otherwise)
+                valid[product] = do_not_disable[product] and do_enable[product]
+            elif product in do_not_disable:
+                # If there's a disable-if-false condition, all must be met
+                valid[product] = do_not_disable[product]
 
         error_fields = [
             (product, messages[product])

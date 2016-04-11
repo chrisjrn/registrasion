@@ -97,7 +97,7 @@ class RegistrationCartTestCase(SetTimeMixin, TestCase):
     def make_ceiling(cls, name, limit=None, start_time=None, end_time=None):
         limit_ceiling = rego.TimeOrStockLimitFlag.objects.create(
             description=name,
-            mandatory=True,
+            condition=rego.FlagBase.DISABLE_IF_FALSE,
             limit=limit,
             start_time=start_time,
             end_time=end_time
@@ -111,7 +111,7 @@ class RegistrationCartTestCase(SetTimeMixin, TestCase):
             cls, name, limit=None, start_time=None, end_time=None):
         limit_ceiling = rego.TimeOrStockLimitFlag.objects.create(
             description=name,
-            mandatory=True,
+            condition=rego.FlagBase.DISABLE_IF_FALSE,
             limit=limit,
             start_time=start_time,
             end_time=end_time

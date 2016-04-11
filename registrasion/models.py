@@ -366,16 +366,28 @@ class RoleDiscount(object):
     pass
 
 
+class FlagBase(object):
+    ''' This will replace EnablingConditionBase once it's ready. '''
+
+    DISABLE_IF_FALSE = 1
+    ENABLE_IF_TRUE = 2
+
+
 @python_2_unicode_compatible
 class EnablingConditionBase(models.Model):
     ''' This defines a condition which allows products or categories to
-    be made visible. If there is at least one mandatory enabling condition
-    defined on a Product or Category, it will only be enabled if *all*
-    mandatory conditions are met, otherwise, if there is at least one enabling
-    condition defined on a Product or Category, it will only be enabled if at
-    least one condition is met. '''
+    be made visible, or be prevented from being visible.
 
-    # TODO: rename to EnablingConditionBase once
+    The various subclasses of this can define the conditions that enable
+    or disable products, by the following rules:
+
+    If there is at least one 'disable if false' flag defined on a product or
+    category, all such flag conditions must be met. If there is at least one
+    'enable if true' flag, at least one such condition must be met.
+
+    If both types of conditions exist on a product, both of these rules apply.
+    '''
+    # TODO: rename to FlagBase once
     # https://code.djangoproject.com/ticket/26488 is solved.
 
     objects = InheritanceManager()
@@ -384,27 +396,43 @@ class EnablingConditionBase(models.Model):
         return self.description
 
     def effects(self):
-        ''' Returns all of the items enabled by this condition. '''
+        ''' Returns all of the items affected by this condition. '''
         return itertools.chain(self.products.all(), self.categories.all())
 
+    @property
+    def is_disable_if_false(self):
+        return self.condition == FlagBase.DISABLE_IF_FALSE
+
+    @property
+    def is_enable_if_true(self):
+        return self.condition == FlagBase.ENABLE_IF_TRUE
+
     description = models.CharField(max_length=255)
-    mandatory = models.BooleanField(
-        default=False,
-        help_text=_("If there is at least one mandatory condition defined on "
-                    "a product or category, all such conditions must be met. "
-                    "Otherwise, at least one non-mandatory condition must be "
-                    "met."),
+    condition = models.IntegerField(
+        default=FlagBase.ENABLE_IF_TRUE,
+        choices=(
+            (FlagBase.DISABLE_IF_FALSE, _("Disable if false")),
+            (FlagBase.ENABLE_IF_TRUE, _("Enable if true")),
+        ),
+        help_text=_("If there is at least one 'disable if false' flag "
+                    "defined on a product or category, all such flag "
+                    " conditions must be met. If there is at least one "
+                    "'enable if true' flag, at least one such condition must "
+                    "be met. If both types of conditions exist on a product, "
+                    "both of these rules apply."
+        ),
     )
     products = models.ManyToManyField(
         Product,
         blank=True,
-        help_text=_("Products that are enabled if this condition is met."),
+        help_text=_("Products affected by this flag's condition."),
     )
     categories = models.ManyToManyField(
         Category,
         blank=True,
-        help_text=_("Categories whose products are enabled if this condition "
-                    "is met."),
+        help_text=_("Categories whose products are affected by this flag's "
+                    "condition."
+        ),
     )
 
 

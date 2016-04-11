@@ -23,7 +23,7 @@ class RefundTestCase(RegistrationCartTestCase):
         self.assertFalse(invoice.invoice.is_refunded)
         self.assertFalse(invoice.invoice.cart.released)
 
-        invoice.refund("A Refund!", invoice.invoice.value)
+        invoice.refund()
         self.assertFalse(invoice.invoice.is_void)
         self.assertFalse(invoice.invoice.is_paid)
         self.assertTrue(invoice.invoice.is_refunded)

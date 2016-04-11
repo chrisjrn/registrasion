@@ -648,3 +648,95 @@ class PaymentBase(models.Model):
 class ManualPayment(PaymentBase):
     ''' Payments that are manually entered by staff. '''
     pass
+
+
+class CreditNote(PaymentBase):
+    ''' Credit notes represent money accounted for in the system that do not
+    belong to specific invoices. They may be paid into other invoices, or
+    cashed out as refunds.
+
+    Each CreditNote may either be used to pay towards another Invoice in the
+    system (by attaching a CreditNoteApplication), or may be marked as
+    refunded (by attaching a CreditNoteRefund).'''
+
+    @classmethod
+    def unclaimed(cls):
+        return cls.objects.filter(
+            creditnoteapplication=None,
+            creditnoterefund=None,
+        )
+
+    @property
+    def status(self):
+        if self.is_unclaimed:
+            return "Unclaimed"
+
+        if hasattr(self, 'creditnoteapplication'):
+            destination = self.creditnoteapplication.invoice.id
+            return "Applied to invoice %d" % destination
+
+        elif hasattr(self, 'creditnoterefund'):
+            reference = self.creditnoterefund.reference
+            print reference
+            return "Refunded with reference: %s" % reference
+
+        raise ValueError("This should never happen.")
+
+    @property
+    def is_unclaimed(self):
+        return not (
+            hasattr(self, 'creditnoterefund') or
+            hasattr(self, 'creditnoteapplication')
+        )
+
+    @property
+    def value(self):
+        ''' Returns the value of the credit note. Because CreditNotes are
+        implemented as PaymentBase objects internally, the amount is a
+        negative payment against an invoice. '''
+        return -self.amount
+
+
+class CleanOnSave(object):
+
+    def save(self, *a, **k):
+        self.full_clean()
+        super(CleanOnSave, self).save(*a, **k)
+
+
+class CreditNoteApplication(CleanOnSave, PaymentBase):
+    ''' Represents an application of a credit note to an Invoice. '''
+
+    def clean(self):
+        if not hasattr(self, "parent"):
+            return
+        if hasattr(self.parent, 'creditnoterefund'):
+            raise ValidationError(
+                "Cannot apply a refunded credit note to an invoice"
+            )
+
+    parent = models.OneToOneField(CreditNote)
+
+
+class CreditNoteRefund(CleanOnSave, models.Model):
+    ''' Represents a refund of a credit note to an external payment.
+    Credit notes may only be refunded in full. How those refunds are handled
+    is left as an exercise to the payment app. '''
+
+    def clean(self):
+        if not hasattr(self, "parent"):
+            return
+        if hasattr(self.parent, 'creditnoteapplication'):
+            raise ValidationError(
+                "Cannot refund a credit note that has been paid to an invoice"
+            )
+
+    parent = models.OneToOneField(CreditNote)
+    time = models.DateTimeField(default=timezone.now)
+    reference = models.CharField(max_length=255)
+
+
+class ManualCreditNoteRefund(CreditNoteRefund):
+    ''' Credit notes that are entered by a staff member. '''
+
+    entered_by = models.ForeignKey(User)

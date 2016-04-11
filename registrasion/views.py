@@ -4,6 +4,7 @@ from registrasion import forms
 from registrasion import models as rego
 from registrasion.controllers import discount
 from registrasion.controllers.cart import CartController
+from registrasion.controllers.credit_note import CreditNoteController
 from registrasion.controllers.invoice import InvoiceController
 from registrasion.controllers.product import ProductController
 from registrasion.exceptions import CartValidationError
@@ -524,3 +525,75 @@ def manual_payment(request, invoice_id):
     }
 
     return render(request, "registrasion/manual_payment.html", data)
+
+
+@login_required
+def refund(request, invoice_id):
+    ''' Allows staff to refund payments against an invoice and request a
+    credit note.'''
+
+    if not request.user.is_staff:
+        raise Http404()
+
+    invoice_id = int(invoice_id)
+    inv = get_object_or_404(rego.Invoice, pk=invoice_id)
+    current_invoice = InvoiceController(inv)
+
+    try:
+        current_invoice.refund()
+        messages.success(request, "This invoice has been refunded.")
+    except ValidationError as ve:
+        messages.error(request, ve)
+
+    return redirect("invoice", invoice_id)
+
+
+def credit_note(request, note_id, access_code=None):
+    ''' Displays an credit note for a given id.
+    This view can only be seen by staff.
+    '''
+
+    if not request.user.is_staff:
+        raise Http404()
+
+    note_id = int(note_id)
+    note = rego.CreditNote.objects.get(pk=note_id)
+
+    current_note = CreditNoteController(note)
+
+    apply_form = forms.ApplyCreditNoteForm(
+        note.invoice.user,
+        request.POST or None,
+        prefix="apply_note"
+    )
+
+    refund_form = forms.ManualCreditNoteRefundForm(
+        request.POST or None,
+        prefix="refund_note"
+    )
+
+    if request.POST and apply_form.is_valid():
+        inv_id = apply_form.cleaned_data["invoice"]
+        invoice = rego.Invoice.objects.get(pk=inv_id)
+        current_note.apply_to_invoice(invoice)
+        messages.success(request,
+            "Applied credit note %d to invoice." % note_id
+        )
+        return redirect("invoice", invoice.id)
+
+    elif request.POST and refund_form.is_valid():
+        refund_form.instance.entered_by = request.user
+        refund_form.instance.parent = note
+        refund_form.save()
+        messages.success(request,
+            "Applied manual refund to credit note."
+        )
+        return redirect("invoice", invoice.id)
+
+    data = {
+        "credit_note": current_note.credit_note,
+        "apply_form": apply_form,
+        "refund_form": refund_form,
+    }
+
+    return render(request, "registrasion/credit_note.html", data)

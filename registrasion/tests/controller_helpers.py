@@ -1,4 +1,5 @@
 from registrasion.controllers.cart import CartController
+from registrasion.controllers.credit_note import CreditNoteController
 from registrasion.controllers.invoice import InvoiceController
 from registrasion import models as rego
 
@@ -47,3 +48,12 @@ class TestingInvoiceController(InvoiceController):
         )
 
         self.update_status()
+
+
+class TestingCreditNoteController(CreditNoteController):
+
+    def refund(self):
+        rego.CreditNoteRefund.objects.create(
+            parent=self.credit_note,
+            reference="Whoops."
+        )

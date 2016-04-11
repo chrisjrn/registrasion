@@ -3,6 +3,40 @@ import models as rego
 from django import forms
 
 
+class ApplyCreditNoteForm(forms.Form):
+
+    def __init__(self, user, *a, **k):
+        ''' User: The user whose invoices should be made available as
+        choices. '''
+        self.user = user
+        super(ApplyCreditNoteForm, self).__init__(*a, **k)
+
+        self.fields["invoice"].choices = self._unpaid_invoices_for_user
+
+    def _unpaid_invoices_for_user(self):
+        invoices = rego.Invoice.objects.filter(
+            status=rego.Invoice.STATUS_UNPAID,
+            user=self.user,
+        )
+
+        return [
+            (invoice.id, "Invoice %(id)d - $%(value)d" % invoice.__dict__)
+            for invoice in invoices
+        ]
+
+    invoice = forms.ChoiceField(
+        #choices=_unpaid_invoices_for_user,
+        required=True,
+    )
+
+
+class ManualCreditNoteRefundForm(forms.ModelForm):
+
+    class Meta:
+        model = rego.ManualCreditNoteRefund
+        fields = ["reference"]
+
+
 class ManualPaymentForm(forms.ModelForm):
 
     class Meta:

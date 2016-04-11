@@ -12,13 +12,13 @@ from test_cart import RegistrationCartTestCase
 UTC = pytz.timezone('UTC')
 
 
-class EnablingConditionTestCases(RegistrationCartTestCase):
+class FlagTestCases(RegistrationCartTestCase):
 
     @classmethod
     def add_product_enabling_condition(cls, mandatory=False):
         ''' Adds a product enabling condition: adding PROD_1 to a cart is
         predicated on adding PROD_2 beforehand. '''
-        enabling_condition = rego.ProductEnablingCondition.objects.create(
+        enabling_condition = rego.ProductFlag.objects.create(
             description="Product condition",
             mandatory=mandatory,
         )
@@ -31,7 +31,7 @@ class EnablingConditionTestCases(RegistrationCartTestCase):
     def add_product_enabling_condition_on_category(cls, mandatory=False):
         ''' Adds a product enabling condition that operates on a category:
         adding an item from CAT_1 is predicated on adding PROD_3 beforehand '''
-        enabling_condition = rego.ProductEnablingCondition.objects.create(
+        enabling_condition = rego.ProductFlag.objects.create(
             description="Product condition",
             mandatory=mandatory,
         )
@@ -43,7 +43,7 @@ class EnablingConditionTestCases(RegistrationCartTestCase):
     def add_category_enabling_condition(cls, mandatory=False):
         ''' Adds a category enabling condition: adding PROD_1 to a cart is
         predicated on adding an item from CAT_2 beforehand.'''
-        enabling_condition = rego.CategoryEnablingCondition.objects.create(
+        enabling_condition = rego.CategoryFlag.objects.create(
             description="Category condition",
             mandatory=mandatory,
             enabling_category=cls.CAT_2,

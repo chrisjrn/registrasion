@@ -58,7 +58,7 @@ class VoucherTestCases(RegistrationCartTestCase):
     def test_voucher_enables_item(self):
         voucher = self.new_voucher()
 
-        enabling_condition = rego.VoucherEnablingCondition.objects.create(
+        enabling_condition = rego.VoucherFlag.objects.create(
             description="Voucher condition",
             voucher=voucher,
             mandatory=False,

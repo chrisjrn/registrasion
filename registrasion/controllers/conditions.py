@@ -20,7 +20,7 @@ ConditionAndRemainder = namedtuple(
 
 
 class ConditionController(object):
-    ''' Base class for testing conditions that activate EnablingCondition
+    ''' Base class for testing conditions that activate Flag
     or Discount objects. '''
 
     def __init__(self):
@@ -29,15 +29,15 @@ class ConditionController(object):
     @staticmethod
     def for_condition(condition):
         CONTROLLERS = {
-            rego.CategoryEnablingCondition: CategoryConditionController,
+            rego.CategoryFlag: CategoryConditionController,
             rego.IncludedProductDiscount: ProductConditionController,
-            rego.ProductEnablingCondition: ProductConditionController,
+            rego.ProductFlag: ProductConditionController,
             rego.TimeOrStockLimitDiscount:
                 TimeOrStockLimitDiscountController,
-            rego.TimeOrStockLimitEnablingCondition:
-                TimeOrStockLimitEnablingConditionController,
+            rego.TimeOrStockLimitFlag:
+                TimeOrStockLimitFlagController,
             rego.VoucherDiscount: VoucherConditionController,
-            rego.VoucherEnablingCondition: VoucherConditionController,
+            rego.VoucherFlag: VoucherConditionController,
         }
 
         try:
@@ -211,7 +211,7 @@ class CategoryConditionController(ConditionController):
 
 
 class ProductConditionController(ConditionController):
-    ''' Condition tests for ProductEnablingCondition and
+    ''' Condition tests for ProductFlag and
     IncludedProductDiscount. '''
 
     def __init__(self, condition):
@@ -230,7 +230,7 @@ class ProductConditionController(ConditionController):
 
 
 class TimeOrStockLimitConditionController(ConditionController):
-    ''' Common condition tests for TimeOrStockLimit EnablingCondition and
+    ''' Common condition tests for TimeOrStockLimit Flag and
     Discount.'''
 
     def __init__(self, ceiling):
@@ -280,7 +280,7 @@ class TimeOrStockLimitConditionController(ConditionController):
         return self.ceiling.limit - count
 
 
-class TimeOrStockLimitEnablingConditionController(
+class TimeOrStockLimitFlagController(
         TimeOrStockLimitConditionController):
 
     def _items(self):
@@ -305,7 +305,7 @@ class TimeOrStockLimitDiscountController(TimeOrStockLimitConditionController):
 
 
 class VoucherConditionController(ConditionController):
-    ''' Condition test for VoucherEnablingCondition and VoucherDiscount.'''
+    ''' Condition test for VoucherFlag and VoucherDiscount.'''
 
     def __init__(self, condition):
         self.condition = condition

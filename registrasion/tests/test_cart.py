@@ -95,7 +95,7 @@ class RegistrationCartTestCase(SetTimeMixin, TestCase):
 
     @classmethod
     def make_ceiling(cls, name, limit=None, start_time=None, end_time=None):
-        limit_ceiling = rego.TimeOrStockLimitEnablingCondition.objects.create(
+        limit_ceiling = rego.TimeOrStockLimitFlag.objects.create(
             description=name,
             mandatory=True,
             limit=limit,
@@ -109,7 +109,7 @@ class RegistrationCartTestCase(SetTimeMixin, TestCase):
     @classmethod
     def make_category_ceiling(
             cls, name, limit=None, start_time=None, end_time=None):
-        limit_ceiling = rego.TimeOrStockLimitEnablingCondition.objects.create(
+        limit_ceiling = rego.TimeOrStockLimitFlag.objects.create(
             description=name,
             mandatory=True,
             limit=limit,

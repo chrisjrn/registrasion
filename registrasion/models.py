@@ -375,6 +375,9 @@ class EnablingConditionBase(models.Model):
     condition defined on a Product or Category, it will only be enabled if at
     least one condition is met. '''
 
+    # TODO: rename to EnablingConditionBase once https://code.djangoproject.com/ticket/26488
+    # is solved.
+
     objects = InheritanceManager()
 
     def __str__(self):
@@ -405,7 +408,7 @@ class EnablingConditionBase(models.Model):
     )
 
 
-class TimeOrStockLimitEnablingCondition(EnablingConditionBase):
+class TimeOrStockLimitFlag(EnablingConditionBase):
     ''' Registration product ceilings '''
 
     class Meta:
@@ -432,7 +435,7 @@ class TimeOrStockLimitEnablingCondition(EnablingConditionBase):
 
 
 @python_2_unicode_compatible
-class ProductEnablingCondition(EnablingConditionBase):
+class ProductFlag(EnablingConditionBase):
     ''' The condition is met because a specific product is purchased. '''
 
     def __str__(self):
@@ -446,7 +449,7 @@ class ProductEnablingCondition(EnablingConditionBase):
 
 
 @python_2_unicode_compatible
-class CategoryEnablingCondition(EnablingConditionBase):
+class CategoryFlag(EnablingConditionBase):
     ''' The condition is met because a product in a particular product is
     purchased. '''
 
@@ -461,7 +464,7 @@ class CategoryEnablingCondition(EnablingConditionBase):
 
 
 @python_2_unicode_compatible
-class VoucherEnablingCondition(EnablingConditionBase):
+class VoucherFlag(EnablingConditionBase):
     ''' The condition is met because a Voucher is present. This is for e.g.
     enabling sponsor tickets. '''
 
@@ -472,10 +475,10 @@ class VoucherEnablingCondition(EnablingConditionBase):
 
 
 # @python_2_unicode_compatible
-class RoleEnablingCondition(object):
+class RoleFlag(object):
     ''' The condition is met because the active user has a particular Role.
     This is for e.g. enabling Team tickets. '''
-    # TODO: implement RoleEnablingCondition
+    # TODO: implement RoleFlag
     pass
 
 

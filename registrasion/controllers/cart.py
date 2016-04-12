@@ -118,7 +118,7 @@ class CartController(object):
 
     def _test_limits(self, product_quantities):
         ''' Tests that the quantity changes we intend to make do not violate
-        the limits and enabling conditions imposed on the products. '''
+        the limits and flag conditions imposed on the products. '''
 
         errors = []
 
@@ -159,8 +159,8 @@ class CartController(object):
                     )
                 ))
 
-        # Test the enabling conditions
-        errs = ConditionController.test_enabling_conditions(
+        # Test the flag conditions
+        errs = ConditionController.test_flags(
             self.cart.user,
             product_quantities=product_quantities,
         )

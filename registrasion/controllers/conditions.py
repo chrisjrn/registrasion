@@ -20,7 +20,7 @@ ConditionAndRemainder = namedtuple(
 
 
 class ConditionController(object):
-    ''' Base class for testing conditions that activate EnablingCondition
+    ''' Base class for testing conditions that activate Flag
     or Discount objects. '''
 
     def __init__(self):
@@ -29,15 +29,15 @@ class ConditionController(object):
     @staticmethod
     def for_condition(condition):
         CONTROLLERS = {
-            rego.CategoryEnablingCondition: CategoryConditionController,
+            rego.CategoryFlag: CategoryConditionController,
             rego.IncludedProductDiscount: ProductConditionController,
-            rego.ProductEnablingCondition: ProductConditionController,
+            rego.ProductFlag: ProductConditionController,
             rego.TimeOrStockLimitDiscount:
                 TimeOrStockLimitDiscountController,
-            rego.TimeOrStockLimitEnablingCondition:
-                TimeOrStockLimitEnablingConditionController,
+            rego.TimeOrStockLimitFlag:
+                TimeOrStockLimitFlagController,
             rego.VoucherDiscount: VoucherConditionController,
-            rego.VoucherEnablingCondition: VoucherConditionController,
+            rego.VoucherFlag: VoucherConditionController,
         }
 
         try:
@@ -65,16 +65,16 @@ class ConditionController(object):
     }
 
     @classmethod
-    def test_enabling_conditions(
+    def test_flags(
             cls, user, products=None, product_quantities=None):
-        ''' Evaluates all of the enabling conditions on the given products.
+        ''' Evaluates all of the flag conditions on the given products.
 
         If `product_quantities` is supplied, the condition is only met if it
         will permit the sum of the product quantities for all of the products
         it covers. Otherwise, it will be met if at least one item can be
         accepted.
 
-        If all enabling conditions pass, an empty list is returned, otherwise
+        If all flag conditions pass, an empty list is returned, otherwise
         a list is returned containing all of the products that are *not
         enabled*. '''
 
@@ -90,14 +90,13 @@ class ConditionController(object):
             quantities = {}
 
         # Get the conditions covered by the products themselves
-
         prods = (
-            product.enablingconditionbase_set.select_subclasses()
+            product.flagbase_set.select_subclasses()
             for product in products
         )
         # Get the conditions covered by their categories
         cats = (
-            category.enablingconditionbase_set.select_subclasses()
+            category.flagbase_set.select_subclasses()
             for category in set(product.category for product in products)
         )
 
@@ -107,11 +106,11 @@ class ConditionController(object):
         else:
             all_conditions = []
 
-        # All mandatory conditions on a product need to be met
-        mandatory = defaultdict(lambda: True)
-        # At least one non-mandatory condition on a product must be met
-        # if there are no mandatory conditions
-        non_mandatory = defaultdict(lambda: False)
+        # All disable-if-false conditions on a product need to be met
+        do_not_disable = defaultdict(lambda: True)
+        # At least one enable-if-true condition on a product must be met
+        do_enable = defaultdict(lambda: False)
+        # (if either sort of condition is present)
 
         messages = {}
 
@@ -146,22 +145,23 @@ class ConditionController(object):
                 message = base % {"items": items, "remainder": remainder}
 
             for product in all_products:
-                if condition.mandatory:
-                    mandatory[product] &= met
+                if condition.is_disable_if_false:
+                    do_not_disable[product] &= met
                 else:
-                    non_mandatory[product] |= met
+                    do_enable[product] |= met
 
                 if not met and product not in messages:
                     messages[product] = message
 
-        valid = defaultdict(lambda: True)
-        for product in itertools.chain(mandatory, non_mandatory):
-            if product in mandatory:
-                # If there's a mandatory condition, all must be met
-                valid[product] = mandatory[product]
-            else:
-                # Otherwise, we need just one non-mandatory condition met
-                valid[product] = non_mandatory[product]
+        valid = {}
+        for product in itertools.chain(do_not_disable, do_enable):
+            if product in do_enable:
+                # If there's an enable-if-true, we need need of those met too.
+                # (do_not_disable will default to true otherwise)
+                valid[product] = do_not_disable[product] and do_enable[product]
+            elif product in do_not_disable:
+                # If there's a disable-if-false condition, all must be met
+                valid[product] = do_not_disable[product]
 
         error_fields = [
             (product, messages[product])
@@ -171,7 +171,7 @@ class ConditionController(object):
         return error_fields
 
     def user_quantity_remaining(self, user):
-        ''' Returns the number of items covered by this enabling condition the
+        ''' Returns the number of items covered by this flag condition the
         user can add to the current cart. This default implementation returns
         a big number if is_met() is true, otherwise 0.
 
@@ -181,7 +181,7 @@ class ConditionController(object):
         return 99999999 if self.is_met(user) else 0
 
     def is_met(self, user):
-        ''' Returns True if this enabling condition is met, otherwise returns
+        ''' Returns True if this flag condition is met, otherwise returns
         False.
 
         Either this method, or user_quantity_remaining() must be overridden
@@ -211,7 +211,7 @@ class CategoryConditionController(ConditionController):
 
 
 class ProductConditionController(ConditionController):
-    ''' Condition tests for ProductEnablingCondition and
+    ''' Condition tests for ProductFlag and
     IncludedProductDiscount. '''
 
     def __init__(self, condition):
@@ -230,7 +230,7 @@ class ProductConditionController(ConditionController):
 
 
 class TimeOrStockLimitConditionController(ConditionController):
-    ''' Common condition tests for TimeOrStockLimit EnablingCondition and
+    ''' Common condition tests for TimeOrStockLimit Flag and
     Discount.'''
 
     def __init__(self, ceiling):
@@ -280,7 +280,7 @@ class TimeOrStockLimitConditionController(ConditionController):
         return self.ceiling.limit - count
 
 
-class TimeOrStockLimitEnablingConditionController(
+class TimeOrStockLimitFlagController(
         TimeOrStockLimitConditionController):
 
     def _items(self):
@@ -305,7 +305,7 @@ class TimeOrStockLimitDiscountController(TimeOrStockLimitConditionController):
 
 
 class VoucherConditionController(ConditionController):
-    ''' Condition test for VoucherEnablingCondition and VoucherDiscount.'''
+    ''' Condition test for VoucherFlag and VoucherDiscount.'''
 
     def __init__(self, condition):
         self.condition = condition

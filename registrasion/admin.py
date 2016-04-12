@@ -16,7 +16,6 @@ class EffectsDisplayMixin(object):
 
 class ProductInline(admin.TabularInline):
     model = rego.Product
-    ordering = ("order", )
 
 
 @admin.register(rego.Category)
@@ -25,7 +24,6 @@ class CategoryAdmin(admin.ModelAdmin):
     fields = ("name", "description", "required", "render_type",
               "limit_per_user", "order",)
     list_display = ("name", "description")
-    ordering = ("order", )
     inlines = [
         ProductInline,
     ]
@@ -36,7 +34,6 @@ class ProductAdmin(admin.ModelAdmin):
     model = rego.Product
     list_display = ("name", "category", "description")
     list_filter = ("category", )
-    ordering = ("category__order", "order", )
 
 
 # Discounts
@@ -154,7 +151,7 @@ class ProductFlagAdmin(
         return list(obj.enabling_products.all())
 
     model = rego.ProductFlag
-    fields = ("description", "enabling_products", "mandatory", "products",
+    fields = ("description", "enabling_products", "condition", "products",
               "categories"),
 
     list_display = ("description", "enablers", "effects")
@@ -167,7 +164,7 @@ class CategoryFlagAdmin(
         EffectsDisplayMixin):
 
     model = rego.CategoryFlag
-    fields = ("description", "enabling_category", "mandatory", "products",
+    fields = ("description", "enabling_category", "condition", "products",
               "categories"),
 
     list_display = ("description", "enabling_category", "effects")

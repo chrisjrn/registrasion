@@ -89,7 +89,9 @@ class Category(models.Model):
     ''' Registration product categories '''
 
     class Meta:
-        verbose_name_plural = _("categories")
+        verbose_name = _("inventory - category")
+        verbose_name_plural = _("inventory - categories")
+        ordering = ("order", )
 
     def __str__(self):
         return self.name
@@ -137,6 +139,10 @@ class Category(models.Model):
 @python_2_unicode_compatible
 class Product(models.Model):
     ''' Registration products '''
+
+    class Meta:
+        verbose_name = _("inventory - product")
+        ordering = ("category__order", "order")
 
     def __str__(self):
         return "%s - %s" % (self.category.name, self.name)
@@ -310,7 +316,8 @@ class TimeOrStockLimitDiscount(DiscountBase):
     usage count. This is for e.g. Early Bird discounts. '''
 
     class Meta:
-        verbose_name = _("Promotional discount")
+        verbose_name = _("discount (time/stock limit)")
+        verbose_name_plural = _("discounts (time/stock limit)")
 
     start_time = models.DateTimeField(
         null=True,
@@ -336,6 +343,10 @@ class VoucherDiscount(DiscountBase):
     ''' Discounts that are enabled when a voucher code is in the current
     cart. '''
 
+    class Meta:
+        verbose_name = _("discount (enabled by voucher)")
+        verbose_name_plural = _("discounts (enabled by voucher)")
+
     voucher = models.OneToOneField(
         Voucher,
         on_delete=models.CASCADE,
@@ -349,7 +360,8 @@ class IncludedProductDiscount(DiscountBase):
     e.g. A conference ticket includes a free t-shirt. '''
 
     class Meta:
-        verbose_name = _("Product inclusion")
+        verbose_name = _("discount (product inclusions)")
+        verbose_name_plural = _("discounts (product inclusions)")
 
     enabling_products = models.ManyToManyField(
         Product,
@@ -582,6 +594,9 @@ class Cart(models.Model):
 class ProductItem(models.Model):
     ''' Represents a product-quantity pair in a Cart. '''
 
+    class Meta:
+        ordering = ("product", )
+
     def __str__(self):
         return "product: %s * %d in Cart: %s" % (
             self.product, self.quantity, self.cart)
@@ -594,6 +609,9 @@ class ProductItem(models.Model):
 @python_2_unicode_compatible
 class DiscountItem(models.Model):
     ''' Represents a discount-product-quantity relation in a Cart. '''
+
+    class Meta:
+        ordering = ("product", )
 
     def __str__(self):
         return "%s: %s * %d in Cart: %s" % (
@@ -670,6 +688,9 @@ class LineItem(models.Model):
     and DiscountItems that belong to a cart (for consistency), but also allow
     for arbitrary line items when required. '''
 
+    class Meta:
+        ordering = ("id", )
+
     def __str__(self):
         return "Line: %s * %d @ %s" % (
             self.description, self.quantity, self.price)
@@ -685,6 +706,9 @@ class LineItem(models.Model):
 class PaymentBase(models.Model):
     ''' The base payment type for invoices. Payment apps should subclass this
     class to handle implementation-specific issues. '''
+
+    class Meta:
+        ordering = ("time", )
 
     objects = InheritanceManager()
 

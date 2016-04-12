@@ -151,7 +151,7 @@ class ProductFlagAdmin(
         return list(obj.enabling_products.all())
 
     model = rego.ProductFlag
-    fields = ("description", "enabling_products", "mandatory", "products",
+    fields = ("description", "enabling_products", "condition", "products",
               "categories"),
 
     list_display = ("description", "enablers", "effects")
@@ -164,7 +164,7 @@ class CategoryFlagAdmin(
         EffectsDisplayMixin):
 
     model = rego.CategoryFlag
-    fields = ("description", "enabling_category", "mandatory", "products",
+    fields = ("description", "enabling_category", "condition", "products",
               "categories"),
 
     list_display = ("description", "enabling_category", "effects")

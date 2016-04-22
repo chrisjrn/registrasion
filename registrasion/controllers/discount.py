@@ -1,7 +1,8 @@
 import itertools
 
 from conditions import ConditionController
-from registrasion import models as rego
+from registrasion.models import commerce
+from registrasion.models import conditions
 
 from django.db.models import Sum
 
@@ -24,15 +25,15 @@ def available_discounts(user, categories, products):
     not including products that are pending purchase. '''
 
     # discounts that match provided categories
-    category_discounts = rego.DiscountForCategory.objects.filter(
+    category_discounts = conditions.DiscountForCategory.objects.filter(
         category__in=categories
     )
     # discounts that match provided products
-    product_discounts = rego.DiscountForProduct.objects.filter(
+    product_discounts = conditions.DiscountForProduct.objects.filter(
         product__in=products
     )
     # discounts that match categories for provided products
-    product_category_discounts = rego.DiscountForCategory.objects.filter(
+    product_category_discounts = conditions.DiscountForCategory.objects.filter(
         category__in=(product.category for product in products)
     )
     # (Not relevant: discounts that match products in provided categories)
@@ -60,7 +61,7 @@ def available_discounts(user, categories, products):
     failed_discounts = set()
 
     for discount in potential_discounts:
-        real_discount = rego.DiscountBase.objects.get_subclass(
+        real_discount = conditions.DiscountBase.objects.get_subclass(
             pk=discount.discount.pk,
         )
         cond = ConditionController.for_condition(real_discount)
@@ -68,7 +69,7 @@ def available_discounts(user, categories, products):
         # Count the past uses of the given discount item.
         # If this user has exceeded the limit for the clause, this clause
         # is not available any more.
-        past_uses = rego.DiscountItem.objects.filter(
+        past_uses = commerce.DiscountItem.objects.filter(
             cart__user=user,
             cart__active=False,  # Only past carts count
             cart__released=False,  # You can reuse refunded discounts

@@ -1,7 +1,7 @@
 from registrasion.controllers.cart import CartController
 from registrasion.controllers.credit_note import CreditNoteController
 from registrasion.controllers.invoice import InvoiceController
-from registrasion import models as rego
+from registrasion.models import commerce
 
 from django.core.exceptions import ObjectDoesNotExist
 
@@ -19,7 +19,7 @@ class TestingCartController(CartController):
         ValidationError if constraints are violated.'''
 
         try:
-            product_item = rego.ProductItem.objects.get(
+            product_item = commerce.ProductItem.objects.get(
                 cart=self.cart,
                 product=product)
             old_quantity = product_item.quantity
@@ -41,7 +41,7 @@ class TestingInvoiceController(InvoiceController):
         self.validate_allowed_to_pay()
 
         ''' Adds a payment '''
-        rego.ManualPayment.objects.create(
+        commerce.ManualPayment.objects.create(
             invoice=self.invoice,
             reference=reference,
             amount=amount,
@@ -53,7 +53,7 @@ class TestingInvoiceController(InvoiceController):
 class TestingCreditNoteController(CreditNoteController):
 
     def refund(self):
-        rego.CreditNoteRefund.objects.create(
+        commerce.CreditNoteRefund.objects.create(
             parent=self.credit_note,
             reference="Whoops."
         )

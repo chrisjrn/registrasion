@@ -1,7 +1,9 @@
 import sys
 
 from registrasion import forms
-from registrasion import models as rego
+from registrasion.models import commerce
+from registrasion.models import inventory
+from registrasion.models import people
 from registrasion.controllers import discount
 from registrasion.controllers.cart import CartController
 from registrasion.controllers.credit_note import CreditNoteController
@@ -60,7 +62,7 @@ def guided_registration(request, page_id=0):
 
     sections = []
 
-    attendee = rego.Attendee.get_instance(request.user)
+    attendee = people.Attendee.get_instance(request.user)
 
     if attendee.completed_registration:
         return render(
@@ -111,7 +113,7 @@ def guided_registration(request, page_id=0):
         starting = attendee.guided_categories_complete.count() == 0
 
         # Get the next category
-        cats = rego.Category.objects
+        cats = inventory.Category.objects
         if SESSION_KEY in request.session:
             _cats = request.session[SESSION_KEY]
             cats = cats.filter(id__in=_cats)
@@ -134,7 +136,7 @@ def guided_registration(request, page_id=0):
             current_step = 3
             title = "Additional items"
 
-        all_products = rego.Product.objects.filter(
+        all_products = inventory.Product.objects.filter(
             category__in=cats,
         ).select_related("category")
 
@@ -217,11 +219,13 @@ def edit_profile(request):
 def handle_profile(request, prefix):
     ''' Returns a profile form instance, and a boolean which is true if the
     form was handled. '''
-    attendee = rego.Attendee.get_instance(request.user)
+    attendee = people.Attendee.get_instance(request.user)
 
     try:
         profile = attendee.attendeeprofilebase
-        profile = rego.AttendeeProfileBase.objects.get_subclass(pk=profile.id)
+        profile = people.AttendeeProfileBase.objects.get_subclass(
+            pk=profile.id,
+        )
     except ObjectDoesNotExist:
         profile = None
 
@@ -270,7 +274,7 @@ def product_category(request, category_id):
     voucher_form, voucher_handled = v
 
     category_id = int(category_id)  # Routing is [0-9]+
-    category = rego.Category.objects.get(pk=category_id)
+    category = inventory.Category.objects.get(pk=category_id)
 
     products = ProductController.available_products(
         request.user,
@@ -316,7 +320,7 @@ def handle_products(request, category, products, prefix):
     ProductsForm = forms.ProductsForm(category, products)
 
     # Create initial data for each of products in category
-    items = rego.ProductItem.objects.filter(
+    items = commerce.ProductItem.objects.filter(
         product__in=products,
         cart=current_cart.cart,
     ).select_related("product")
@@ -344,8 +348,8 @@ def handle_products(request, category, products, prefix):
         # If category is required, the user must have at least one
         # in an active+valid cart
         if category.required:
-            carts = rego.Cart.objects.filter(user=request.user)
-            items = rego.ProductItem.objects.filter(
+            carts = commerce.Cart.objects.filter(user=request.user)
+            items = commerce.ProductItem.objects.filter(
                 product__category=category,
                 cart=carts,
             )
@@ -366,7 +370,7 @@ def set_quantities_from_products_form(products_form, current_cart):
     quantities = list(products_form.product_quantities())
 
     pks = [i[0] for i in quantities]
-    products = rego.Product.objects.filter(
+    products = inventory.Product.objects.filter(
         id__in=pks,
     ).select_related("category")
 
@@ -384,7 +388,7 @@ def set_quantities_from_products_form(products_form, current_cart):
             product, message = ve_field.message
             if product in field_names:
                 field = field_names[product]
-            elif isinstance(product, rego.Product):
+            elif isinstance(product, inventory.Product):
                 continue
             else:
                 field = None
@@ -402,7 +406,7 @@ def handle_voucher(request, prefix):
             voucher_form.cleaned_data["voucher"].strip()):
 
         voucher = voucher_form.cleaned_data["voucher"]
-        voucher = rego.Voucher.normalise_code(voucher)
+        voucher = inventory.Voucher.normalise_code(voucher)
 
         if len(current_cart.cart.vouchers.filter(code=voucher)) > 0:
             # This voucher has already been applied to this cart.
@@ -457,9 +461,9 @@ def invoice_access(request, access_code):
     ''' Redirects to the first unpaid invoice for the attendee that matches
     the given access code, if any. '''
 
-    invoices = rego.Invoice.objects.filter(
+    invoices = commerce.Invoice.objects.filter(
         user__attendee__access_code=access_code,
-        status=rego.Invoice.STATUS_UNPAID,
+        status=commerce.Invoice.STATUS_UNPAID,
     ).order_by("issue_time")
 
     if not invoices:
@@ -478,7 +482,7 @@ def invoice(request, invoice_id, access_code=None):
     '''
 
     invoice_id = int(invoice_id)
-    inv = rego.Invoice.objects.get(pk=invoice_id)
+    inv = commerce.Invoice.objects.get(pk=invoice_id)
 
     current_invoice = InvoiceController(inv)
 
@@ -505,7 +509,7 @@ def manual_payment(request, invoice_id):
         raise Http404()
 
     invoice_id = int(invoice_id)
-    inv = get_object_or_404(rego.Invoice, pk=invoice_id)
+    inv = get_object_or_404(commerce.Invoice, pk=invoice_id)
     current_invoice = InvoiceController(inv)
 
     form = forms.ManualPaymentForm(
@@ -536,7 +540,7 @@ def refund(request, invoice_id):
         raise Http404()
 
     invoice_id = int(invoice_id)
-    inv = get_object_or_404(rego.Invoice, pk=invoice_id)
+    inv = get_object_or_404(commerce.Invoice, pk=invoice_id)
     current_invoice = InvoiceController(inv)
 
     try:
@@ -557,7 +561,7 @@ def credit_note(request, note_id, access_code=None):
         raise Http404()
 
     note_id = int(note_id)
-    note = rego.CreditNote.objects.get(pk=note_id)
+    note = commerce.CreditNote.objects.get(pk=note_id)
 
     current_note = CreditNoteController(note)
 
@@ -574,10 +578,11 @@ def credit_note(request, note_id, access_code=None):
 
     if request.POST and apply_form.is_valid():
         inv_id = apply_form.cleaned_data["invoice"]
-        invoice = rego.Invoice.objects.get(pk=inv_id)
+        invoice = commerce.Invoice.objects.get(pk=inv_id)
         current_note.apply_to_invoice(invoice)
-        messages.success(request,
-            "Applied credit note %d to invoice." % note_id
+        messages.success(
+            request,
+            "Applied credit note %d to invoice." % note_id,
         )
         return redirect("invoice", invoice.id)
 
@@ -585,7 +590,8 @@ def credit_note(request, note_id, access_code=None):
         refund_form.instance.entered_by = request.user
         refund_form.instance.parent = note
         refund_form.save()
-        messages.success(request,
+        messages.success(
+            request,
             "Applied manual refund to credit note."
         )
         return redirect("invoice", invoice.id)

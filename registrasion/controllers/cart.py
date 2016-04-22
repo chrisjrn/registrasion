@@ -9,8 +9,10 @@ from django.db import transaction
 from django.db.models import Max
 from django.utils import timezone
 
-from registrasion import models as rego
 from registrasion.exceptions import CartValidationError
+from registrasion.models import commerce
+from registrasion.models import conditions
+from registrasion.models import inventory
 
 from category import CategoryController
 from conditions import ConditionController
@@ -28,9 +30,9 @@ class CartController(object):
         if there isn't one ready yet. '''
 
         try:
-            existing = rego.Cart.objects.get(user=user, active=True)
+            existing = commerce.Cart.objects.get(user=user, active=True)
         except ObjectDoesNotExist:
-            existing = rego.Cart.objects.create(
+            existing = commerce.Cart.objects.create(
                 user=user,
                 time_last_updated=timezone.now(),
                 reservation_duration=datetime.timedelta(),
@@ -47,10 +49,10 @@ class CartController(object):
 
         # If we have vouchers, we're entitled to an hour at minimum.
         if len(self.cart.vouchers.all()) >= 1:
-            reservations.append(rego.Voucher.RESERVATION_DURATION)
+            reservations.append(inventory.Voucher.RESERVATION_DURATION)
 
         # Else, it's the maximum of the included products
-        items = rego.ProductItem.objects.filter(cart=self.cart)
+        items = commerce.ProductItem.objects.filter(cart=self.cart)
         agg = items.aggregate(Max("product__reservation_duration"))
         product_max = agg["product__reservation_duration__max"]
 
@@ -79,7 +81,7 @@ class CartController(object):
         is violated. `product_quantities` is an iterable of (product, quantity)
         pairs. '''
 
-        items_in_cart = rego.ProductItem.objects.filter(cart=self.cart)
+        items_in_cart = commerce.ProductItem.objects.filter(cart=self.cart)
         items_in_cart = items_in_cart.select_related(
             "product",
             "product__category",
@@ -99,14 +101,14 @@ class CartController(object):
 
         for product, quantity in product_quantities:
             try:
-                product_item = rego.ProductItem.objects.get(
+                product_item = commerce.ProductItem.objects.get(
                     cart=self.cart,
                     product=product,
                 )
                 product_item.quantity = quantity
                 product_item.save()
             except ObjectDoesNotExist:
-                rego.ProductItem.objects.create(
+                commerce.ProductItem.objects.create(
                     cart=self.cart,
                     product=product,
                     quantity=quantity,
@@ -176,7 +178,7 @@ class CartController(object):
         ''' Applies the voucher with the given code to this cart. '''
 
         # Try and find the voucher
-        voucher = rego.Voucher.objects.get(code=voucher_code.upper())
+        voucher = inventory.Voucher.objects.get(code=voucher_code.upper())
 
         # Re-applying vouchers should be idempotent
         if voucher in self.cart.vouchers.all():
@@ -193,7 +195,7 @@ class CartController(object):
         Raises ValidationError if not. '''
 
         # Is voucher exhausted?
-        active_carts = rego.Cart.reserved_carts()
+        active_carts = commerce.Cart.reserved_carts()
 
         # It's invalid for a user to enter a voucher that's exhausted
         carts_with_voucher = active_carts.filter(vouchers=voucher)
@@ -238,7 +240,7 @@ class CartController(object):
         except ValidationError as ve:
             errors.append(ve)
 
-        items = rego.ProductItem.objects.filter(cart=cart)
+        items = commerce.ProductItem.objects.filter(cart=cart)
 
         product_quantities = list((i.product, i.quantity) for i in items)
         try:
@@ -248,7 +250,7 @@ class CartController(object):
                 errors.append(error.message[1])
 
         # Validate the discounts
-        discount_items = rego.DiscountItem.objects.filter(cart=cart)
+        discount_items = commerce.DiscountItem.objects.filter(cart=cart)
         seen_discounts = set()
 
         for discount_item in discount_items:
@@ -256,7 +258,7 @@ class CartController(object):
             if discount in seen_discounts:
                 continue
             seen_discounts.add(discount)
-            real_discount = rego.DiscountBase.objects.get_subclass(
+            real_discount = conditions.DiscountBase.objects.get_subclass(
                 pk=discount.pk)
             cond = ConditionController.for_condition(real_discount)
 
@@ -287,7 +289,7 @@ class CartController(object):
             self.cart.vouchers.remove(voucher)
 
         # Fix products and discounts
-        items = rego.ProductItem.objects.filter(cart=self.cart)
+        items = commerce.ProductItem.objects.filter(cart=self.cart)
         items = items.select_related("product")
         products = set(i.product for i in items)
         available = set(ProductController.available_products(
@@ -306,7 +308,7 @@ class CartController(object):
         '''
 
         # Delete the existing entries.
-        rego.DiscountItem.objects.filter(cart=self.cart).delete()
+        commerce.DiscountItem.objects.filter(cart=self.cart).delete()
 
         product_items = self.cart.productitem_set.all().select_related(
             "product", "product__category",
@@ -331,7 +333,7 @@ class CartController(object):
         def matches(discount):
             ''' Returns True if and only if the given discount apples to
             our product. '''
-            if isinstance(discount.clause, rego.DiscountForCategory):
+            if isinstance(discount.clause, conditions.DiscountForCategory):
                 return discount.clause.category == product.category
             else:
                 return discount.clause.product == product
@@ -356,7 +358,7 @@ class CartController(object):
 
             # Get a provisional instance for this DiscountItem
             # with the quantity set to as much as we have in the cart
-            discount_item = rego.DiscountItem.objects.create(
+            discount_item = commerce.DiscountItem.objects.create(
                 product=product,
                 cart=self.cart,
                 discount=candidate.discount,

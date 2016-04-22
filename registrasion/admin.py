@@ -4,7 +4,8 @@ from django.utils.translation import ugettext_lazy as _
 
 import nested_admin
 
-from registrasion import models as rego
+from registrasion.models import conditions
+from registrasion.models import inventory
 
 
 class EffectsDisplayMixin(object):
@@ -15,12 +16,12 @@ class EffectsDisplayMixin(object):
 
 
 class ProductInline(admin.TabularInline):
-    model = rego.Product
+    model = inventory.Product
 
 
-@admin.register(rego.Category)
+@admin.register(inventory.Category)
 class CategoryAdmin(admin.ModelAdmin):
-    model = rego.Category
+    model = inventory.Category
     fields = ("name", "description", "required", "render_type",
               "limit_per_user", "order",)
     list_display = ("name", "description")
@@ -29,9 +30,9 @@ class CategoryAdmin(admin.ModelAdmin):
     ]
 
 
-@admin.register(rego.Product)
+@admin.register(inventory.Product)
 class ProductAdmin(admin.ModelAdmin):
-    model = rego.Product
+    model = inventory.Product
     list_display = ("name", "category", "description")
     list_filter = ("category", )
 
@@ -39,18 +40,18 @@ class ProductAdmin(admin.ModelAdmin):
 # Discounts
 
 class DiscountForProductInline(admin.TabularInline):
-    model = rego.DiscountForProduct
+    model = conditions.DiscountForProduct
     verbose_name = _("Product included in discount")
     verbose_name_plural = _("Products included in discount")
 
 
 class DiscountForCategoryInline(admin.TabularInline):
-    model = rego.DiscountForCategory
+    model = conditions.DiscountForCategory
     verbose_name = _("Category included in discount")
     verbose_name_plural = _("Categories included in discount")
 
 
-@admin.register(rego.TimeOrStockLimitDiscount)
+@admin.register(conditions.TimeOrStockLimitDiscount)
 class TimeOrStockLimitDiscountAdmin(admin.ModelAdmin, EffectsDisplayMixin):
     list_display = (
         "description",
@@ -67,7 +68,7 @@ class TimeOrStockLimitDiscountAdmin(admin.ModelAdmin, EffectsDisplayMixin):
     ]
 
 
-@admin.register(rego.IncludedProductDiscount)
+@admin.register(conditions.IncludedProductDiscount)
 class IncludedProductDiscountAdmin(admin.ModelAdmin):
 
     def enablers(self, obj):
@@ -87,7 +88,7 @@ class IncludedProductDiscountAdmin(admin.ModelAdmin):
 # Vouchers
 
 class VoucherDiscountInline(nested_admin.NestedStackedInline):
-    model = rego.VoucherDiscount
+    model = conditions.VoucherDiscount
     verbose_name = _("Discount")
 
     # TODO work out why we're allowed to add more than one?
@@ -100,7 +101,7 @@ class VoucherDiscountInline(nested_admin.NestedStackedInline):
 
 
 class VoucherFlagInline(nested_admin.NestedStackedInline):
-    model = rego.VoucherFlag
+    model = conditions.VoucherFlag
     verbose_name = _("Product and category enabled by voucher")
     verbose_name_plural = _("Products and categories enabled by voucher")
 
@@ -109,7 +110,7 @@ class VoucherFlagInline(nested_admin.NestedStackedInline):
     extra = 1
 
 
-@admin.register(rego.Voucher)
+@admin.register(inventory.Voucher)
 class VoucherAdmin(nested_admin.NestedAdmin):
 
     def effects(self, obj):
@@ -133,7 +134,7 @@ class VoucherAdmin(nested_admin.NestedAdmin):
 
         return "\n".join(out)
 
-    model = rego.Voucher
+    model = inventory.Voucher
     list_display = ("recipient", "code", "effects")
     inlines = [
         VoucherDiscountInline,
@@ -142,7 +143,7 @@ class VoucherAdmin(nested_admin.NestedAdmin):
 
 
 # Enabling conditions
-@admin.register(rego.ProductFlag)
+@admin.register(conditions.ProductFlag)
 class ProductFlagAdmin(
         nested_admin.NestedAdmin,
         EffectsDisplayMixin):
@@ -150,7 +151,7 @@ class ProductFlagAdmin(
     def enablers(self, obj):
         return list(obj.enabling_products.all())
 
-    model = rego.ProductFlag
+    model = conditions.ProductFlag
     fields = ("description", "enabling_products", "condition", "products",
               "categories"),
 
@@ -158,12 +159,12 @@ class ProductFlagAdmin(
 
 
 # Enabling conditions
-@admin.register(rego.CategoryFlag)
+@admin.register(conditions.CategoryFlag)
 class CategoryFlagAdmin(
         nested_admin.NestedAdmin,
         EffectsDisplayMixin):
 
-    model = rego.CategoryFlag
+    model = conditions.CategoryFlag
     fields = ("description", "enabling_category", "condition", "products",
               "categories"),
 
@@ -172,11 +173,11 @@ class CategoryFlagAdmin(
 
 
 # Enabling conditions
-@admin.register(rego.TimeOrStockLimitFlag)
+@admin.register(conditions.TimeOrStockLimitFlag)
 class TimeOrStockLimitFlagAdmin(
         nested_admin.NestedAdmin,
         EffectsDisplayMixin):
-    model = rego.TimeOrStockLimitFlag
+    model = conditions.TimeOrStockLimitFlag
 
     list_display = (
         "description",

@@ -1,7 +1,8 @@
 import itertools
 
 from django.db.models import Sum
-from registrasion import models as rego
+from registrasion.models import commerce
+from registrasion.models import inventory
 
 from category import CategoryController
 from conditions import ConditionController
@@ -22,7 +23,7 @@ class ProductController(object):
             raise ValueError("You must provide products or a category")
 
         if category is not None:
-            all_products = rego.Product.objects.filter(category=category)
+            all_products = inventory.Product.objects.filter(category=category)
             all_products = all_products.select_related("category")
         else:
             all_products = []
@@ -65,13 +66,13 @@ class ProductController(object):
             # Don't need to run the remaining queries
             return 999999  # We can do better
 
-        carts = rego.Cart.objects.filter(
+        carts = commerce.Cart.objects.filter(
             user=user,
             active=False,
             released=False,
         )
 
-        items = rego.ProductItem.objects.filter(
+        items = commerce.ProductItem.objects.filter(
             cart__in=carts,
             product=self.product,
         )

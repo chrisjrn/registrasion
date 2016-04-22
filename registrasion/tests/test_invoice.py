@@ -4,7 +4,9 @@ import pytz
 from decimal import Decimal
 from django.core.exceptions import ValidationError
 
-from registrasion import models as rego
+from registrasion.models import commerce
+from registrasion.models import conditions
+from registrasion.models import inventory
 from controller_helpers import TestingCartController
 from controller_helpers import TestingCreditNoteController
 from controller_helpers import TestingInvoiceController
@@ -23,7 +25,9 @@ class InvoiceTestCase(RegistrationCartTestCase):
         current_cart.add_to_cart(self.PROD_1, 1)
         invoice_1 = TestingInvoiceController.for_cart(current_cart.cart)
         # That invoice should have a single line item
-        line_items = rego.LineItem.objects.filter(invoice=invoice_1.invoice)
+        line_items = commerce.LineItem.objects.filter(
+            invoice=invoice_1.invoice,
+        )
         self.assertEqual(1, len(line_items))
         # That invoice should have a value equal to cost of PROD_1
         self.assertEqual(self.PROD_1.price, invoice_1.invoice.value)
@@ -34,13 +38,15 @@ class InvoiceTestCase(RegistrationCartTestCase):
         self.assertNotEqual(invoice_1.invoice, invoice_2.invoice)
 
         # The old invoice should automatically be voided
-        invoice_1_new = rego.Invoice.objects.get(pk=invoice_1.invoice.id)
-        invoice_2_new = rego.Invoice.objects.get(pk=invoice_2.invoice.id)
+        invoice_1_new = commerce.Invoice.objects.get(pk=invoice_1.invoice.id)
+        invoice_2_new = commerce.Invoice.objects.get(pk=invoice_2.invoice.id)
         self.assertTrue(invoice_1_new.is_void)
         self.assertFalse(invoice_2_new.is_void)
 
         # Invoice should have two line items
-        line_items = rego.LineItem.objects.filter(invoice=invoice_2.invoice)
+        line_items = commerce.LineItem.objects.filter(
+            invoice=invoice_2.invoice,
+        )
         self.assertEqual(2, len(line_items))
         # Invoice should have a value equal to cost of PROD_1 and PROD_2
         self.assertEqual(
@@ -79,16 +85,16 @@ class InvoiceTestCase(RegistrationCartTestCase):
         self.assertNotEqual(current_cart.cart, new_cart.cart)
 
     def test_invoice_includes_discounts(self):
-        voucher = rego.Voucher.objects.create(
+        voucher = inventory.Voucher.objects.create(
             recipient="Voucher recipient",
             code="VOUCHER",
             limit=1
         )
-        discount = rego.VoucherDiscount.objects.create(
+        discount = conditions.VoucherDiscount.objects.create(
             description="VOUCHER RECIPIENT",
             voucher=voucher,
         )
-        rego.DiscountForProduct.objects.create(
+        conditions.DiscountForProduct.objects.create(
             discount=discount,
             product=self.PROD_1,
             percentage=Decimal(50),
@@ -103,7 +109,9 @@ class InvoiceTestCase(RegistrationCartTestCase):
         invoice_1 = TestingInvoiceController.for_cart(current_cart.cart)
 
         # That invoice should have two line items
-        line_items = rego.LineItem.objects.filter(invoice=invoice_1.invoice)
+        line_items = commerce.LineItem.objects.filter(
+            invoice=invoice_1.invoice,
+        )
         self.assertEqual(2, len(line_items))
         # That invoice should have a value equal to 50% of the cost of PROD_1
         self.assertEqual(
@@ -111,16 +119,16 @@ class InvoiceTestCase(RegistrationCartTestCase):
             invoice_1.invoice.value)
 
     def test_zero_value_invoice_is_automatically_paid(self):
-        voucher = rego.Voucher.objects.create(
+        voucher = inventory.Voucher.objects.create(
             recipient="Voucher recipient",
             code="VOUCHER",
             limit=1
         )
-        discount = rego.VoucherDiscount.objects.create(
+        discount = conditions.VoucherDiscount.objects.create(
             description="VOUCHER RECIPIENT",
             voucher=voucher,
         )
-        rego.DiscountForProduct.objects.create(
+        conditions.DiscountForProduct.objects.create(
             discount=discount,
             product=self.PROD_1,
             percentage=Decimal(100),
@@ -239,7 +247,9 @@ class InvoiceTestCase(RegistrationCartTestCase):
         self.assertTrue(invoice.invoice.is_paid)
 
         # There should be a credit note generated out of the invoice.
-        credit_notes = rego.CreditNote.objects.filter(invoice=invoice.invoice)
+        credit_notes = commerce.CreditNote.objects.filter(
+            invoice=invoice.invoice,
+        )
         self.assertEqual(1, credit_notes.count())
         self.assertEqual(to_pay - invoice.invoice.value, credit_notes[0].value)
 
@@ -257,7 +267,9 @@ class InvoiceTestCase(RegistrationCartTestCase):
         self.assertTrue(invoice.invoice.is_paid)
 
         # There should be no credit notes
-        credit_notes = rego.CreditNote.objects.filter(invoice=invoice.invoice)
+        credit_notes = commerce.CreditNote.objects.filter(
+            invoice=invoice.invoice,
+        )
         self.assertEqual(0, credit_notes.count())
 
     def test_refund_partially_paid_invoice_generates_correct_credit_note(self):
@@ -276,7 +288,9 @@ class InvoiceTestCase(RegistrationCartTestCase):
         self.assertTrue(invoice.invoice.is_void)
 
         # There should be a credit note generated out of the invoice.
-        credit_notes = rego.CreditNote.objects.filter(invoice=invoice.invoice)
+        credit_notes = commerce.CreditNote.objects.filter(
+            invoice=invoice.invoice,
+        )
         self.assertEqual(1, credit_notes.count())
         self.assertEqual(to_pay, credit_notes[0].value)
 
@@ -297,7 +311,9 @@ class InvoiceTestCase(RegistrationCartTestCase):
         self.assertTrue(invoice.invoice.is_refunded)
 
         # There should be a credit note generated out of the invoice.
-        credit_notes = rego.CreditNote.objects.filter(invoice=invoice.invoice)
+        credit_notes = commerce.CreditNote.objects.filter(
+            invoice=invoice.invoice,
+        )
         self.assertEqual(1, credit_notes.count())
         self.assertEqual(to_pay, credit_notes[0].value)
 
@@ -314,11 +330,11 @@ class InvoiceTestCase(RegistrationCartTestCase):
         invoice.refund()
 
         # There should be one credit note generated out of the invoice.
-        credit_note = rego.CreditNote.objects.get(invoice=invoice.invoice)
+        credit_note = commerce.CreditNote.objects.get(invoice=invoice.invoice)
         cn = TestingCreditNoteController(credit_note)
 
         # That credit note should be in the unclaimed pile
-        self.assertEquals(1, rego.CreditNote.unclaimed().count())
+        self.assertEquals(1, commerce.CreditNote.unclaimed().count())
 
         # Create a new (identical) cart with invoice
         cart = TestingCartController.for_user(self.USER_1)
@@ -330,7 +346,7 @@ class InvoiceTestCase(RegistrationCartTestCase):
         self.assertTrue(invoice2.invoice.is_paid)
 
         # That invoice should not show up as unclaimed any more
-        self.assertEquals(0, rego.CreditNote.unclaimed().count())
+        self.assertEquals(0, commerce.CreditNote.unclaimed().count())
 
     def test_apply_credit_note_generates_new_credit_note_if_overpaying(self):
         cart = TestingCartController.for_user(self.USER_1)
@@ -345,10 +361,10 @@ class InvoiceTestCase(RegistrationCartTestCase):
         invoice.refund()
 
         # There should be one credit note generated out of the invoice.
-        credit_note = rego.CreditNote.objects.get(invoice=invoice.invoice)
+        credit_note = commerce.CreditNote.objects.get(invoice=invoice.invoice)
         cn = TestingCreditNoteController(credit_note)
 
-        self.assertEquals(1, rego.CreditNote.unclaimed().count())
+        self.assertEquals(1, commerce.CreditNote.unclaimed().count())
 
         # Create a new cart (of half value of inv 1) and get invoice
         cart = TestingCartController.for_user(self.USER_1)
@@ -361,9 +377,11 @@ class InvoiceTestCase(RegistrationCartTestCase):
 
         # We generated a new credit note, and spent the old one,
         # unclaimed should still be 1.
-        self.assertEquals(1, rego.CreditNote.unclaimed().count())
+        self.assertEquals(1, commerce.CreditNote.unclaimed().count())
 
-        credit_note2 = rego.CreditNote.objects.get(invoice=invoice2.invoice)
+        credit_note2 = commerce.CreditNote.objects.get(
+            invoice=invoice2.invoice,
+        )
 
         # The new credit note should be the residual of the cost of cart 1
         # minus the cost of cart 2.
@@ -385,7 +403,7 @@ class InvoiceTestCase(RegistrationCartTestCase):
         invoice.refund()
 
         # There should be one credit note generated out of the invoice.
-        credit_note = rego.CreditNote.objects.get(invoice=invoice.invoice)
+        credit_note = commerce.CreditNote.objects.get(invoice=invoice.invoice)
         cn = TestingCreditNoteController(credit_note)
 
         # Create a new cart with invoice, pay it
@@ -426,15 +444,15 @@ class InvoiceTestCase(RegistrationCartTestCase):
 
         invoice.refund()
 
-        self.assertEquals(1, rego.CreditNote.unclaimed().count())
+        self.assertEquals(1, commerce.CreditNote.unclaimed().count())
 
-        credit_note = rego.CreditNote.objects.get(invoice=invoice.invoice)
+        credit_note = commerce.CreditNote.objects.get(invoice=invoice.invoice)
 
         cn = TestingCreditNoteController(credit_note)
         cn.refund()
 
         # Refunding a credit note should mark it as claimed
-        self.assertEquals(0, rego.CreditNote.unclaimed().count())
+        self.assertEquals(0, commerce.CreditNote.unclaimed().count())
 
         # Create a new cart with invoice
         cart = TestingCartController.for_user(self.USER_1)
@@ -458,9 +476,9 @@ class InvoiceTestCase(RegistrationCartTestCase):
 
         invoice.refund()
 
-        self.assertEquals(1, rego.CreditNote.unclaimed().count())
+        self.assertEquals(1, commerce.CreditNote.unclaimed().count())
 
-        credit_note = rego.CreditNote.objects.get(invoice=invoice.invoice)
+        credit_note = commerce.CreditNote.objects.get(invoice=invoice.invoice)
 
         cn = TestingCreditNoteController(credit_note)
 
@@ -471,7 +489,7 @@ class InvoiceTestCase(RegistrationCartTestCase):
         invoice_2 = TestingInvoiceController.for_cart(self.reget(cart.cart))
         cn.apply_to_invoice(invoice_2.invoice)
 
-        self.assertEquals(0, rego.CreditNote.unclaimed().count())
+        self.assertEquals(0, commerce.CreditNote.unclaimed().count())
 
         # Cannot refund this credit note as it is already applied.
         with self.assertRaises(ValidationError):

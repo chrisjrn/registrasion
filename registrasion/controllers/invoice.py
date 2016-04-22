@@ -5,7 +5,9 @@ from django.db import transaction
 from django.db.models import Sum
 from django.utils import timezone
 
-from registrasion import models as rego
+from registrasion.models import commerce
+from registrasion.models import conditions
+from registrasion.models import people
 
 from cart import CartController
 from credit_note import CreditNoteController
@@ -25,8 +27,8 @@ class InvoiceController(object):
         an invoice is generated.'''
 
         try:
-            invoice = rego.Invoice.objects.exclude(
-                status=rego.Invoice.STATUS_VOID,
+            invoice = commerce.Invoice.objects.exclude(
+                status=commerce.Invoice.STATUS_VOID,
             ).get(
                 cart=cart,
                 cart_revision=cart.revision,
@@ -42,19 +44,19 @@ class InvoiceController(object):
 
     @classmethod
     def void_all_invoices(cls, cart):
-        invoices = rego.Invoice.objects.filter(cart=cart).all()
+        invoices = commerce.Invoice.objects.filter(cart=cart).all()
         for invoice in invoices:
             cls(invoice).void()
 
     @classmethod
     def resolve_discount_value(cls, item):
         try:
-            condition = rego.DiscountForProduct.objects.get(
+            condition = conditions.DiscountForProduct.objects.get(
                 discount=item.discount,
                 product=item.product
             )
         except ObjectDoesNotExist:
-            condition = rego.DiscountForCategory.objects.get(
+            condition = conditions.DiscountForCategory.objects.get(
                 discount=item.discount,
                 category=item.product.category
             )
@@ -75,22 +77,22 @@ class InvoiceController(object):
         due = max(issued, reservation_limit)
 
         # Get the invoice recipient
-        profile = rego.AttendeeProfileBase.objects.get_subclass(
+        profile = people.AttendeeProfileBase.objects.get_subclass(
             id=cart.user.attendee.attendeeprofilebase.id,
         )
         recipient = profile.invoice_recipient()
-        invoice = rego.Invoice.objects.create(
+        invoice = commerce.Invoice.objects.create(
             user=cart.user,
             cart=cart,
             cart_revision=cart.revision,
-            status=rego.Invoice.STATUS_UNPAID,
+            status=commerce.Invoice.STATUS_UNPAID,
             value=Decimal(),
             issue_time=issued,
             due_time=due,
             recipient=recipient,
         )
 
-        product_items = rego.ProductItem.objects.filter(cart=cart)
+        product_items = commerce.ProductItem.objects.filter(cart=cart)
 
         if len(product_items) == 0:
             raise ValidationError("Your cart is empty.")
@@ -98,11 +100,11 @@ class InvoiceController(object):
         product_items = product_items.order_by(
             "product__category__order", "product__order"
         )
-        discount_items = rego.DiscountItem.objects.filter(cart=cart)
+        discount_items = commerce.DiscountItem.objects.filter(cart=cart)
         invoice_value = Decimal()
         for item in product_items:
             product = item.product
-            line_item = rego.LineItem.objects.create(
+            line_item = commerce.LineItem.objects.create(
                 invoice=invoice,
                 description="%s - %s" % (product.category.name, product.name),
                 quantity=item.quantity,
@@ -112,7 +114,7 @@ class InvoiceController(object):
             invoice_value += line_item.quantity * line_item.price
 
         for item in discount_items:
-            line_item = rego.LineItem.objects.create(
+            line_item = commerce.LineItem.objects.create(
                 invoice=invoice,
                 description=item.discount.description,
                 quantity=item.quantity,
@@ -170,7 +172,7 @@ class InvoiceController(object):
     def total_payments(self):
         ''' Returns the total amount paid towards this invoice. '''
 
-        payments = rego.PaymentBase.objects.filter(invoice=self.invoice)
+        payments = commerce.PaymentBase.objects.filter(invoice=self.invoice)
         total_paid = payments.aggregate(Sum("amount"))["amount__sum"] or 0
         return total_paid
 
@@ -180,12 +182,12 @@ class InvoiceController(object):
 
         old_status = self.invoice.status
         total_paid = self.total_payments()
-        num_payments = rego.PaymentBase.objects.filter(
+        num_payments = commerce.PaymentBase.objects.filter(
             invoice=self.invoice,
         ).count()
         remainder = self.invoice.value - total_paid
 
-        if old_status == rego.Invoice.STATUS_UNPAID:
+        if old_status == commerce.Invoice.STATUS_UNPAID:
             # Invoice had an amount owing
             if remainder <= 0:
                 # Invoice no longer has amount owing
@@ -199,15 +201,15 @@ class InvoiceController(object):
             elif total_paid == 0 and num_payments > 0:
                 # Invoice has multiple payments totalling zero
                 self._mark_void()
-        elif old_status == rego.Invoice.STATUS_PAID:
+        elif old_status == commerce.Invoice.STATUS_PAID:
             if remainder > 0:
                 # Invoice went from having a remainder of zero or less
                 # to having a positive remainder -- must be a refund
                 self._mark_refunded()
-        elif old_status == rego.Invoice.STATUS_REFUNDED:
+        elif old_status == commerce.Invoice.STATUS_REFUNDED:
             # Should not ever change from here
             pass
-        elif old_status == rego.Invoice.STATUS_VOID:
+        elif old_status == commerce.Invoice.STATUS_VOID:
             # Should not ever change from here
             pass
 
@@ -218,7 +220,7 @@ class InvoiceController(object):
         if cart:
             cart.active = False
             cart.save()
-        self.invoice.status = rego.Invoice.STATUS_PAID
+        self.invoice.status = commerce.Invoice.STATUS_PAID
         self.invoice.save()
 
     def _mark_refunded(self):
@@ -229,13 +231,13 @@ class InvoiceController(object):
             cart.active = False
             cart.released = True
             cart.save()
-        self.invoice.status = rego.Invoice.STATUS_REFUNDED
+        self.invoice.status = commerce.Invoice.STATUS_REFUNDED
         self.invoice.save()
 
     def _mark_void(self):
         ''' Marks the invoice as refunded, and updates the attached cart if
         necessary. '''
-        self.invoice.status = rego.Invoice.STATUS_VOID
+        self.invoice.status = commerce.Invoice.STATUS_VOID
         self.invoice.save()
 
     def _invoice_matches_cart(self):

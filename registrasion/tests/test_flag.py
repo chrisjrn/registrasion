@@ -2,7 +2,8 @@ import pytz
 
 from django.core.exceptions import ValidationError
 
-from registrasion import models as rego
+from registrasion.models import commerce
+from registrasion.models import conditions
 from registrasion.controllers.category import CategoryController
 from controller_helpers import TestingCartController
 from registrasion.controllers.product import ProductController
@@ -15,10 +16,10 @@ UTC = pytz.timezone('UTC')
 class FlagTestCases(RegistrationCartTestCase):
 
     @classmethod
-    def add_product_flag(cls, condition=rego.FlagBase.ENABLE_IF_TRUE):
+    def add_product_flag(cls, condition=conditions.FlagBase.ENABLE_IF_TRUE):
         ''' Adds a product flag condition: adding PROD_1 to a cart is
         predicated on adding PROD_2 beforehand. '''
-        flag = rego.ProductFlag.objects.create(
+        flag = conditions.ProductFlag.objects.create(
             description="Product condition",
             condition=condition,
         )
@@ -28,10 +29,13 @@ class FlagTestCases(RegistrationCartTestCase):
         flag.save()
 
     @classmethod
-    def add_product_flag_on_category(cls, condition=rego.FlagBase.ENABLE_IF_TRUE):
+    def add_product_flag_on_category(
+            cls,
+            condition=conditions.FlagBase.ENABLE_IF_TRUE,
+            ):
         ''' Adds a product flag condition that operates on a category:
         adding an item from CAT_1 is predicated on adding PROD_3 beforehand '''
-        flag = rego.ProductFlag.objects.create(
+        flag = conditions.ProductFlag.objects.create(
             description="Product condition",
             condition=condition,
         )
@@ -40,10 +44,10 @@ class FlagTestCases(RegistrationCartTestCase):
         flag.enabling_products.add(cls.PROD_3)
         flag.save()
 
-    def add_category_flag(cls, condition=rego.FlagBase.ENABLE_IF_TRUE):
+    def add_category_flag(cls, condition=conditions.FlagBase.ENABLE_IF_TRUE):
         ''' Adds a category flag condition: adding PROD_1 to a cart is
         predicated on adding an item from CAT_2 beforehand.'''
-        flag = rego.CategoryFlag.objects.create(
+        flag = conditions.CategoryFlag.objects.create(
             description="Category condition",
             condition=condition,
             enabling_category=cls.CAT_2,
@@ -131,8 +135,8 @@ class FlagTestCases(RegistrationCartTestCase):
         cart_2.add_to_cart(self.PROD_1, 1)
 
     def test_multiple_dif_conditions(self):
-        self.add_product_flag(condition=rego.FlagBase.DISABLE_IF_FALSE)
-        self.add_category_flag(condition=rego.FlagBase.DISABLE_IF_FALSE)
+        self.add_product_flag(condition=conditions.FlagBase.DISABLE_IF_FALSE)
+        self.add_category_flag(condition=conditions.FlagBase.DISABLE_IF_FALSE)
 
         cart_1 = TestingCartController.for_user(self.USER_1)
         # Cannot add PROD_1 until both conditions are met
@@ -145,8 +149,8 @@ class FlagTestCases(RegistrationCartTestCase):
         cart_1.add_to_cart(self.PROD_1, 1)
 
     def test_eit_and_dif_conditions_work_together(self):
-        self.add_product_flag(condition=rego.FlagBase.ENABLE_IF_TRUE)
-        self.add_category_flag(condition=rego.FlagBase.DISABLE_IF_FALSE)
+        self.add_product_flag(condition=conditions.FlagBase.ENABLE_IF_TRUE)
+        self.add_category_flag(condition=conditions.FlagBase.DISABLE_IF_FALSE)
 
         cart_1 = TestingCartController.for_user(self.USER_1)
         # Cannot add PROD_1 until both conditions are met
@@ -200,7 +204,7 @@ class FlagTestCases(RegistrationCartTestCase):
         self.assertTrue(self.PROD_4 in prods)
 
     def test_available_products_on_category_works_when_condition_not_met(self):
-        self.add_product_flag(condition=rego.FlagBase.ENABLE_IF_TRUE)
+        self.add_product_flag(condition=conditions.FlagBase.ENABLE_IF_TRUE)
 
         prods = ProductController.available_products(
             self.USER_1,
@@ -211,7 +215,7 @@ class FlagTestCases(RegistrationCartTestCase):
         self.assertTrue(self.PROD_2 in prods)
 
     def test_available_products_on_category_works_when_condition_is_met(self):
-        self.add_product_flag(condition=rego.FlagBase.ENABLE_IF_TRUE)
+        self.add_product_flag(condition=conditions.FlagBase.ENABLE_IF_TRUE)
 
         cart_1 = TestingCartController.for_user(self.USER_1)
         cart_1.add_to_cart(self.PROD_2, 1)
@@ -225,7 +229,7 @@ class FlagTestCases(RegistrationCartTestCase):
         self.assertTrue(self.PROD_2 in prods)
 
     def test_available_products_on_products_works_when_condition_not_met(self):
-        self.add_product_flag(condition=rego.FlagBase.ENABLE_IF_TRUE)
+        self.add_product_flag(condition=conditions.FlagBase.ENABLE_IF_TRUE)
 
         prods = ProductController.available_products(
             self.USER_1,
@@ -236,7 +240,7 @@ class FlagTestCases(RegistrationCartTestCase):
         self.assertTrue(self.PROD_2 in prods)
 
     def test_available_products_on_products_works_when_condition_is_met(self):
-        self.add_product_flag(condition=rego.FlagBase.ENABLE_IF_TRUE)
+        self.add_product_flag(condition=conditions.FlagBase.ENABLE_IF_TRUE)
 
         cart_1 = TestingCartController.for_user(self.USER_1)
         cart_1.add_to_cart(self.PROD_2, 1)
@@ -250,7 +254,7 @@ class FlagTestCases(RegistrationCartTestCase):
         self.assertTrue(self.PROD_2 in prods)
 
     def test_category_flag_fails_if_cart_refunded(self):
-        self.add_category_flag(condition=rego.FlagBase.ENABLE_IF_TRUE)
+        self.add_category_flag(condition=conditions.FlagBase.ENABLE_IF_TRUE)
 
         cart = TestingCartController.for_user(self.USER_1)
         cart.add_to_cart(self.PROD_3, 1)
@@ -268,7 +272,7 @@ class FlagTestCases(RegistrationCartTestCase):
             cart_2.set_quantity(self.PROD_1, 1)
 
     def test_product_flag_fails_if_cart_refunded(self):
-        self.add_product_flag(condition=rego.FlagBase.ENABLE_IF_TRUE)
+        self.add_product_flag(condition=conditions.FlagBase.ENABLE_IF_TRUE)
 
         cart = TestingCartController.for_user(self.USER_1)
         cart.add_to_cart(self.PROD_2, 1)
@@ -286,7 +290,9 @@ class FlagTestCases(RegistrationCartTestCase):
             cart_2.set_quantity(self.PROD_1, 1)
 
     def test_available_categories(self):
-        self.add_product_flag_on_category(condition=rego.FlagBase.ENABLE_IF_TRUE)
+        self.add_product_flag_on_category(
+            condition=conditions.FlagBase.ENABLE_IF_TRUE,
+        )
 
         cart_1 = TestingCartController.for_user(self.USER_1)
 
@@ -307,7 +313,7 @@ class FlagTestCases(RegistrationCartTestCase):
         self.assertTrue(self.CAT_2 in cats)
 
     def test_validate_cart_when_flags_become_unmet(self):
-        self.add_product_flag(condition=rego.FlagBase.ENABLE_IF_TRUE)
+        self.add_product_flag(condition=conditions.FlagBase.ENABLE_IF_TRUE)
 
         cart = TestingCartController.for_user(self.USER_1)
         cart.add_to_cart(self.PROD_2, 1)
@@ -332,7 +338,7 @@ class FlagTestCases(RegistrationCartTestCase):
         cart.validate_cart()
 
         # Should keep PROD_2 in the cart
-        items = rego.ProductItem.objects.filter(cart=cart.cart)
+        items = commerce.ProductItem.objects.filter(cart=cart.cart)
         self.assertFalse([i for i in items if i.product == self.PROD_1])
 
     def test_fix_simple_errors_does_not_remove_limited_items(self):
@@ -348,5 +354,5 @@ class FlagTestCases(RegistrationCartTestCase):
 
         # Should keep PROD_2 in the cart
         # and also PROD_1, which is now exhausted for user.
-        items = rego.ProductItem.objects.filter(cart=cart.cart)
+        items = commerce.ProductItem.objects.filter(cart=cart.cart)
         self.assertTrue([i for i in items if i.product == self.PROD_1])

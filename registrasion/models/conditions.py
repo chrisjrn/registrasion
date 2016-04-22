@@ -13,9 +13,14 @@ from model_utils.managers import InheritanceManager
 
 @python_2_unicode_compatible
 class DiscountBase(models.Model):
-    ''' Base class for discounts. Each subclass has controller code that
-    determines whether or not the given discount is available to be added to
-    the current cart. '''
+    ''' Base class for discounts. This class is subclassed with special
+    attributes which are used to determine whether or not the given discount
+    is available to be added to the current cart.
+
+    Attributes:
+        description (str): Display text that appears on the attendee's Invoice
+            when the discount is applied to a Product on that invoice.
+    '''
 
     class Meta:
         app_label = "registrasion"
@@ -43,7 +48,23 @@ class DiscountBase(models.Model):
 class DiscountForProduct(models.Model):
     ''' Represents a discount on an individual product. Each Discount can
     contain multiple products and categories. Discounts can either be a
-    percentage or a fixed amount, but not both. '''
+    percentage or a fixed amount, but not both.
+
+    Attributes:
+        product (inventory.Product): The product that this discount line will
+            apply to.
+
+        percentage (Decimal): The percentage discount that will be *taken off*
+            this product if this discount applies.
+
+        price (Decimal): The currency value that will be *taken off* this
+            product if this discount applies.
+
+        quantity (int): The number of times that each user may apply this
+            discount line. This applies across every valid Invoice that
+            the user has.
+
+    '''
 
     class Meta:
         app_label = "registrasion"
@@ -88,7 +109,21 @@ class DiscountForProduct(models.Model):
 @python_2_unicode_compatible
 class DiscountForCategory(models.Model):
     ''' Represents a discount for a category of products. Each discount can
-    contain multiple products. Category discounts can only be a percentage. '''
+    contain multiple products. Category discounts can only be a percentage.
+
+    Attributes:
+
+        category (inventory.Category): The category whose products that this
+            discount line will apply to.
+
+        percentage (Decimal): The percentage discount that will be *taken off*
+            a product if this discount applies.
+
+        quantity (int): The number of times that each user may apply this
+            discount line. This applies across every valid Invoice that the
+            user has.
+
+    '''
 
     class Meta:
         app_label = "registrasion"
@@ -121,7 +156,19 @@ class DiscountForCategory(models.Model):
 
 class TimeOrStockLimitDiscount(DiscountBase):
     ''' Discounts that are generally available, but are limited by timespan or
-    usage count. This is for e.g. Early Bird discounts. '''
+    usage count. This is for e.g. Early Bird discounts.
+
+    Attributes:
+        start_time (Optional[datetime]): When the discount should start being
+            offered.
+
+        end_time (Optional[datetime]): When the discount should stop being
+            offered.
+
+        limit (Optional[int]): How many times the discount is allowed to be
+            applied -- to all users.
+
+    '''
 
     class Meta:
         app_label = "registrasion"
@@ -150,7 +197,13 @@ class TimeOrStockLimitDiscount(DiscountBase):
 
 class VoucherDiscount(DiscountBase):
     ''' Discounts that are enabled when a voucher code is in the current
-    cart. '''
+    cart. These are normally configured in the Admin page at the same time as
+    creating a Voucher object.
+
+    Attributes:
+        voucher (inventory.Voucher): The voucher that enables this discount.
+
+    '''
 
     class Meta:
         app_label = "registrasion"
@@ -167,7 +220,13 @@ class VoucherDiscount(DiscountBase):
 
 class IncludedProductDiscount(DiscountBase):
     ''' Discounts that are enabled because another product has been purchased.
-    e.g. A conference ticket includes a free t-shirt. '''
+    e.g. A conference ticket includes a free t-shirt.
+
+    Attributes:
+        enabling_products ([inventory.Product, ...]): The products that enable
+            the discount.
+
+    '''
 
     class Meta:
         app_label = "registrasion"
@@ -194,14 +253,30 @@ class FlagBase(models.Model):
     ''' This defines a condition which allows products or categories to
     be made visible, or be prevented from being visible.
 
-    The various subclasses of this can define the conditions that enable
-    or disable products, by the following rules:
+    Attributes:
+        description (str): A human-readable description that is used to
+            identify the flag to staff in the admin interface. It's not seen
+            anywhere else in Registrasion.
 
-    If there is at least one 'disable if false' flag defined on a product or
-    category, all such flag conditions must be met. If there is at least one
-    'enable if true' flag, at least one such condition must be met.
+        condition (int): This determines the effect of this flag's condition
+            being met. There are two types of condition:
 
-    If both types of conditions exist on a product, both of these rules apply.
+            ``ENABLE_IF_TRUE`` conditions switch on the products and
+            categories included under this flag if *any* such condition is met.
+
+            ``DISABLE_IF_FALSE`` conditions *switch off* the products and
+            categories included under this flag is any such condition
+            *is not* met.
+
+            If you have both types of conditions attached to a Product, every
+            ``DISABLE_IF_FALSE`` condition must be met, along with one
+            ``ENABLE_IF_TRUE`` condition.
+
+        products ([inventory.Product, ...]):
+            The Products affected by this flag.
+
+        categories ([inventory.Category, ...]):
+            The Categories whose Products are affected by this flag.
     '''
 
     class Meta:
@@ -271,7 +346,21 @@ class EnablingConditionBase(FlagBase):
 
 
 class TimeOrStockLimitFlag(EnablingConditionBase):
-    ''' Registration product ceilings '''
+    ''' Product groupings that can be used to enable a product during a
+    specific date range, or when fewer than a limit of products have been
+    sold.
+
+    Attributes:
+        start_time (Optional[datetime]): This condition is only met after this
+            time.
+
+        end_time (Optional[datetime]): This condition is only met before this
+            time.
+
+        limit (Optional[int]): The number of products that *all users* can
+            purchase under this limit, regardless of their per-user limits.
+
+    '''
 
     class Meta:
         app_label = "registrasion"
@@ -300,7 +389,12 @@ class TimeOrStockLimitFlag(EnablingConditionBase):
 
 @python_2_unicode_compatible
 class ProductFlag(EnablingConditionBase):
-    ''' The condition is met because a specific product is purchased. '''
+    ''' The condition is met because a specific product is purchased.
+
+    Attributes:
+    enabling_products ([inventory.Product, ...]): The products that cause this
+        condition to be met.
+    '''
 
     class Meta:
         app_label = "registrasion"
@@ -320,7 +414,12 @@ class ProductFlag(EnablingConditionBase):
 @python_2_unicode_compatible
 class CategoryFlag(EnablingConditionBase):
     ''' The condition is met because a product in a particular product is
-    purchased. '''
+    purchased.
+
+    Attributes:
+        enabling_category (inventory.Category): The category that causes this
+            condition to be met.
+     '''
 
     class Meta:
         app_label = "registrasion"

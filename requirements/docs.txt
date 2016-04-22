@@ -1,0 +1,4 @@
+# requirements needed to build the docs
+
+Sphinx==1.4.1
+sphinx-rtd-theme==0.1.9

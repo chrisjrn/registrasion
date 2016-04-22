@@ -1,2 +1,1 @@
 django-nested-admin==2.2.6
-#-e git+https://github.com/pinax/symposion.git#egg=SymposionMaster # Needs Symposion

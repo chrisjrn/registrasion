@@ -96,7 +96,35 @@ class Category(models.Model):
 
 @python_2_unicode_compatible
 class Product(models.Model):
-    ''' Registration products '''
+    ''' Products make up the conference inventory.
+
+    Attributes:
+        name (str): The display name for the product.
+
+        description (str): Some descriptive text that will help the user to
+            understand the product when they're at the registration form.
+
+        category (Category): The Category that this product will be grouped
+            under.
+
+        price (Decimal): The price that 1 unit of this product will sell for.
+            Note that this should be the full price, before any discounts are
+            applied.
+
+        limit_per_user (Optional[int]): This restricts the number of this
+            Product that each attendee may claim. This extends across multiple
+            Invoices.
+
+        reservation_duration (datetime): When a Product is added to the user's
+            tentative registration, it is marked as unavailable for a period of
+            time. This allows the user to build up their registration and then
+            pay for it. This reservation duration determines how long an item
+            should be allowed to be reserved whilst being unpaid.
+
+        display_order (int): An ascending order for displaying the Products
+            within each Category.
+
+    '''
 
     class Meta:
         app_label = "registrasion"
@@ -144,7 +172,20 @@ class Product(models.Model):
 
 @python_2_unicode_compatible
 class Voucher(models.Model):
-    ''' Registration vouchers '''
+    ''' Vouchers are used to enable Discounts or Flags for the people who hold
+    the voucher code.
+
+    Attributes:
+        recipient (str): A display string used to identify the holder of the
+            voucher on the admin page.
+
+        code (str): The string that is used to prove that the attendee holds
+            this voucher.
+
+        limit (int): The number of attendees who are permitted to hold this
+            voucher.
+
+     '''
 
     class Meta:
         app_label = "registrasion"

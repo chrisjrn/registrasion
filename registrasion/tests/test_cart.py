@@ -7,7 +7,10 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 
-from registrasion import models as rego
+from registrasion.models import commerce
+from registrasion.models import conditions
+from registrasion.models import inventory
+from registrasion.models import people
 from registrasion.controllers.product import ProductController
 
 from controller_helpers import TestingCartController
@@ -36,24 +39,28 @@ class RegistrationCartTestCase(SetTimeMixin, TestCase):
             email='test2@example.com',
             password='top_secret')
 
-        attendee1 = rego.Attendee.get_instance(cls.USER_1)
+        attendee1 = people.Attendee.get_instance(cls.USER_1)
         attendee1.save()
-        profile1 = rego.AttendeeProfileBase.objects.create(attendee=attendee1)
+        profile1 = people.AttendeeProfileBase.objects.create(
+            attendee=attendee1,
+        )
         profile1.save()
-        attendee2 = rego.Attendee.get_instance(cls.USER_2)
+        attendee2 = people.Attendee.get_instance(cls.USER_2)
         attendee2.save()
-        profile2 = rego.AttendeeProfileBase.objects.create(attendee=attendee2)
+        profile2 = people.AttendeeProfileBase.objects.create(
+            attendee=attendee2,
+        )
         profile2.save()
 
         cls.RESERVATION = datetime.timedelta(hours=1)
 
         cls.categories = []
         for i in xrange(2):
-            cat = rego.Category.objects.create(
+            cat = inventory.Category.objects.create(
                 name="Category " + str(i + 1),
                 description="This is a test category",
                 order=i,
-                render_type=rego.Category.RENDER_TYPE_RADIO,
+                render_type=inventory.Category.RENDER_TYPE_RADIO,
                 required=False,
             )
             cat.save()
@@ -64,7 +71,7 @@ class RegistrationCartTestCase(SetTimeMixin, TestCase):
 
         cls.products = []
         for i in xrange(4):
-            prod = rego.Product.objects.create(
+            prod = inventory.Product.objects.create(
                 name="Product " + str(i + 1),
                 description="This is a test product.",
                 category=cls.categories[i / 2],  # 2 products per category
@@ -95,9 +102,9 @@ class RegistrationCartTestCase(SetTimeMixin, TestCase):
 
     @classmethod
     def make_ceiling(cls, name, limit=None, start_time=None, end_time=None):
-        limit_ceiling = rego.TimeOrStockLimitFlag.objects.create(
+        limit_ceiling = conditions.TimeOrStockLimitFlag.objects.create(
             description=name,
-            condition=rego.FlagBase.DISABLE_IF_FALSE,
+            condition=conditions.FlagBase.DISABLE_IF_FALSE,
             limit=limit,
             start_time=start_time,
             end_time=end_time
@@ -109,9 +116,9 @@ class RegistrationCartTestCase(SetTimeMixin, TestCase):
     @classmethod
     def make_category_ceiling(
             cls, name, limit=None, start_time=None, end_time=None):
-        limit_ceiling = rego.TimeOrStockLimitFlag.objects.create(
+        limit_ceiling = conditions.TimeOrStockLimitFlag.objects.create(
             description=name,
-            condition=rego.FlagBase.DISABLE_IF_FALSE,
+            condition=conditions.FlagBase.DISABLE_IF_FALSE,
             limit=limit,
             start_time=start_time,
             end_time=end_time
@@ -124,14 +131,14 @@ class RegistrationCartTestCase(SetTimeMixin, TestCase):
     def make_discount_ceiling(
             cls, name, limit=None, start_time=None, end_time=None,
             percentage=100):
-        limit_ceiling = rego.TimeOrStockLimitDiscount.objects.create(
+        limit_ceiling = conditions.TimeOrStockLimitDiscount.objects.create(
             description=name,
             start_time=start_time,
             end_time=end_time,
             limit=limit,
         )
         limit_ceiling.save()
-        rego.DiscountForProduct.objects.create(
+        conditions.DiscountForProduct.objects.create(
             discount=limit_ceiling,
             product=cls.PROD_1,
             percentage=percentage,
@@ -140,7 +147,7 @@ class RegistrationCartTestCase(SetTimeMixin, TestCase):
 
     @classmethod
     def new_voucher(self, code="VOUCHER", limit=1):
-        voucher = rego.Voucher.objects.create(
+        voucher = inventory.Voucher.objects.create(
             recipient="Voucher recipient",
             code=code,
             limit=limit,
@@ -176,7 +183,7 @@ class BasicCartTests(RegistrationCartTestCase):
         current_cart.add_to_cart(self.PROD_1, 1)
 
         # Count of products for a given user should be collapsed.
-        items = rego.ProductItem.objects.filter(
+        items = commerce.ProductItem.objects.filter(
             cart=current_cart.cart,
             product=self.PROD_1)
         self.assertEqual(1, len(items))
@@ -187,7 +194,7 @@ class BasicCartTests(RegistrationCartTestCase):
         current_cart = TestingCartController.for_user(self.USER_1)
 
         def get_item():
-            return rego.ProductItem.objects.get(
+            return commerce.ProductItem.objects.get(
                 cart=current_cart.cart,
                 product=self.PROD_1)
 

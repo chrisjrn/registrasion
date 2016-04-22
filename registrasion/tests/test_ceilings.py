@@ -6,7 +6,7 @@ from django.core.exceptions import ValidationError
 from controller_helpers import TestingCartController
 from test_cart import RegistrationCartTestCase
 
-from registrasion import models as rego
+from registrasion.models import conditions
 
 UTC = pytz.timezone('UTC')
 
@@ -155,12 +155,12 @@ class CeilingsTestCases(RegistrationCartTestCase):
         self.make_discount_ceiling("Limit ceiling", limit=1, percentage=50)
         voucher = self.new_voucher(code="VOUCHER")
 
-        discount = rego.VoucherDiscount.objects.create(
+        discount = conditions.VoucherDiscount.objects.create(
             description="VOUCHER RECIPIENT",
             voucher=voucher,
         )
         discount.save()
-        rego.DiscountForProduct.objects.create(
+        conditions.DiscountForProduct.objects.create(
             discount=discount,
             product=self.PROD_1,
             percentage=100,

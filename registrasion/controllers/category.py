@@ -1,4 +1,5 @@
-from registrasion import models as rego
+from registrasion.models import commerce
+from registrasion.models import inventory
 
 from django.db.models import Sum
 
@@ -22,7 +23,9 @@ class CategoryController(object):
         from product import ProductController
 
         if products is AllProducts:
-            products = rego.Product.objects.all().select_related("category")
+            products = inventory.Product.objects.all().select_related(
+                "category",
+            )
 
         available = ProductController.available_products(
             user,
@@ -41,13 +44,13 @@ class CategoryController(object):
             # We don't need to waste the following queries
             return 99999999
 
-        carts = rego.Cart.objects.filter(
+        carts = commerce.Cart.objects.filter(
             user=user,
             active=False,
             released=False,
         )
 
-        items = rego.ProductItem.objects.filter(
+        items = commerce.ProductItem.objects.filter(
             cart__in=carts,
             product__category=self.category,
         )

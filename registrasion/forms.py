@@ -1,4 +1,5 @@
-import models as rego
+from registrasion.models import commerce
+from registrasion.models import inventory
 
 from django import forms
 
@@ -14,8 +15,8 @@ class ApplyCreditNoteForm(forms.Form):
         self.fields["invoice"].choices = self._unpaid_invoices_for_user
 
     def _unpaid_invoices_for_user(self):
-        invoices = rego.Invoice.objects.filter(
-            status=rego.Invoice.STATUS_UNPAID,
+        invoices = commerce.Invoice.objects.filter(
+            status=commerce.Invoice.STATUS_UNPAID,
             user=self.user,
         )
 
@@ -25,7 +26,6 @@ class ApplyCreditNoteForm(forms.Form):
         ]
 
     invoice = forms.ChoiceField(
-        #choices=_unpaid_invoices_for_user,
         required=True,
     )
 
@@ -33,14 +33,14 @@ class ApplyCreditNoteForm(forms.Form):
 class ManualCreditNoteRefundForm(forms.ModelForm):
 
     class Meta:
-        model = rego.ManualCreditNoteRefund
+        model = commerce.ManualCreditNoteRefund
         fields = ["reference"]
 
 
 class ManualPaymentForm(forms.ModelForm):
 
     class Meta:
-        model = rego.ManualPayment
+        model = commerce.ManualPayment
         fields = ["reference", "amount"]
 
 
@@ -168,8 +168,8 @@ def ProductsForm(category, products):
 
     # Each Category.RENDER_TYPE value has a subclass here.
     RENDER_TYPES = {
-        rego.Category.RENDER_TYPE_QUANTITY: _QuantityBoxProductsForm,
-        rego.Category.RENDER_TYPE_RADIO: _RadioButtonProductsForm,
+        inventory.Category.RENDER_TYPE_QUANTITY: _QuantityBoxProductsForm,
+        inventory.Category.RENDER_TYPE_RADIO: _RadioButtonProductsForm,
     }
 
     # Produce a subclass of _ProductsForm which we can alter the base_fields on

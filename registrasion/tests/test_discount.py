@@ -2,7 +2,7 @@ import pytz
 
 from decimal import Decimal
 
-from registrasion import models as rego
+from registrasion.models import conditions
 from registrasion.controllers import discount
 from controller_helpers import TestingCartController
 
@@ -19,13 +19,13 @@ class DiscountTestCase(RegistrationCartTestCase):
             amount=Decimal(100),
             quantity=2,
             ):
-        discount = rego.IncludedProductDiscount.objects.create(
+        discount = conditions.IncludedProductDiscount.objects.create(
             description="PROD_1 includes PROD_2 " + str(amount) + "%",
         )
         discount.save()
         discount.enabling_products.add(cls.PROD_1)
         discount.save()
-        rego.DiscountForProduct.objects.create(
+        conditions.DiscountForProduct.objects.create(
             discount=discount,
             product=cls.PROD_2,
             percentage=amount,
@@ -39,13 +39,13 @@ class DiscountTestCase(RegistrationCartTestCase):
             amount=Decimal(100),
             quantity=2,
             ):
-        discount = rego.IncludedProductDiscount.objects.create(
+        discount = conditions.IncludedProductDiscount.objects.create(
             description="PROD_1 includes CAT_2 " + str(amount) + "%",
         )
         discount.save()
         discount.enabling_products.add(cls.PROD_1)
         discount.save()
-        rego.DiscountForCategory.objects.create(
+        conditions.DiscountForCategory.objects.create(
             discount=discount,
             category=cls.CAT_2,
             percentage=amount,
@@ -59,20 +59,20 @@ class DiscountTestCase(RegistrationCartTestCase):
             amount=Decimal(100),
             quantity=2,
             ):
-        discount = rego.IncludedProductDiscount.objects.create(
+        discount = conditions.IncludedProductDiscount.objects.create(
             description="PROD_1 includes PROD_3 and PROD_4 " +
                         str(amount) + "%",
         )
         discount.save()
         discount.enabling_products.add(cls.PROD_1)
         discount.save()
-        rego.DiscountForProduct.objects.create(
+        conditions.DiscountForProduct.objects.create(
             discount=discount,
             product=cls.PROD_3,
             percentage=amount,
             quantity=quantity,
         ).save()
-        rego.DiscountForProduct.objects.create(
+        conditions.DiscountForProduct.objects.create(
             discount=discount,
             product=cls.PROD_4,
             percentage=amount,

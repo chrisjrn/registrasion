@@ -1,4 +1,5 @@
-from registrasion import models as rego
+from registrasion.models import commerce
+from registrasion.models import inventory
 from registrasion.controllers.category import CategoryController
 
 from collections import namedtuple
@@ -19,7 +20,7 @@ def available_categories(context):
 @register.assignment_tag(takes_context=True)
 def available_credit(context):
     ''' Returns the amount of unclaimed credit available for this user. '''
-    notes = rego.CreditNote.unclaimed().filter(
+    notes = commerce.CreditNote.unclaimed().filter(
         invoice__user=context.request.user,
     )
     ret = notes.values("amount").aggregate(Sum("amount"))["amount__sum"] or 0
@@ -29,7 +30,7 @@ def available_credit(context):
 @register.assignment_tag(takes_context=True)
 def invoices(context):
     ''' Returns all of the invoices that this user has. '''
-    return rego.Invoice.objects.filter(cart__user=context.request.user)
+    return commerce.Invoice.objects.filter(cart__user=context.request.user)
 
 
 @register.assignment_tag(takes_context=True)
@@ -37,7 +38,7 @@ def items_pending(context):
     ''' Returns all of the items that this user has in their current cart,
     and is awaiting payment. '''
 
-    all_items = rego.ProductItem.objects.filter(
+    all_items = commerce.ProductItem.objects.filter(
         cart__user=context.request.user,
         cart__active=True,
     ).select_related(
@@ -55,7 +56,7 @@ def items_purchased(context, category=None):
     ''' Returns all of the items that this user has purchased, optionally
     from the given category. '''
 
-    all_items = rego.ProductItem.objects.filter(
+    all_items = commerce.ProductItem.objects.filter(
         cart__user=context.request.user,
         cart__active=False,
         cart__released=False,
@@ -65,7 +66,7 @@ def items_purchased(context, category=None):
         all_items = all_items.filter(product__category=category)
 
     pq = all_items.values("product").annotate(quantity=Sum("quantity")).all()
-    products = rego.Product.objects.all()
+    products = inventory.Product.objects.all()
     out = []
     for item in pq:
         prod = products.get(pk=item["product"])

@@ -7,7 +7,9 @@ from collections import namedtuple
 from django.db.models import Sum
 from django.utils import timezone
 
-from registrasion import models as rego
+from registrasion.models import commerce
+from registrasion.models import conditions
+from registrasion.models import inventory
 
 
 ConditionAndRemainder = namedtuple(
@@ -29,15 +31,15 @@ class ConditionController(object):
     @staticmethod
     def for_condition(condition):
         CONTROLLERS = {
-            rego.CategoryFlag: CategoryConditionController,
-            rego.IncludedProductDiscount: ProductConditionController,
-            rego.ProductFlag: ProductConditionController,
-            rego.TimeOrStockLimitDiscount:
+            conditions.CategoryFlag: CategoryConditionController,
+            conditions.IncludedProductDiscount: ProductConditionController,
+            conditions.ProductFlag: ProductConditionController,
+            conditions.TimeOrStockLimitDiscount:
                 TimeOrStockLimitDiscountController,
-            rego.TimeOrStockLimitFlag:
+            conditions.TimeOrStockLimitFlag:
                 TimeOrStockLimitFlagController,
-            rego.VoucherDiscount: VoucherConditionController,
-            rego.VoucherFlag: VoucherConditionController,
+            conditions.VoucherDiscount: VoucherConditionController,
+            conditions.VoucherFlag: VoucherConditionController,
         }
 
         try:
@@ -121,7 +123,7 @@ class ConditionController(object):
             # Get all products covered by this condition, and the products
             # from the categories covered by this condition
             cond_products = condition.products.all()
-            from_category = rego.Product.objects.filter(
+            from_category = inventory.Product.objects.filter(
                 category__in=condition.categories.all(),
             ).all()
             all_products = cond_products | from_category
@@ -199,11 +201,11 @@ class CategoryConditionController(ConditionController):
         ''' returns True if the user has a product from a category that invokes
         this condition in one of their carts '''
 
-        carts = rego.Cart.objects.filter(user=user, released=False)
-        enabling_products = rego.Product.objects.filter(
+        carts = commerce.Cart.objects.filter(user=user, released=False)
+        enabling_products = inventory.Product.objects.filter(
             category=self.condition.enabling_category,
         )
-        products_count = rego.ProductItem.objects.filter(
+        products_count = commerce.ProductItem.objects.filter(
             cart__in=carts,
             product__in=enabling_products,
         ).count()
@@ -221,8 +223,8 @@ class ProductConditionController(ConditionController):
         ''' returns True if the user has a product that invokes this
         condition in one of their carts '''
 
-        carts = rego.Cart.objects.filter(user=user, released=False)
-        products_count = rego.ProductItem.objects.filter(
+        carts = commerce.Cart.objects.filter(user=user, released=False)
+        products_count = commerce.ProductItem.objects.filter(
             cart__in=carts,
             product__in=self.condition.enabling_products.all(),
         ).count()
@@ -267,7 +269,7 @@ class TimeOrStockLimitConditionController(ConditionController):
             return 99999999
 
         # We care about all reserved carts, but not the user's current cart
-        reserved_carts = rego.Cart.reserved_carts()
+        reserved_carts = commerce.Cart.reserved_carts()
         reserved_carts = reserved_carts.exclude(
             user=user,
             active=True,
@@ -284,12 +286,12 @@ class TimeOrStockLimitFlagController(
         TimeOrStockLimitConditionController):
 
     def _items(self):
-        category_products = rego.Product.objects.filter(
+        category_products = inventory.Product.objects.filter(
             category__in=self.ceiling.categories.all(),
         )
         products = self.ceiling.products.all() | category_products
 
-        product_items = rego.ProductItem.objects.filter(
+        product_items = commerce.ProductItem.objects.filter(
             product__in=products.all(),
         )
         return product_items
@@ -298,7 +300,7 @@ class TimeOrStockLimitFlagController(
 class TimeOrStockLimitDiscountController(TimeOrStockLimitConditionController):
 
     def _items(self):
-        discount_items = rego.DiscountItem.objects.filter(
+        discount_items = commerce.DiscountItem.objects.filter(
             discount=self.ceiling,
         )
         return discount_items
@@ -312,7 +314,7 @@ class VoucherConditionController(ConditionController):
 
     def is_met(self, user):
         ''' returns True if the user has the given voucher attached. '''
-        carts_count = rego.Cart.objects.filter(
+        carts_count = commerce.Cart.objects.filter(
             user=user,
             vouchers=self.condition.voucher,
         ).count()

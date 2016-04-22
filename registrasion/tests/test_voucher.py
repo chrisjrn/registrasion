@@ -5,7 +5,8 @@ from decimal import Decimal
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 
-from registrasion import models as rego
+from registrasion.models import conditions
+from registrasion.models import inventory
 from controller_helpers import TestingCartController
 from controller_helpers import TestingInvoiceController
 
@@ -32,14 +33,14 @@ class VoucherTestCases(RegistrationCartTestCase):
 
         # After the reservation duration
         # user 2 should be able to apply voucher
-        self.add_timedelta(rego.Voucher.RESERVATION_DURATION * 2)
+        self.add_timedelta(inventory.Voucher.RESERVATION_DURATION * 2)
         cart_2.apply_voucher(voucher.code)
 
         cart_2.next_cart()
 
         # After the reservation duration, even though the voucher has applied,
         # it exceeds the number of vouchers available.
-        self.add_timedelta(rego.Voucher.RESERVATION_DURATION * 2)
+        self.add_timedelta(inventory.Voucher.RESERVATION_DURATION * 2)
         with self.assertRaises(ValidationError):
             cart_1.validate_cart()
 
@@ -58,10 +59,10 @@ class VoucherTestCases(RegistrationCartTestCase):
     def test_voucher_enables_item(self):
         voucher = self.new_voucher()
 
-        flag = rego.VoucherFlag.objects.create(
+        flag = conditions.VoucherFlag.objects.create(
             description="Voucher condition",
             voucher=voucher,
-            condition=rego.FlagBase.ENABLE_IF_TRUE,
+            condition=conditions.FlagBase.ENABLE_IF_TRUE,
         )
         flag.save()
         flag.products.add(self.PROD_1)
@@ -79,12 +80,12 @@ class VoucherTestCases(RegistrationCartTestCase):
     def test_voucher_enables_discount(self):
         voucher = self.new_voucher()
 
-        discount = rego.VoucherDiscount.objects.create(
+        discount = conditions.VoucherDiscount.objects.create(
             description="VOUCHER RECIPIENT",
             voucher=voucher,
         )
         discount.save()
-        rego.DiscountForProduct.objects.create(
+        conditions.DiscountForProduct.objects.create(
             discount=discount,
             product=self.PROD_1,
             percentage=Decimal(100),

@@ -1,6 +1,6 @@
 from django.db import transaction
 
-from registrasion import models as rego
+from registrasion.models import commerce
 
 
 class CreditNoteController(object):
@@ -14,7 +14,7 @@ class CreditNoteController(object):
         the given invoice. You need to call InvoiceController.update_status()
         to set the status correctly, if appropriate. '''
 
-        credit_note = rego.CreditNote.objects.create(
+        credit_note = commerce.CreditNote.objects.create(
             invoice=invoice,
             amount=0-value,  # Credit notes start off as a payment against inv.
             reference="ONE MOMENT",
@@ -39,7 +39,7 @@ class CreditNoteController(object):
         inv.validate_allowed_to_pay()
 
         # Apply payment to invoice
-        rego.CreditNoteApplication.objects.create(
+        commerce.CreditNoteApplication.objects.create(
             parent=self.credit_note,
             invoice=invoice,
             amount=self.credit_note.value,

@@ -180,7 +180,20 @@ class LineItem(models.Model):
 @python_2_unicode_compatible
 class PaymentBase(models.Model):
     ''' The base payment type for invoices. Payment apps should subclass this
-    class to handle implementation-specific issues. '''
+    class to handle implementation-specific issues.
+
+    Attributes:
+        invoice (inventory.Invoice): The invoice that this payment applies to.
+
+        time (datetime): The time that this payment was generated. Note that
+            this will default to the current time when the model is created.
+
+        reference (str): A human-readable reference for the payment, this will
+            be displayed alongside the invoice.
+
+        amount (Decimal): The amount the payment is for.
+
+    '''
 
     class Meta:
         ordering = ("time", )
@@ -280,7 +293,18 @@ class CreditNoteApplication(CleanOnSave, PaymentBase):
 class CreditNoteRefund(CleanOnSave, models.Model):
     ''' Represents a refund of a credit note to an external payment.
     Credit notes may only be refunded in full. How those refunds are handled
-    is left as an exercise to the payment app. '''
+    is left as an exercise to the payment app.
+
+    Attributes:
+        parent (commerce.CreditNote): The CreditNote that this refund
+            corresponds to.
+
+        time (datetime): The time that this refund was generated.
+
+        reference (str): A human-readable reference for the refund, this should
+            allow the user to identify the refund in their records.
+
+    '''
 
     def clean(self):
         if not hasattr(self, "parent"):

@@ -1,6 +1,8 @@
-============
 Registrasion
 ============
+
+**Registra** (tion for Sympo) **sion**. A conference registration app for Django,
+letting conferences big and small sell tickets from within Symposion.
 
 Symposion
 ---------

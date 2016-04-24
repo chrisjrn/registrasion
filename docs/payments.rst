@@ -12,6 +12,26 @@ Registrasion also keeps track of money that is not currently attached to invoice
 Finally, Registrasion provides a `manual payments`_ feature, which allows for staff members to manually report payments into the system. This is the only payment facility built into Registrasion, but it's not intended as a reference implementation.
 
 
+Invoice and payment access control
+----------------------------------
+
+Conferences are interesting: usually you want attendees to fill in their own registration so that they get their catering options right, so that they can personally agree to codes of conduct, and so that you can make sure that you're communicating key information directly with them.
+
+On the other hand, employees at companies often need for their employers to directly pay for their registration.
+
+Registrasion solves this problem by having attendees complete their own registration, and then providing an access URL that allows anyone who holds that URL to view their invoice and make payment.
+
+You can call ``InvoiceController.can_view`` to determine whether or not you're allowed to show the invoice. It returns true if the user is allowed to view the invoice::
+
+    InvoiceController.can_view(self, user=request.user, access_code="CODE")
+
+As a rule, you should call ``can_view`` before doing any operations that amend the status of an invoice. This includes taking payments or requesting refunds.
+
+The access code is unique for each attendee -- this means that every invoice that an attendee generates can be viewed with the same access code. This is useful if the user amends their registration between giving the URL to their employer, and their employer making payment.
+
+
+
+
 Making payments
 ---------------
 
@@ -32,10 +52,7 @@ Our the ``demopay`` view from the ``registrasion-demo`` project implements pre-v
     from registrasion.controllers.invoice import InvoiceController
     from django.core.exceptions import ValidationError
 
-    # Get the Registrasion Invoice model
-    inv = get_object_or_404(rego.Invoice.objects, pk=invoice_id)
-
-    invoice = InvoiceController(inv)
+    invoice = InvoiceController.for_id_or_404(invoice.id)
 
     try:
         invoice.validate_allowed_to_pay()  # Verify that we're allowed to do this.
@@ -84,7 +101,7 @@ Calling ``update_status`` collects the ``PaymentBase`` objects that are attached
 
 When your invoice becomes ``PAID`` for the first time, if there's a cart of inventory items attached to it, that cart becomes permanently reserved -- that is, all of the items within it are no longer available for other users to purchase. If an invoice becomes ``REFUNDED``, the items in the cart are released, which means that they are available for anyone to purchase again.
 
-(One GitHub Issue #37 is completed) If you overpay an invoice, or pay into an invoice that should not have funds attached, a credit note for the residual payments will also be issued.
+If you overpay an invoice, or pay into an invoice that should not have funds attached, a credit note for the residual payments will also be issued.
 
 In general, although this means you *can* use negative payments to take an invoice into a *REFUNDED* state, it's still much more sensible to use the credit notes facility, as this makes sure that any leftover funds remain tracked in the system.
 

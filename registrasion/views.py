@@ -481,10 +481,7 @@ def invoice(request, invoice_id, access_code=None):
     access code.
     '''
 
-    invoice_id = int(invoice_id)
-    inv = commerce.Invoice.objects.get(pk=invoice_id)
-
-    current_invoice = InvoiceController(inv)
+    current_invoice = InvoiceController.for_id_or_404(invoice_id)
 
     if not current_invoice.can_view(
             user=request.user,
@@ -508,9 +505,7 @@ def manual_payment(request, invoice_id):
     if not request.user.is_staff:
         raise Http404()
 
-    invoice_id = int(invoice_id)
-    inv = get_object_or_404(commerce.Invoice, pk=invoice_id)
-    current_invoice = InvoiceController(inv)
+    current_invoice = InvoiceController.for_id_or_404(invoice_id)
 
     form = forms.ManualPaymentForm(
         request.POST or None,
@@ -539,9 +534,7 @@ def refund(request, invoice_id):
     if not request.user.is_staff:
         raise Http404()
 
-    invoice_id = int(invoice_id)
-    inv = get_object_or_404(commerce.Invoice, pk=invoice_id)
-    current_invoice = InvoiceController(inv)
+    current_invoice = InvoiceController.for_id_or_404(invoice_id)
 
     try:
         current_invoice.refund()
@@ -560,10 +553,7 @@ def credit_note(request, note_id, access_code=None):
     if not request.user.is_staff:
         raise Http404()
 
-    note_id = int(note_id)
-    note = commerce.CreditNote.objects.get(pk=note_id)
-
-    current_note = CreditNoteController(note)
+    current_note = CreditNoteController.for_id_or_404(note_id)
 
     apply_form = forms.ApplyCreditNoteForm(
         note.invoice.user,

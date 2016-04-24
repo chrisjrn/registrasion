@@ -18,6 +18,12 @@ UTC = pytz.timezone('UTC')
 
 class InvoiceTestCase(RegistrationCartTestCase):
 
+    def _invoice_containing_prod_1(self, qty=1):
+        cart = TestingCartController.for_user(self.USER_1)
+        cart.add_to_cart(self.PROD_1, qty)
+
+        return TestingInvoiceController.for_cart(self.reget(cart.cart))
+
     def test_create_invoice(self):
         current_cart = TestingCartController.for_user(self.USER_1)
 
@@ -54,10 +60,7 @@ class InvoiceTestCase(RegistrationCartTestCase):
             invoice_2.invoice.value)
 
     def test_invoice_controller_for_id_works(self):
-        current_cart = TestingCartController.for_user(self.USER_1)
-        current_cart.add_to_cart(self.PROD_1, 1)
-
-        invoice = TestingInvoiceController.for_cart(current_cart.cart)
+        invoice = self._invoice_containing_prod_1(1)
 
         id_ = invoice.invoice.id
 
@@ -82,10 +85,8 @@ class InvoiceTestCase(RegistrationCartTestCase):
             TestingInvoiceController.for_cart(current_cart.cart)
 
     def test_paying_invoice_makes_new_cart(self):
-        current_cart = TestingCartController.for_user(self.USER_1)
-        current_cart.add_to_cart(self.PROD_1, 1)
+        invoice = self._invoice_containing_prod_1(1)
 
-        invoice = TestingInvoiceController.for_cart(current_cart.cart)
         invoice.pay("A payment!", invoice.invoice.value)
 
         # This payment is for the correct amount invoice should be paid.
@@ -96,7 +97,7 @@ class InvoiceTestCase(RegistrationCartTestCase):
 
         # Asking for a cart should generate a new one
         new_cart = TestingCartController.for_user(self.USER_1)
-        self.assertNotEqual(current_cart.cart, new_cart.cart)
+        self.assertNotEqual(invoice.invoice.cart, new_cart.cart)
 
     def test_invoice_includes_discounts(self):
         voucher = inventory.Voucher.objects.create(
@@ -181,24 +182,16 @@ class InvoiceTestCase(RegistrationCartTestCase):
         self.assertFalse(invoice_2_new.invoice.is_void)
 
     def test_voiding_invoice_creates_new_invoice(self):
-        current_cart = TestingCartController.for_user(self.USER_1)
-
-        # Should be able to create an invoice after the product is added
-        current_cart.add_to_cart(self.PROD_1, 1)
-        invoice_1 = TestingInvoiceController.for_cart(current_cart.cart)
+        invoice_1 = self._invoice_containing_prod_1(1)
 
         self.assertFalse(invoice_1.invoice.is_void)
         invoice_1.void()
 
-        invoice_2 = TestingInvoiceController.for_cart(current_cart.cart)
+        invoice_2 = TestingInvoiceController.for_cart(invoice_1.invoice.cart)
         self.assertNotEqual(invoice_1.invoice, invoice_2.invoice)
 
     def test_cannot_pay_void_invoice(self):
-        current_cart = TestingCartController.for_user(self.USER_1)
-
-        # Should be able to create an invoice after the product is added
-        current_cart.add_to_cart(self.PROD_1, 1)
-        invoice_1 = TestingInvoiceController.for_cart(current_cart.cart)
+        invoice_1 = self._invoice_containing_prod_1(1)
 
         invoice_1.void()
 
@@ -206,11 +199,7 @@ class InvoiceTestCase(RegistrationCartTestCase):
             invoice_1.validate_allowed_to_pay()
 
     def test_cannot_void_paid_invoice(self):
-        current_cart = TestingCartController.for_user(self.USER_1)
-
-        # Should be able to create an invoice after the product is added
-        current_cart.add_to_cart(self.PROD_1, 1)
-        invoice = TestingInvoiceController.for_cart(current_cart.cart)
+        invoice = self._invoice_containing_prod_1(1)
 
         invoice.pay("Reference", invoice.invoice.value)
 
@@ -218,11 +207,7 @@ class InvoiceTestCase(RegistrationCartTestCase):
             invoice.void()
 
     def test_cannot_void_partially_paid_invoice(self):
-        current_cart = TestingCartController.for_user(self.USER_1)
-
-        # Should be able to create an invoice after the product is added
-        current_cart.add_to_cart(self.PROD_1, 1)
-        invoice = TestingInvoiceController.for_cart(current_cart.cart)
+        invoice = self._invoice_containing_prod_1(1)
 
         invoice.pay("Reference", invoice.invoice.value - 1)
         self.assertTrue(invoice.invoice.is_unpaid)
@@ -247,10 +232,7 @@ class InvoiceTestCase(RegistrationCartTestCase):
             invoice.validate_allowed_to_pay()
 
     def test_overpaid_invoice_results_in_credit_note(self):
-        cart = TestingCartController.for_user(self.USER_1)
-        cart.add_to_cart(self.PROD_1, 1)
-
-        invoice = TestingInvoiceController.for_cart(self.reget(cart.cart))
+        invoice = self._invoice_containing_prod_1(1)
 
         # Invoice is overpaid by 1 unit
         to_pay = invoice.invoice.value + 1
@@ -268,10 +250,7 @@ class InvoiceTestCase(RegistrationCartTestCase):
         self.assertEqual(to_pay - invoice.invoice.value, credit_notes[0].value)
 
     def test_full_paid_invoice_does_not_generate_credit_note(self):
-        cart = TestingCartController.for_user(self.USER_1)
-        cart.add_to_cart(self.PROD_1, 1)
-
-        invoice = TestingInvoiceController.for_cart(self.reget(cart.cart))
+        invoice = self._invoice_containing_prod_1(1)
 
         # Invoice is paid evenly
         invoice.pay("Reference", invoice.invoice.value)
@@ -287,10 +266,7 @@ class InvoiceTestCase(RegistrationCartTestCase):
         self.assertEqual(0, credit_notes.count())
 
     def test_refund_partially_paid_invoice_generates_correct_credit_note(self):
-        cart = TestingCartController.for_user(self.USER_1)
-        cart.add_to_cart(self.PROD_1, 1)
-
-        invoice = TestingInvoiceController.for_cart(self.reget(cart.cart))
+        invoice = self._invoice_containing_prod_1(1)
 
         # Invoice is underpaid by 1 unit
         to_pay = invoice.invoice.value - 1
@@ -309,10 +285,7 @@ class InvoiceTestCase(RegistrationCartTestCase):
         self.assertEqual(to_pay, credit_notes[0].value)
 
     def test_refund_fully_paid_invoice_generates_correct_credit_note(self):
-        cart = TestingCartController.for_user(self.USER_1)
-        cart.add_to_cart(self.PROD_1, 1)
-
-        invoice = TestingInvoiceController.for_cart(self.reget(cart.cart))
+        invoice = self._invoice_containing_prod_1(1)
 
         to_pay = invoice.invoice.value
         invoice.pay("Reference", to_pay)
@@ -332,10 +305,7 @@ class InvoiceTestCase(RegistrationCartTestCase):
         self.assertEqual(to_pay, credit_notes[0].value)
 
     def test_apply_credit_note_pays_invoice(self):
-        cart = TestingCartController.for_user(self.USER_1)
-        cart.add_to_cart(self.PROD_1, 1)
-
-        invoice = TestingInvoiceController.for_cart(self.reget(cart.cart))
+        invoice = self._invoice_containing_prod_1(1)
 
         to_pay = invoice.invoice.value
         invoice.pay("Reference", to_pay)
@@ -363,10 +333,7 @@ class InvoiceTestCase(RegistrationCartTestCase):
         self.assertEquals(0, commerce.CreditNote.unclaimed().count())
 
     def test_apply_credit_note_generates_new_credit_note_if_overpaying(self):
-        cart = TestingCartController.for_user(self.USER_1)
-        cart.add_to_cart(self.PROD_1, 2)
-
-        invoice = TestingInvoiceController.for_cart(self.reget(cart.cart))
+        invoice = self._invoice_containing_prod_1(2)
 
         to_pay = invoice.invoice.value
         invoice.pay("Reference", to_pay)
@@ -405,10 +372,7 @@ class InvoiceTestCase(RegistrationCartTestCase):
         )
 
     def test_cannot_apply_credit_note_on_invalid_invoices(self):
-        cart = TestingCartController.for_user(self.USER_1)
-        cart.add_to_cart(self.PROD_1, 1)
-
-        invoice = TestingInvoiceController.for_cart(self.reget(cart.cart))
+        invoice = self._invoice_containing_prod_1(1)
 
         to_pay = invoice.invoice.value
         invoice.pay("Reference", to_pay)
@@ -421,10 +385,7 @@ class InvoiceTestCase(RegistrationCartTestCase):
         cn = TestingCreditNoteController(credit_note)
 
         # Create a new cart with invoice, pay it
-        cart = TestingCartController.for_user(self.USER_1)
-        cart.add_to_cart(self.PROD_1, 1)
-
-        invoice_2 = TestingInvoiceController.for_cart(self.reget(cart.cart))
+        invoice_2 = self._invoice_containing_prod_1(1)
         invoice_2.pay("LOL", invoice_2.invoice.value)
 
         # Cannot pay paid invoice
@@ -437,20 +398,14 @@ class InvoiceTestCase(RegistrationCartTestCase):
             cn.apply_to_invoice(invoice_2.invoice)
 
         # Create a new cart with invoice
-        cart = TestingCartController.for_user(self.USER_1)
-        cart.add_to_cart(self.PROD_1, 1)
-
-        invoice_2 = TestingInvoiceController.for_cart(self.reget(cart.cart))
+        invoice_2 = self._invoice_containing_prod_1(1)
         invoice_2.void()
         # Cannot pay void invoice
         with self.assertRaises(ValidationError):
             cn.apply_to_invoice(invoice_2.invoice)
 
     def test_cannot_apply_a_refunded_credit_note(self):
-        cart = TestingCartController.for_user(self.USER_1)
-        cart.add_to_cart(self.PROD_1, 1)
-
-        invoice = TestingInvoiceController.for_cart(self.reget(cart.cart))
+        invoice = self._invoice_containing_prod_1(1)
 
         to_pay = invoice.invoice.value
         invoice.pay("Reference", to_pay)
@@ -479,10 +434,7 @@ class InvoiceTestCase(RegistrationCartTestCase):
             cn.apply_to_invoice(invoice_2.invoice)
 
     def test_cannot_refund_an_applied_credit_note(self):
-        cart = TestingCartController.for_user(self.USER_1)
-        cart.add_to_cart(self.PROD_1, 1)
-
-        invoice = TestingInvoiceController.for_cart(self.reget(cart.cart))
+        invoice = self._invoice_containing_prod_1(1)
 
         to_pay = invoice.invoice.value
         invoice.pay("Reference", to_pay)

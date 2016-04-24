@@ -24,6 +24,10 @@ class InvoiceTestCase(RegistrationCartTestCase):
 
         return TestingInvoiceController.for_cart(self.reget(cart.cart))
 
+    def _credit_note_for_invoice(self, invoice):
+        note = commerce.CreditNote.objects.get(invoice=invoice)
+        return TestingCreditNoteController(note)
+
     def test_create_invoice(self):
         current_cart = TestingCartController.for_user(self.USER_1)
 
@@ -314,8 +318,7 @@ class InvoiceTestCase(RegistrationCartTestCase):
         invoice.refund()
 
         # There should be one credit note generated out of the invoice.
-        credit_note = commerce.CreditNote.objects.get(invoice=invoice.invoice)
-        cn = TestingCreditNoteController(credit_note)
+        cn = self._credit_note_for_invoice(invoice.invoice)
 
         # That credit note should be in the unclaimed pile
         self.assertEquals(1, commerce.CreditNote.unclaimed().count())
@@ -342,8 +345,7 @@ class InvoiceTestCase(RegistrationCartTestCase):
         invoice.refund()
 
         # There should be one credit note generated out of the invoice.
-        credit_note = commerce.CreditNote.objects.get(invoice=invoice.invoice)
-        cn = TestingCreditNoteController(credit_note)
+        cn = self._credit_note_for_invoice(invoice.invoice)
 
         self.assertEquals(1, commerce.CreditNote.unclaimed().count())
 
@@ -381,8 +383,7 @@ class InvoiceTestCase(RegistrationCartTestCase):
         invoice.refund()
 
         # There should be one credit note generated out of the invoice.
-        credit_note = commerce.CreditNote.objects.get(invoice=invoice.invoice)
-        cn = TestingCreditNoteController(credit_note)
+        cn = self._credit_note_for_invoice(invoice.invoice)
 
         # Create a new cart with invoice, pay it
         invoice_2 = self._invoice_containing_prod_1(1)
@@ -415,9 +416,8 @@ class InvoiceTestCase(RegistrationCartTestCase):
 
         self.assertEquals(1, commerce.CreditNote.unclaimed().count())
 
-        credit_note = commerce.CreditNote.objects.get(invoice=invoice.invoice)
+        cn = self._credit_note_for_invoice(invoice.invoice)
 
-        cn = TestingCreditNoteController(credit_note)
         cn.refund()
 
         # Refunding a credit note should mark it as claimed
@@ -444,9 +444,7 @@ class InvoiceTestCase(RegistrationCartTestCase):
 
         self.assertEquals(1, commerce.CreditNote.unclaimed().count())
 
-        credit_note = commerce.CreditNote.objects.get(invoice=invoice.invoice)
-
-        cn = TestingCreditNoteController(credit_note)
+        cn = self._credit_note_for_invoice(invoice.invoice)
 
         # Create a new cart with invoice
         cart = TestingCartController.for_user(self.USER_1)
@@ -460,3 +458,41 @@ class InvoiceTestCase(RegistrationCartTestCase):
         # Cannot refund this credit note as it is already applied.
         with self.assertRaises(ValidationError):
             cn.refund()
+
+    def test_money_into_void_invoice_generates_credit_note(self):
+        invoice = self._invoice_containing_prod_1(1)
+        invoice.void()
+
+        val = invoice.invoice.value
+
+        invoice.pay("Paying into the void.", val, pre_validate=False)
+        cn = self._credit_note_for_invoice(invoice.invoice)
+        self.assertEqual(val, cn.credit_note.value)
+
+    def test_money_into_refunded_invoice_generates_credit_note(self):
+        invoice = self._invoice_containing_prod_1(1)
+
+        val = invoice.invoice.value
+
+        invoice.pay("Paying the first time.", val)
+        invoice.refund()
+
+        cnval = val - 1
+        invoice.pay("Paying into the void.", cnval, pre_validate=False)
+
+        notes = commerce.CreditNote.objects.filter(invoice=invoice.invoice)
+        notes = sorted(notes, key = lambda note: note.value)
+        
+        self.assertEqual(cnval, notes[0].value)
+        self.assertEqual(val, notes[1].value)
+
+    def test_money_into_paid_invoice_generates_credit_note(self):
+        invoice = self._invoice_containing_prod_1(1)
+
+        val = invoice.invoice.value
+
+        invoice.pay("Paying the first time.", val)
+
+        invoice.pay("Paying into the void.", val, pre_validate=False)
+        cn = self._credit_note_for_invoice(invoice.invoice)
+        self.assertEqual(val, cn.credit_note.value)

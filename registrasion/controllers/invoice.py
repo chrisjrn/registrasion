@@ -13,6 +13,7 @@ from cart import CartController
 from credit_note import CreditNoteController
 from for_id import ForId
 
+
 class InvoiceController(ForId, object):
 
     __MODEL__ = commerce.Invoice
@@ -195,11 +196,6 @@ class InvoiceController(ForId, object):
                 # Invoice no longer has amount owing
                 self._mark_paid()
 
-                if remainder < 0:
-                    CreditNoteController.generate_from_invoice(
-                        self.invoice,
-                        0 - remainder,
-                    )
             elif total_paid == 0 and num_payments > 0:
                 # Invoice has multiple payments totalling zero
                 self._mark_void()
@@ -214,6 +210,17 @@ class InvoiceController(ForId, object):
         elif old_status == commerce.Invoice.STATUS_VOID:
             # Should not ever change from here
             pass
+
+        # Generate credit notes from residual payments
+        residual = 0
+        if self.invoice.is_paid:
+            if remainder < 0:
+                residual = 0 - remainder
+        elif self.invoice.is_void or self.invoice.is_refunded:
+            residual = total_paid
+
+        if residual != 0:
+            CreditNoteController.generate_from_invoice(self.invoice, residual)
 
     def _mark_paid(self):
         ''' Marks the invoice as paid, and updates the attached cart if

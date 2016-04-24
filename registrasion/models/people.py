@@ -59,13 +59,22 @@ class AttendeeProfileBase(models.Model):
 
     @classmethod
     def name_field(cls):
-        ''' This is used to pre-fill the attendee's name from the
-        speaker profile. If it's None, that functionality is disabled. '''
+        '''
+        Returns:
+            The name of a field that stores the attendee's name. This is used
+            to pre-fill the attendee's name from their Speaker profile, if they
+            have one.
+        '''
         return None
 
     def invoice_recipient(self):
-        ''' Returns a representation of this attendee profile for the purpose
-        of rendering to an invoice. Override in subclasses. '''
+        '''
+
+        Returns:
+            A representation of this attendee profile for the purpose
+            of rendering to an invoice. This should include any information
+            that you'd usually include on an invoice. Override in subclasses.
+        '''
 
         # Manual dispatch to subclass. Fleh.
         slf = AttendeeProfileBase.objects.get_subclass(id=self.id)

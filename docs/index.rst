@@ -19,6 +19,7 @@ Contents:
    :maxdepth: 2
 
    overview
+   integration
    inventory
    payments
    for-zookeepr-users

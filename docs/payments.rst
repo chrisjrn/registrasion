@@ -1,4 +1,5 @@
 .. automodule:: registrasion.models.commerce
+.. _payments_and_refunds:
 
 Payments and Refunds
 ====================

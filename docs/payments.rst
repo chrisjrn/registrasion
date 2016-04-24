@@ -32,10 +32,7 @@ Our the ``demopay`` view from the ``registrasion-demo`` project implements pre-v
     from registrasion.controllers.invoice import InvoiceController
     from django.core.exceptions import ValidationError
 
-    # Get the Registrasion Invoice model
-    inv = get_object_or_404(rego.Invoice.objects, pk=invoice_id)
-
-    invoice = InvoiceController(inv)
+    invoice = InvoiceController.for_id_or_404(invoice.id)
 
     try:
         invoice.validate_allowed_to_pay()  # Verify that we're allowed to do this.

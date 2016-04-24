@@ -53,6 +53,20 @@ class InvoiceTestCase(RegistrationCartTestCase):
             self.PROD_1.price + self.PROD_2.price,
             invoice_2.invoice.value)
 
+    def test_invoice_controller_for_id_works(self):
+        current_cart = TestingCartController.for_user(self.USER_1)
+        current_cart.add_to_cart(self.PROD_1, 1)
+
+        invoice = TestingInvoiceController.for_cart(current_cart.cart)
+
+        id_ = invoice.invoice.id
+
+        invoice1 = TestingInvoiceController.for_id(id_)
+        invoice2 = TestingInvoiceController.for_id(str(id_))
+
+        self.assertEqual(invoice.invoice, invoice1.invoice)
+        self.assertEqual(invoice.invoice, invoice2.invoice)
+
     def test_create_invoice_fails_if_cart_invalid(self):
         self.make_ceiling("Limit ceiling", limit=1)
         self.set_time(datetime.datetime(2015, 01, 01, tzinfo=UTC))

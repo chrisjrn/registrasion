@@ -11,9 +11,11 @@ from registrasion.models import people
 
 from cart import CartController
 from credit_note import CreditNoteController
+from for_id import ForId
 
+class InvoiceController(ForId, object):
 
-class InvoiceController(object):
+    __MODEL__ = commerce.Invoice
 
     def __init__(self, invoice):
         self.invoice = invoice

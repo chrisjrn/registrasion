@@ -2,8 +2,12 @@ from django.db import transaction
 
 from registrasion.models import commerce
 
+from for_id import ForId
 
-class CreditNoteController(object):
+
+class CreditNoteController(ForId, object):
+
+    __MODEL__ = commerce.CreditNote
 
     def __init__(self, credit_note):
         self.credit_note = credit_note

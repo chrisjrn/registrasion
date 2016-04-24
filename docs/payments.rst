@@ -81,7 +81,7 @@ Calling ``update_status`` collects the ``PaymentBase`` objects that are attached
 
 When your invoice becomes ``PAID`` for the first time, if there's a cart of inventory items attached to it, that cart becomes permanently reserved -- that is, all of the items within it are no longer available for other users to purchase. If an invoice becomes ``REFUNDED``, the items in the cart are released, which means that they are available for anyone to purchase again.
 
-(One GitHub Issue #37 is completed) If you overpay an invoice, or pay into an invoice that should not have funds attached, a credit note for the residual payments will also be issued.
+If you overpay an invoice, or pay into an invoice that should not have funds attached, a credit note for the residual payments will also be issued.
 
 In general, although this means you *can* use negative payments to take an invoice into a *REFUNDED* state, it's still much more sensible to use the credit notes facility, as this makes sure that any leftover funds remain tracked in the system.
 

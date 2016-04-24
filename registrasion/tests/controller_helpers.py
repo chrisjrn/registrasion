@@ -34,11 +34,14 @@ class TestingCartController(CartController):
 
 class TestingInvoiceController(InvoiceController):
 
-    def pay(self, reference, amount):
+    def pay(self, reference, amount, pre_validate=True):
         ''' Testing method for simulating an invoice paymenht by the given
         amount. '''
 
-        self.validate_allowed_to_pay()
+        if pre_validate:
+            # Manual payments don't pre-validate; we should test that things
+            # still work if we do silly things.
+            self.validate_allowed_to_pay()
 
         ''' Adds a payment '''
         commerce.ManualPayment.objects.create(

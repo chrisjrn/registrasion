@@ -12,6 +12,26 @@ Registrasion also keeps track of money that is not currently attached to invoice
 Finally, Registrasion provides a `manual payments`_ feature, which allows for staff members to manually report payments into the system. This is the only payment facility built into Registrasion, but it's not intended as a reference implementation.
 
 
+Invoice and payment access control
+----------------------------------
+
+Conferences are interesting: usually you want attendees to fill in their own registration so that they get their catering options right, so that they can personally agree to codes of conduct, and so that you can make sure that you're communicating key information directly with them.
+
+On the other hand, employees at companies often need for their employers to directly pay for their registration.
+
+Registrasion solves this problem by having attendees complete their own registration, and then providing an access URL that allows anyone who holds that URL to view their invoice and make payment.
+
+You can call ``InvoiceController.can_view`` to determine whether or not you're allowed to show the invoice. It returns true if the user is allowed to view the invoice::
+
+    InvoiceController.can_view(self, user=request.user, access_code="CODE")
+
+As a rule, you should call ``can_view`` before doing any operations that amend the status of an invoice. This includes taking payments or requesting refunds.
+
+The access code is unique for each attendee -- this means that every invoice that an attendee generates can be viewed with the same access code. This is useful if the user amends their registration between giving the URL to their employer, and their employer making payment.
+
+
+
+
 Making payments
 ---------------
 

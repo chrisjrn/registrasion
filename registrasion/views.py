@@ -542,8 +542,14 @@ def _checkout_errors(request, errors):
 
 
 def invoice_access(request, access_code):
-    ''' Redirects to the first unpaid invoice for the attendee that matches
-    the given access code, if any.
+    ''' Redirects to an invoice for the attendee that matches the given access
+    code, if any.
+
+    If the attendee has multiple invoices, we use the following tie-break:
+
+    - If there's an unpaid invoice, show that, otherwise
+    - If there's a paid invoice, show the most recent one, otherwise
+    - Show the most recent invoid of all
 
     Arguments:
 
@@ -552,21 +558,29 @@ def invoice_access(request, access_code):
 
     Returns:
         redirect:
-            Redirect to the first unpaid invoice for that user.
+            Redirect to the selected invoice for that user.
 
     Raises:
-        Http404: If there is no such invoice.
+        Http404: If the user has no invoices.
     '''
 
     invoices = commerce.Invoice.objects.filter(
         user__attendee__access_code=access_code,
-        status=commerce.Invoice.STATUS_UNPAID,
-    ).order_by("issue_time")
+    ).order_by("-issue_time")
+
 
     if not invoices:
         raise Http404()
 
-    invoice = invoices[0]
+    unpaid = invoices.filter(status=commerce.Invoice.STATUS_UNPAID)
+    paid = invoices.filter(status=commerce.Invoice.STATUS_PAID)
+
+    if unpaid:
+        invoice = unpaid[0]  # (should only be 1 unpaid invoice?)
+    elif paid:
+        invoice = paid[0]  # Most recent paid invoice
+    else:
+        invoice = invoices[0]  # Most recent of any invoices
 
     return redirect("invoice", invoice.id, access_code)
 

@@ -251,6 +251,37 @@ class CartController(object):
         if errors:
             raise(ValidationError(ve))
 
+    def _test_required_categories(self):
+        ''' Makes sure that the owner of this cart has satisfied all of the
+        required category constraints in the inventory (be it in this cart
+        or others). '''
+
+        required = set(inventory.Category.objects.filter(required=True))
+
+        items = commerce.ProductItem.objects.filter(
+            product__category__required=True,
+            cart__user=self.cart.user,
+        ).exclude(
+            cart__status=commerce.Cart.STATUS_RELEASED,
+        )
+
+        for item in items:
+            print item
+            required.remove(item.product.category)
+
+        errors = []
+        for category in required:
+            msg = "You must have at least one item from: %s" % category
+            errors.append((None, msg))
+
+        if errors:
+            raise ValidationError(errors)
+
+    def _append_errors(self, errors, ve):
+        for error in ve.error_list:
+            print error.message
+            errors.append(error.message[1])
+
     def validate_cart(self):
         ''' Determines whether the status of the current cart is valid;
         this is normally called before generating or paying an invoice '''
@@ -270,8 +301,12 @@ class CartController(object):
         try:
             self._test_limits(product_quantities)
         except ValidationError as ve:
-            for error in ve.error_list:
-                errors.append(error.message[1])
+            self._append_errors(errors, ve)
+
+        try:
+            self._test_required_categories()
+        except ValidationError as ve:
+            self._append_errors(errors, ve)
 
         # Validate the discounts
         discount_items = commerce.DiscountItem.objects.filter(cart=cart)

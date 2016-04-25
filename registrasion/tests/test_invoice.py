@@ -499,3 +499,37 @@ class InvoiceTestCase(RegistrationCartTestCase):
         invoice.pay("Paying into the void.", val, pre_validate=False)
         cn = self._credit_note_for_invoice(invoice.invoice)
         self.assertEqual(val, cn.credit_note.value)
+
+    def test_required_category_constraints_prevent_invoicing(self):
+        self.CAT_1.required = True
+        self.CAT_1.save()
+
+        cart = TestingCartController.for_user(self.USER_1)
+        cart.add_to_cart(self.PROD_3, 1)
+
+        # CAT_1 is required, we don't have CAT_1 yet
+        with self.assertRaises(ValidationError):
+            invoice = TestingInvoiceController.for_cart(cart.cart)
+
+        # Now that we have CAT_1, we can check out the cart
+        cart.add_to_cart(self.PROD_1, 1)
+        invoice = TestingInvoiceController.for_cart(cart.cart)
+
+        # Paying for the invoice should work fine
+        invoice.pay("Boop", invoice.invoice.value)
+
+        # We have an item in the first cart, so should be able to invoice
+        # for the second cart, even without CAT_1 in it.
+        cart = TestingCartController.for_user(self.USER_1)
+        cart.add_to_cart(self.PROD_3, 1)
+
+        invoice2 = TestingInvoiceController.for_cart(cart.cart)
+
+        # Void invoice2, and release the first cart
+        # now we don't have any CAT_1
+        invoice2.void()
+        invoice.refund()
+
+        # Now that we don't have CAT_1, we can't checkout this cart
+        with self.assertRaises(ValidationError):
+            invoice = TestingInvoiceController.for_cart(cart.cart)

@@ -71,7 +71,7 @@ def available_discounts(user, categories, products):
         # is not available any more.
         past_uses = commerce.DiscountItem.objects.filter(
             cart__user=user,
-            cart__status=commerce.Cart.STATUS_PAID, # Only past carts count
+            cart__status=commerce.Cart.STATUS_PAID,  # Only past carts count
             discount=real_discount,
         )
         agg = past_uses.aggregate(Sum("quantity"))

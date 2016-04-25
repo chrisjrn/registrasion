@@ -16,11 +16,11 @@ from collections import namedtuple
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import user_passes_test
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError
 from django.http import Http404
-from django.shortcuts import get_object_or_404
 from django.shortcuts import redirect
 from django.shortcuts import render
 
@@ -41,17 +41,17 @@ class GuidedRegistrationSection(_GuidedRegistrationSection):
     ''' Represents a section of a guided registration page.
 
     Attributes:
-        title (str): The title of the section.
+       title (str): The title of the section.
 
-        discounts ([registrasion.contollers.discount.DiscountAndQuantity, ...]):
+       discounts ([registrasion.contollers.discount.DiscountAndQuantity, ...]):
             A list of discount objects that are available in the section. You
             can display ``.clause`` to show what the discount applies to, and
             ``.quantity`` to display the number of times that discount can be
             applied.
 
-        description (str): A description of the section.
+       description (str): A description of the section.
 
-        form (forms.Form): A form to display.
+       form (forms.Form): A form to display.
     '''
     pass
 
@@ -568,7 +568,6 @@ def invoice_access(request, access_code):
         user__attendee__access_code=access_code,
     ).order_by("-issue_time")
 
-
     if not invoices:
         raise Http404()
 
@@ -630,7 +629,12 @@ def invoice(request, invoice_id, access_code=None):
     return render(request, "registrasion/invoice.html", data)
 
 
-@login_required
+def _staff_only(user):
+    ''' Returns true if the user is staff. '''
+    return user.is_staff
+
+
+@user_passes_test(_staff_only)
 def manual_payment(request, invoice_id):
     ''' Allows staff to make manual payments or refunds on an invoice.
 
@@ -650,15 +654,9 @@ def manual_payment(request, invoice_id):
                                     # object.
                 }
 
-    Raises:
-        Http404: if the logged in user is not staff.
-
     '''
 
     FORM_PREFIX = "manual_payment"
-
-    if not request.user.is_staff:
-        raise Http404()
 
     current_invoice = InvoiceController.for_id_or_404(invoice_id)
 
@@ -668,21 +666,21 @@ def manual_payment(request, invoice_id):
     )
 
     if request.POST and form.is_valid():
-        form.instance.invoice = inv
+        form.instance.invoice = current_invoice.invoice
         form.instance.entered_by = request.user
         form.save()
         current_invoice.update_status()
         form = forms.ManualPaymentForm(prefix=FORM_PREFIX)
 
     data = {
-        "invoice": inv,
+        "invoice": current_invoice.invoice,
         "form": form,
     }
 
     return render(request, "registrasion/manual_payment.html", data)
 
 
-@login_required
+@user_passes_test(_staff_only)
 def refund(request, invoice_id):
     ''' Marks an invoice as refunded and requests a credit note for the
     full amount paid against the invoice.
@@ -696,13 +694,7 @@ def refund(request, invoice_id):
         redirect:
             Redirects to ``invoice``.
 
-    Raises:
-        Http404: if the logged in user is not staff.
-
     '''
-
-    if not request.user.is_staff:
-        raise Http404()
 
     current_invoice = InvoiceController.for_id_or_404(invoice_id)
 
@@ -715,7 +707,7 @@ def refund(request, invoice_id):
     return redirect("invoice", invoice_id)
 
 
-@login_required
+@user_passes_test(_staff_only)
 def credit_note(request, note_id, access_code=None):
     ''' Displays a credit note.
 
@@ -741,19 +733,12 @@ def credit_note(request, note_id, access_code=None):
                                          # refund of the credit note.
                 }
 
-    Raises:
-        Http404: If the logged in user is not staff.
-
-
     '''
-
-    if not request.user.is_staff:
-        raise Http404()
 
     current_note = CreditNoteController.for_id_or_404(note_id)
 
     apply_form = forms.ApplyCreditNoteForm(
-        note.invoice.user,
+        current_note.credit_note.invoice.user,
         request.POST or None,
         prefix="apply_note"
     )
@@ -775,7 +760,7 @@ def credit_note(request, note_id, access_code=None):
 
     elif request.POST and refund_form.is_valid():
         refund_form.instance.entered_by = request.user
-        refund_form.instance.parent = note
+        refund_form.instance.parent = current_note.credit_note
         refund_form.save()
         messages.success(
             request,

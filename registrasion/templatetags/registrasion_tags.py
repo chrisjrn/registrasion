@@ -10,6 +10,7 @@ register = template.Library()
 
 _ProductAndQuantity = namedtuple("ProductAndQuantity", ["product", "quantity"])
 
+
 class ProductAndQuantity(_ProductAndQuantity):
     ''' Class that holds a product and a quantity.
 

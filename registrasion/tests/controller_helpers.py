@@ -45,7 +45,7 @@ class TestingInvoiceController(InvoiceController):
             self.validate_allowed_to_pay()
 
         ''' Adds a payment '''
-        commerce.ManualPayment.objects.create(
+        commerce.PaymentBase.objects.create(
             invoice=self.invoice,
             reference=reference,
             amount=amount,

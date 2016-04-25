@@ -5,6 +5,8 @@ from controller_helpers import TestingInvoiceController
 
 from test_cart import RegistrationCartTestCase
 
+from registrasion.models import commerce
+
 UTC = pytz.timezone('UTC')
 
 
@@ -21,10 +23,16 @@ class RefundTestCase(RegistrationCartTestCase):
         self.assertFalse(invoice.invoice.is_void)
         self.assertTrue(invoice.invoice.is_paid)
         self.assertFalse(invoice.invoice.is_refunded)
-        self.assertFalse(invoice.invoice.cart.released)
+        self.assertNotEqual(
+            commerce.Cart.STATUS_RELEASED,
+            invoice.invoice.cart.status,
+        )
 
         invoice.refund()
         self.assertFalse(invoice.invoice.is_void)
         self.assertFalse(invoice.invoice.is_paid)
         self.assertTrue(invoice.invoice.is_refunded)
-        self.assertTrue(invoice.invoice.cart.released)
+        self.assertEqual(
+            commerce.Cart.STATUS_RELEASED,
+            invoice.invoice.cart.status,
+        )

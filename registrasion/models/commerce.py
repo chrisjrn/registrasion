@@ -21,14 +21,22 @@ class Cart(models.Model):
     class Meta:
         app_label = "registrasion"
         index_together = [
-            ("active", "time_last_updated"),
-            ("active", "released"),
-            ("active", "user"),
-            ("released", "user"),
+            ("status", "time_last_updated"),
+            ("status", "user"),
         ]
 
     def __str__(self):
         return "%d rev #%d" % (self.id, self.revision)
+
+    STATUS_ACTIVE = 1
+    STATUS_PAID = 2
+    STATUS_RELEASED = 3
+
+    STATUS_TYPES = [
+        (STATUS_ACTIVE, _("Active")),
+        (STATUS_PAID, _("Paid")),
+        (STATUS_RELEASED, _("Released")),
+    ]
 
     user = models.ForeignKey(User)
     # ProductItems (foreign key)
@@ -38,24 +46,21 @@ class Cart(models.Model):
     )
     reservation_duration = models.DurationField()
     revision = models.PositiveIntegerField(default=1)
-    active = models.BooleanField(
-        default=True,
+    status = models.IntegerField(
+        choices=STATUS_TYPES,
         db_index=True,
+        default=STATUS_ACTIVE,
     )
-    released = models.BooleanField(
-        default=False,
-        db_index=True
-    )  # Refunds etc
 
     @classmethod
     def reserved_carts(cls):
         ''' Gets all carts that are 'reserved' '''
         return Cart.objects.filter(
-            (Q(active=True) &
+            (Q(status=Cart.STATUS_ACTIVE) &
                 Q(time_last_updated__gt=(
                     timezone.now()-F('reservation_duration')
                                         ))) |
-            (Q(active=False) & Q(released=False))
+            Q(status=Cart.STATUS_PAID)
         )
 
 

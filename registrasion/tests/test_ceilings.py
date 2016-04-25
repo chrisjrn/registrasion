@@ -6,6 +6,7 @@ from django.core.exceptions import ValidationError
 from controller_helpers import TestingCartController
 from test_cart import RegistrationCartTestCase
 
+from registrasion.models import commerce
 from registrasion.models import conditions
 
 UTC = pytz.timezone('UTC')
@@ -146,8 +147,8 @@ class CeilingsTestCases(RegistrationCartTestCase):
         with self.assertRaises(ValidationError):
             second_cart.add_to_cart(self.PROD_1, 1)
 
-        first_cart.cart.released = True
-        first_cart.next_cart()
+        first_cart.cart.status = commerce.Cart.STATUS_RELEASED
+        first_cart.cart.save()
 
         second_cart.add_to_cart(self.PROD_1, 1)
 
@@ -159,13 +160,12 @@ class CeilingsTestCases(RegistrationCartTestCase):
             description="VOUCHER RECIPIENT",
             voucher=voucher,
         )
-        discount.save()
         conditions.DiscountForProduct.objects.create(
             discount=discount,
             product=self.PROD_1,
             percentage=100,
             quantity=1
-        ).save()
+        )
 
         # Buy two of PROD_1, in separate carts:
         cart = TestingCartController.for_user(self.USER_1)
@@ -173,7 +173,7 @@ class CeilingsTestCases(RegistrationCartTestCase):
         # and not the ceiling discount.
         cart.apply_voucher("VOUCHER")
         cart.add_to_cart(self.PROD_1, 1)
-        self.assertEqual(1, len(cart.cart.discountitem_set.all()))
+        self.assertEqual(1, cart.cart.discountitem_set.count())
 
         cart.next_cart()
 
@@ -181,4 +181,4 @@ class CeilingsTestCases(RegistrationCartTestCase):
         # ceiling discount
         cart = TestingCartController.for_user(self.USER_1)
         cart.add_to_cart(self.PROD_1, 1)
-        self.assertEqual(1, len(cart.cart.discountitem_set.all()))
+        self.assertEqual(1, cart.cart.discountitem_set.count())

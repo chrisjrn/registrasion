@@ -4,6 +4,7 @@ import pytz
 from decimal import Decimal
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
+from django.db import transaction
 
 from registrasion.models import conditions
 from registrasion.models import inventory
@@ -64,9 +65,7 @@ class VoucherTestCases(RegistrationCartTestCase):
             voucher=voucher,
             condition=conditions.FlagBase.ENABLE_IF_TRUE,
         )
-        flag.save()
         flag.products.add(self.PROD_1)
-        flag.save()
 
         # Adding the product without a voucher will not work
         current_cart = TestingCartController.for_user(self.USER_1)
@@ -84,13 +83,12 @@ class VoucherTestCases(RegistrationCartTestCase):
             description="VOUCHER RECIPIENT",
             voucher=voucher,
         )
-        discount.save()
         conditions.DiscountForProduct.objects.create(
             discount=discount,
             product=self.PROD_1,
             percentage=Decimal(100),
             quantity=1
-        ).save()
+        )
 
         # Having PROD_1 in place should add a discount
         current_cart = TestingCartController.for_user(self.USER_1)
@@ -98,6 +96,7 @@ class VoucherTestCases(RegistrationCartTestCase):
         current_cart.add_to_cart(self.PROD_1, 1)
         self.assertEqual(1, len(current_cart.cart.discountitem_set.all()))
 
+    @transaction.atomic
     def test_voucher_codes_unique(self):
         self.new_voucher(code="VOUCHER")
         with self.assertRaises(IntegrityError):

@@ -2,6 +2,7 @@ import pytz
 
 from decimal import Decimal
 
+from registrasion.models import commerce
 from registrasion.models import conditions
 from registrasion.controllers import discount
 from controller_helpers import TestingCartController
@@ -22,15 +23,13 @@ class DiscountTestCase(RegistrationCartTestCase):
         discount = conditions.IncludedProductDiscount.objects.create(
             description="PROD_1 includes PROD_2 " + str(amount) + "%",
         )
-        discount.save()
         discount.enabling_products.add(cls.PROD_1)
-        discount.save()
         conditions.DiscountForProduct.objects.create(
             discount=discount,
             product=cls.PROD_2,
             percentage=amount,
             quantity=quantity,
-        ).save()
+        )
         return discount
 
     @classmethod
@@ -42,15 +41,13 @@ class DiscountTestCase(RegistrationCartTestCase):
         discount = conditions.IncludedProductDiscount.objects.create(
             description="PROD_1 includes CAT_2 " + str(amount) + "%",
         )
-        discount.save()
         discount.enabling_products.add(cls.PROD_1)
-        discount.save()
         conditions.DiscountForCategory.objects.create(
             discount=discount,
             category=cls.CAT_2,
             percentage=amount,
             quantity=quantity,
-        ).save()
+        )
         return discount
 
     @classmethod
@@ -63,21 +60,19 @@ class DiscountTestCase(RegistrationCartTestCase):
             description="PROD_1 includes PROD_3 and PROD_4 " +
                         str(amount) + "%",
         )
-        discount.save()
         discount.enabling_products.add(cls.PROD_1)
-        discount.save()
         conditions.DiscountForProduct.objects.create(
             discount=discount,
             product=cls.PROD_3,
             percentage=amount,
             quantity=quantity,
-        ).save()
+        )
         conditions.DiscountForProduct.objects.create(
             discount=discount,
             product=cls.PROD_4,
             percentage=amount,
             quantity=quantity,
-        ).save()
+        )
         return discount
 
     def test_discount_is_applied(self):
@@ -386,7 +381,6 @@ class DiscountTestCase(RegistrationCartTestCase):
         )
         self.assertEqual(1, len(discounts))
 
-        cart.cart.active = False  # Keep discount enabled
         cart.next_cart()
 
         cart = TestingCartController.for_user(self.USER_1)
@@ -401,8 +395,8 @@ class DiscountTestCase(RegistrationCartTestCase):
         )
         self.assertEqual(0, len(discounts))
 
-        cart.cart.released = True
-        cart.next_cart()
+        cart.cart.status = commerce.Cart.STATUS_RELEASED
+        cart.cart.save()
 
         discounts = discount.available_discounts(
             self.USER_1,

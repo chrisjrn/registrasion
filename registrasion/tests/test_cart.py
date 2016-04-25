@@ -5,6 +5,7 @@ from decimal import Decimal
 from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError
+from django.core.management import call_command
 from django.test import TestCase
 
 from registrasion.models import commerce
@@ -24,6 +25,16 @@ class RegistrationCartTestCase(SetTimeMixin, TestCase):
     def setUp(self):
         super(RegistrationCartTestCase, self).setUp()
 
+    def tearDown(self):
+        if False:
+            # If you're seeing segfaults in tests, enable this.
+            call_command('flush', verbosity=0, interactive=False,
+                             reset_sequences=False,
+                             allow_cascade=False,
+                             inhibit_post_migrate=False)
+
+        super(RegistrationCartTestCase, self).tearDown()
+
     @classmethod
     def setUpTestData(cls):
 
@@ -40,17 +51,13 @@ class RegistrationCartTestCase(SetTimeMixin, TestCase):
             password='top_secret')
 
         attendee1 = people.Attendee.get_instance(cls.USER_1)
-        attendee1.save()
         profile1 = people.AttendeeProfileBase.objects.create(
             attendee=attendee1,
         )
-        profile1.save()
         attendee2 = people.Attendee.get_instance(cls.USER_2)
-        attendee2.save()
         profile2 = people.AttendeeProfileBase.objects.create(
             attendee=attendee2,
         )
-        profile2.save()
 
         cls.RESERVATION = datetime.timedelta(hours=1)
 
@@ -63,7 +70,6 @@ class RegistrationCartTestCase(SetTimeMixin, TestCase):
                 render_type=inventory.Category.RENDER_TYPE_RADIO,
                 required=False,
             )
-            cat.save()
             cls.categories.append(cat)
 
         cls.CAT_1 = cls.categories[0]
@@ -80,7 +86,6 @@ class RegistrationCartTestCase(SetTimeMixin, TestCase):
                 limit_per_user=10,
                 order=1,
             )
-            prod.save()
             cls.products.append(prod)
 
         cls.PROD_1 = cls.products[0]
@@ -91,7 +96,7 @@ class RegistrationCartTestCase(SetTimeMixin, TestCase):
         cls.PROD_4.price = Decimal("5.00")
         cls.PROD_4.save()
 
-        # Burn through some carts -- this made some past EC tests fail
+        # Burn through some carts -- this made some past flag tests fail
         current_cart = TestingCartController.for_user(cls.USER_1)
 
         current_cart.next_cart()
@@ -109,9 +114,7 @@ class RegistrationCartTestCase(SetTimeMixin, TestCase):
             start_time=start_time,
             end_time=end_time
         )
-        limit_ceiling.save()
         limit_ceiling.products.add(cls.PROD_1, cls.PROD_2)
-        limit_ceiling.save()
 
     @classmethod
     def make_category_ceiling(
@@ -123,9 +126,7 @@ class RegistrationCartTestCase(SetTimeMixin, TestCase):
             start_time=start_time,
             end_time=end_time
         )
-        limit_ceiling.save()
         limit_ceiling.categories.add(cls.CAT_1)
-        limit_ceiling.save()
 
     @classmethod
     def make_discount_ceiling(
@@ -137,13 +138,12 @@ class RegistrationCartTestCase(SetTimeMixin, TestCase):
             end_time=end_time,
             limit=limit,
         )
-        limit_ceiling.save()
         conditions.DiscountForProduct.objects.create(
             discount=limit_ceiling,
             product=cls.PROD_1,
             percentage=percentage,
             quantity=10,
-        ).save()
+        )
 
     @classmethod
     def new_voucher(self, code="VOUCHER", limit=1):
@@ -152,7 +152,6 @@ class RegistrationCartTestCase(SetTimeMixin, TestCase):
             code=code,
             limit=limit,
         )
-        voucher.save()
         return voucher
 
     @classmethod

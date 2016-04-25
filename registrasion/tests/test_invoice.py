@@ -97,7 +97,10 @@ class InvoiceTestCase(RegistrationCartTestCase):
         self.assertTrue(invoice.invoice.is_paid)
 
         # Cart should not be active
-        self.assertFalse(invoice.invoice.cart.active)
+        self.assertNotEqual(
+            commerce.Cart.STATUS_ACTIVE,
+            invoice.invoice.cart.status,
+        )
 
         # Asking for a cart should generate a new one
         new_cart = TestingCartController.for_user(self.USER_1)
@@ -482,7 +485,7 @@ class InvoiceTestCase(RegistrationCartTestCase):
 
         notes = commerce.CreditNote.objects.filter(invoice=invoice.invoice)
         notes = sorted(notes, key = lambda note: note.value)
-        
+
         self.assertEqual(cnval, notes[0].value)
         self.assertEqual(val, notes[1].value)
 

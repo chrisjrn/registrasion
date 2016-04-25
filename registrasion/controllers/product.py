@@ -68,8 +68,7 @@ class ProductController(object):
 
         carts = commerce.Cart.objects.filter(
             user=user,
-            active=False,
-            released=False,
+            status=commerce.Cart.STATUS_PAID,
         )
 
         items = commerce.ProductItem.objects.filter(

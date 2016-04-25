@@ -73,7 +73,7 @@ def items_pending(context):
 
     all_items = commerce.ProductItem.objects.filter(
         cart__user=context.request.user,
-        cart__active=True,
+        cart__status=commerce.Cart.STATUS_ACTIVE,
     ).select_related(
         "product",
         "product__category",
@@ -100,8 +100,7 @@ def items_purchased(context, category=None):
 
     all_items = commerce.ProductItem.objects.filter(
         cart__user=context.request.user,
-        cart__active=False,
-        cart__released=False,
+        cart__status=commerce.Cart.STATUS_PAID,
     ).select_related("product", "product__category")
 
     if category:

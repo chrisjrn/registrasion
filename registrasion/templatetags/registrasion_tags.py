@@ -8,18 +8,42 @@ from django.db.models import Sum
 
 register = template.Library()
 
-ProductAndQuantity = namedtuple("ProductAndQuantity", ["product", "quantity"])
+_ProductAndQuantity = namedtuple("ProductAndQuantity", ["product", "quantity"])
+
+class ProductAndQuantity(_ProductAndQuantity):
+    ''' Class that holds a product and a quantity.
+
+    Attributes:
+        product (models.inventory.Product)
+
+        quantity (int)
+
+    '''
+    pass
 
 
 @register.assignment_tag(takes_context=True)
 def available_categories(context):
-    ''' Returns all of the available product categories '''
+    ''' Gets all of the currently available products.
+
+    Returns:
+        [models.inventory.Category, ...]: A list of all of the categories that
+            have Products that the current user can reserve.
+
+    '''
     return CategoryController.available_categories(context.request.user)
 
 
 @register.assignment_tag(takes_context=True)
 def available_credit(context):
-    ''' Returns the amount of unclaimed credit available for this user. '''
+    ''' Calculates the sum of unclaimed credit from this user's credit notes.
+
+    Returns:
+        Decimal: the sum of the values of unclaimed credit notes for the
+            current user.
+
+    '''
+
     notes = commerce.CreditNote.unclaimed().filter(
         invoice__user=context.request.user,
     )
@@ -29,14 +53,23 @@ def available_credit(context):
 
 @register.assignment_tag(takes_context=True)
 def invoices(context):
-    ''' Returns all of the invoices that this user has. '''
-    return commerce.Invoice.objects.filter(cart__user=context.request.user)
+    '''
+
+    Returns:
+        [models.commerce.Invoice, ...]: All of the current user's invoices. '''
+    return commerce.Invoice.objects.filter(user=context.request.user)
 
 
 @register.assignment_tag(takes_context=True)
 def items_pending(context):
-    ''' Returns all of the items that this user has in their current cart,
-    and is awaiting payment. '''
+    ''' Gets all of the items that the user has reserved, but has not yet
+    paid for.
+
+    Returns:
+        [ProductAndQuantity, ...]: A list of product-quantity pairs for the
+            items that the user has not yet paid for.
+
+    '''
 
     all_items = commerce.ProductItem.objects.filter(
         cart__user=context.request.user,
@@ -53,8 +86,17 @@ def items_pending(context):
 
 @register.assignment_tag(takes_context=True)
 def items_purchased(context, category=None):
-    ''' Returns all of the items that this user has purchased, optionally
-    from the given category. '''
+    ''' Aggregates the items that this user has purchased.
+
+    Arguments:
+        category (Optional[models.inventory.Category]): the category of items
+            to restrict to.
+
+    Returns:
+        [ProductAndQuantity, ...]: A list of product-quantity pairs,
+            aggregating like products from across multiple invoices.
+
+    '''
 
     all_items = commerce.ProductItem.objects.filter(
         cart__user=context.request.user,
@@ -76,5 +118,20 @@ def items_purchased(context, category=None):
 
 @register.filter
 def multiply(value, arg):
-    ''' Multiplies value by arg '''
+    ''' Multiplies value by arg.
+
+    This is useful when displaying invoices, as it lets you multiply the
+    quantity by the unit value.
+
+    Arguments:
+
+        value (number)
+
+        arg (number)
+
+    Returns:
+        number: value * arg
+
+    '''
+
     return value * arg

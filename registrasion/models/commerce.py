@@ -220,6 +220,8 @@ class ManualPayment(PaymentBase):
     class Meta:
         app_label = "registrasion"
 
+    entered_by = models.ForeignKey(User)
+
 
 class CreditNote(PaymentBase):
     ''' Credit notes represent money accounted for in the system that do not

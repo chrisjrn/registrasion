@@ -100,6 +100,7 @@ class _QuantityBoxProductsForm(_ProductsForm):
                 label=product.name,
                 help_text=help_text,
                 min_value=0,
+                max_value=500,  # Issue #19. We should figure out real limit.
             )
             cls.base_fields[cls.field_name(product)] = field
 
@@ -132,6 +133,9 @@ class _RadioButtonProductsForm(_ProductsForm):
             choice_text = "%s -- $%d" % (product.name, product.price)
             choices.append((product.id, choice_text))
 
+        if not category.required:
+            choices.append((0, "No selection"))
+
         cls.base_fields[cls.FIELD] = forms.TypedChoiceField(
             label=category.name,
             widget=forms.RadioSelect,
@@ -155,6 +159,8 @@ class _RadioButtonProductsForm(_ProductsForm):
         ours = self.cleaned_data[self.FIELD]
         choices = self.fields[self.FIELD].choices
         for choice_value, choice_display in choices:
+            if choice_value == 0:
+                continue
             yield (
                 choice_value,
                 1 if ours == choice_value else 0,

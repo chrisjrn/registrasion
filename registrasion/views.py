@@ -619,7 +619,28 @@ def invoice(request, invoice_id, access_code=None):
 
 @login_required
 def manual_payment(request, invoice_id):
-    ''' Allows staff to make manual payments or refunds on an invoice.'''
+    ''' Allows staff to make manual payments or refunds on an invoice.
+
+    This form requires a login, and the logged in user needs to be staff.
+
+    Arguments:
+        invoice_id (castable to int): The invoice ID to be paid
+
+    Returns:
+        render:
+            Renders ``registrasion/manual_payment.html`` with the following
+            data::
+
+                {
+                    "invoice": models.commerce.Invoice(),
+                    "form": form,   # A form that saves a ``ManualPayment``
+                                    # object.
+                }
+
+    Raises:
+        Http404: if the logged in user is not staff.
+
+    '''
 
     FORM_PREFIX = "manual_payment"
 
@@ -649,8 +670,22 @@ def manual_payment(request, invoice_id):
 
 @login_required
 def refund(request, invoice_id):
-    ''' Allows staff to refund payments against an invoice and request a
-    credit note.'''
+    ''' Marks an invoice as refunded and requests a credit note for the
+    full amount paid against the invoice.
+
+    This view requires a login, and the logged in user must be staff.
+
+    Arguments:
+        invoice_id (castable to int): The ID of the invoice to refund.
+
+    Returns:
+        redirect:
+            Redirects to ``invoice``.
+
+    Raises:
+        Http404: if the logged in user is not staff.
+
+    '''
 
     if not request.user.is_staff:
         raise Http404()
@@ -666,9 +701,36 @@ def refund(request, invoice_id):
     return redirect("invoice", invoice_id)
 
 
+@login_required
 def credit_note(request, note_id, access_code=None):
-    ''' Displays an credit note for a given id.
-    This view can only be seen by staff.
+    ''' Displays a credit note.
+
+    If ``request`` is a ``POST`` request, forms for applying or refunding
+    a credit note will be processed.
+
+    This view requires a login, and the logged in user must be staff.
+
+    Arguments:
+        note_id (castable to int): The ID of the credit note to view.
+
+    Returns:
+        render or redirect:
+            If the "apply to invoice" form is correctly processed, redirect to
+            that invoice, otherwise, render ``registration/credit_note.html``
+            with the following data::
+
+                {
+                    "credit_note": models.commerce.CreditNote(),
+                    "apply_form": form,  # A form for applying credit note
+                                         # to an invoice.
+                    "refund_form": form, # A form for applying a *manual*
+                                         # refund of the credit note.
+                }
+
+    Raises:
+        Http404: If the logged in user is not staff.
+
+
     '''
 
     if not request.user.is_staff:
@@ -705,7 +767,9 @@ def credit_note(request, note_id, access_code=None):
             request,
             "Applied manual refund to credit note."
         )
-        return redirect("invoice", invoice.id)
+        refund_form = forms.ManualCreditNoteRefundForm(
+            prefix="refund_note",
+        )
 
     data = {
         "credit_note": current_note.credit_note,

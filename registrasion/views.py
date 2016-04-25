@@ -120,8 +120,8 @@ def guided_registration(request):
         # Keep asking for the profile until everything passes.
         request.session[SESSION_KEY] = ASK_FOR_PROFILE
 
-        voucher_form, voucher_handled = handle_voucher(request, "voucher")
-        profile_form, profile_handled = handle_profile(request, "profile")
+        voucher_form, voucher_handled = _handle_voucher(request, "voucher")
+        profile_form, profile_handled = _handle_profile(request, "profile")
 
         voucher_section = GuidedRegistrationSection(
             title="Voucher Code",
@@ -188,7 +188,7 @@ def guided_registration(request):
             ]
 
             prefix = "category_" + str(category.id)
-            p = handle_products(request, category, products, prefix)
+            p = _handle_products(request, category, products, prefix)
             products_form, discounts, products_handled = p
 
             section = GuidedRegistrationSection(
@@ -231,7 +231,7 @@ def guided_registration(request):
 
 @login_required
 def edit_profile(request):
-    form, handled = handle_profile(request, "profile")
+    form, handled = _handle_profile(request, "profile")
 
     if handled and not form.errors:
         messages.success(
@@ -246,7 +246,7 @@ def edit_profile(request):
     return render(request, "registrasion/profile_form.html", data)
 
 
-def handle_profile(request, prefix):
+def _handle_profile(request, prefix):
     ''' Returns a profile form instance, and a boolean which is true if the
     form was handled. '''
     attendee = people.Attendee.get_instance(request.user)
@@ -300,7 +300,7 @@ def product_category(request, category_id):
 
     # Handle the voucher form *before* listing products.
     # Products can change as vouchers are entered.
-    v = handle_voucher(request, VOUCHERS_FORM_PREFIX)
+    v = _handle_voucher(request, VOUCHERS_FORM_PREFIX)
     voucher_form, voucher_handled = v
 
     category_id = int(category_id)  # Routing is [0-9]+
@@ -318,7 +318,7 @@ def product_category(request, category_id):
         )
         return redirect("dashboard")
 
-    p = handle_products(request, category, products, PRODUCTS_FORM_PREFIX)
+    p = _handle_products(request, category, products, PRODUCTS_FORM_PREFIX)
     products_form, discounts, products_handled = p
 
     if request.POST and not voucher_handled and not products_form.errors:
@@ -340,7 +340,7 @@ def product_category(request, category_id):
     return render(request, "registrasion/product_category.html", data)
 
 
-def handle_products(request, category, products, prefix):
+def _handle_products(request, category, products, prefix):
     ''' Handles a products list form in the given request. Returns the
     form instance, the discounts applicable to this form, and whether the
     contents were handled. '''
@@ -373,7 +373,7 @@ def handle_products(request, category, products, prefix):
 
     if request.method == "POST" and products_form.is_valid():
         if products_form.has_changed():
-            set_quantities_from_products_form(products_form, current_cart)
+            _set_quantities_from_products_form(products_form, current_cart)
 
         # If category is required, the user must have at least one
         # in an active+valid cart
@@ -395,7 +395,7 @@ def handle_products(request, category, products, prefix):
     return products_form, discounts, handled
 
 
-def set_quantities_from_products_form(products_form, current_cart):
+def _set_quantities_from_products_form(products_form, current_cart):
 
     quantities = list(products_form.product_quantities())
 
@@ -425,7 +425,7 @@ def set_quantities_from_products_form(products_form, current_cart):
             products_form.add_error(field, message)
 
 
-def handle_voucher(request, prefix):
+def _handle_voucher(request, prefix):
     ''' Handles a voucher form in the given request. Returns the voucher
     form instance, and whether the voucher code was handled. '''
 

@@ -669,6 +669,7 @@ def manual_payment(request, invoice_id):
 
     if request.POST and form.is_valid():
         form.instance.invoice = inv
+        form.instance.entered_by = request.user
         form.save()
         current_invoice.update_status()
         form = forms.ManualPaymentForm(prefix=FORM_PREFIX)

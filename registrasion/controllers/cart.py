@@ -1,6 +1,7 @@
 import collections
 import datetime
 import discount
+import functools
 import itertools
 
 from django.core.exceptions import ObjectDoesNotExist
@@ -17,6 +18,18 @@ from registrasion.models import inventory
 from category import CategoryController
 from conditions import ConditionController
 from product import ProductController
+
+
+def _modifies_cart(func):
+    ''' Decorator that makes the wrapped function raise ValidationError
+    if we're doing something that could modify the cart. '''
+
+    @functools.wraps(func)
+    def inner(self, *a, **k):
+        self._fail_if_cart_is_not_active()
+        return func(self, *a, **k)
+
+    return inner
 
 
 class CartController(object):
@@ -42,6 +55,12 @@ class CartController(object):
             )
         return cls(existing)
 
+    def _fail_if_cart_is_not_active(self):
+        self.cart.refresh_from_db()
+        if self.cart.status != commerce.Cart.STATUS_ACTIVE:
+            raise ValidationError("You can only amend active carts.")
+
+    @_modifies_cart
     def extend_reservation(self):
         ''' Updates the cart's time last updated value, which is used to
         determine whether the cart has reserved the items and discounts it
@@ -64,6 +83,7 @@ class CartController(object):
         self.cart.time_last_updated = timezone.now()
         self.cart.reservation_duration = max(reservations)
 
+    @_modifies_cart
     def end_batch(self):
         ''' Performs operations that occur occur at the end of a batch of
         product changes/voucher applications etc.
@@ -76,6 +96,7 @@ class CartController(object):
         self.cart.revision += 1
         self.cart.save()
 
+    @_modifies_cart
     @transaction.atomic
     def set_quantities(self, product_quantities):
         ''' Sets the quantities on each of the products on each of the
@@ -176,6 +197,7 @@ class CartController(object):
         if errors:
             raise CartValidationError(errors)
 
+    @_modifies_cart
     def apply_voucher(self, voucher_code):
         ''' Applies the voucher with the given code to this cart. '''
 
@@ -272,6 +294,7 @@ class CartController(object):
         if errors:
             raise ValidationError(errors)
 
+    @_modifies_cart
     @transaction.atomic
     def fix_simple_errors(self):
         ''' This attempts to fix the easy errors raised by ValidationError.
@@ -304,6 +327,7 @@ class CartController(object):
 
         self.set_quantities(zeros)
 
+    @_modifies_cart
     @transaction.atomic
     def recalculate_discounts(self):
         ''' Calculates all of the discounts available for this product.

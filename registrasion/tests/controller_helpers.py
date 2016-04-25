@@ -28,8 +28,9 @@ class TestingCartController(CartController):
         self.set_quantity(product, old_quantity + quantity)
 
     def next_cart(self):
-        self.cart.active = False
-        self.cart.save()
+        if self.cart.status == commerce.Cart.STATUS_ACTIVE:
+            self.cart.status = commerce.Cart.STATUS_PAID
+            self.cart.save()
 
 
 class TestingInvoiceController(InvoiceController):

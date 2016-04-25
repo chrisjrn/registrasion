@@ -30,14 +30,16 @@ class CartController(object):
         if there isn't one ready yet. '''
 
         try:
-            existing = commerce.Cart.objects.get(user=user, active=True)
+            existing = commerce.Cart.objects.get(
+                user=user,
+                status=commerce.Cart.STATUS_ACTIVE,
+            )
         except ObjectDoesNotExist:
             existing = commerce.Cart.objects.create(
                 user=user,
                 time_last_updated=timezone.now(),
                 reservation_duration=datetime.timedelta(),
-                 )
-            existing.save()
+            )
         return cls(existing)
 
     def extend_reservation(self):
@@ -367,11 +369,10 @@ class CartController(object):
             allowed = candidate.quantity
             if ours > allowed:
                 discount_item.quantity = allowed
+                discount_item.save()
                 # Update the remaining quantity.
                 quantity = ours - allowed
             else:
                 quantity = 0
 
             candidate.quantity -= discount_item.quantity
-
-            discount_item.save()

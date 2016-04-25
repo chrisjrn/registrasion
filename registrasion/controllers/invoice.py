@@ -227,7 +227,7 @@ class InvoiceController(ForId, object):
         necessary. '''
         cart = self.invoice.cart
         if cart:
-            cart.active = False
+            cart.status = commerce.Cart.STATUS_PAID
             cart.save()
         self.invoice.status = commerce.Invoice.STATUS_PAID
         self.invoice.save()
@@ -237,8 +237,7 @@ class InvoiceController(ForId, object):
         necessary. '''
         cart = self.invoice.cart
         if cart:
-            cart.active = False
-            cart.released = True
+            cart.status = commerce.Cart.STATUS_RELEASED
             cart.save()
         self.invoice.status = commerce.Invoice.STATUS_REFUNDED
         self.invoice.save()

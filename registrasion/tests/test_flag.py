@@ -23,10 +23,8 @@ class FlagTestCases(RegistrationCartTestCase):
             description="Product condition",
             condition=condition,
         )
-        flag.save()
         flag.products.add(cls.PROD_1)
         flag.enabling_products.add(cls.PROD_2)
-        flag.save()
 
     @classmethod
     def add_product_flag_on_category(
@@ -39,10 +37,8 @@ class FlagTestCases(RegistrationCartTestCase):
             description="Product condition",
             condition=condition,
         )
-        flag.save()
         flag.categories.add(cls.CAT_1)
         flag.enabling_products.add(cls.PROD_3)
-        flag.save()
 
     def add_category_flag(cls, condition=conditions.FlagBase.ENABLE_IF_TRUE):
         ''' Adds a category flag condition: adding PROD_1 to a cart is
@@ -52,9 +48,7 @@ class FlagTestCases(RegistrationCartTestCase):
             condition=condition,
             enabling_category=cls.CAT_2,
         )
-        flag.save()
         flag.products.add(cls.PROD_1)
-        flag.save()
 
     def test_product_flag_enables_product(self):
         self.add_product_flag()
@@ -265,8 +259,8 @@ class FlagTestCases(RegistrationCartTestCase):
         cart_2.add_to_cart(self.PROD_1, 1)
         cart_2.set_quantity(self.PROD_1, 0)
 
-        cart.cart.released = True
-        cart.next_cart()
+        cart.cart.status = commerce.Cart.STATUS_RELEASED
+        cart.cart.save()
 
         with self.assertRaises(ValidationError):
             cart_2.set_quantity(self.PROD_1, 1)
@@ -283,8 +277,8 @@ class FlagTestCases(RegistrationCartTestCase):
         cart_2.add_to_cart(self.PROD_1, 1)
         cart_2.set_quantity(self.PROD_1, 0)
 
-        cart.cart.released = True
-        cart.next_cart()
+        cart.cart.status = commerce.Cart.STATUS_RELEASED
+        cart.cart.save()
 
         with self.assertRaises(ValidationError):
             cart_2.set_quantity(self.PROD_1, 1)

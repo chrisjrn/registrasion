@@ -201,7 +201,8 @@ class CategoryConditionController(ConditionController):
         ''' returns True if the user has a product from a category that invokes
         this condition in one of their carts '''
 
-        carts = commerce.Cart.objects.filter(user=user, released=False)
+        carts = commerce.Cart.objects.filter(user=user)
+        carts = carts.exclude(status=commerce.Cart.STATUS_RELEASED)
         enabling_products = inventory.Product.objects.filter(
             category=self.condition.enabling_category,
         )
@@ -223,7 +224,8 @@ class ProductConditionController(ConditionController):
         ''' returns True if the user has a product that invokes this
         condition in one of their carts '''
 
-        carts = commerce.Cart.objects.filter(user=user, released=False)
+        carts = commerce.Cart.objects.filter(user=user)
+        carts = carts.exclude(status=commerce.Cart.STATUS_RELEASED)
         products_count = commerce.ProductItem.objects.filter(
             cart__in=carts,
             product__in=self.condition.enabling_products.all(),
@@ -272,7 +274,7 @@ class TimeOrStockLimitConditionController(ConditionController):
         reserved_carts = commerce.Cart.reserved_carts()
         reserved_carts = reserved_carts.exclude(
             user=user,
-            active=True,
+            status=commerce.Cart.STATUS_ACTIVE,
         )
 
         items = self._items()

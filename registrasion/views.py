@@ -231,6 +231,22 @@ def guided_registration(request):
 
 @login_required
 def edit_profile(request):
+    ''' View for editing an attendee's profile
+
+    The user must be logged in to edit their profile.
+
+    Returns:
+        redirect or render:
+            In the case of a ``POST`` request, it'll redirect to ``dashboard``,
+            or otherwise, it will render ``registrasion/profile_form.html``
+            with data::
+
+                {
+                    "form": form,  # Instance of ATTENDEE_PROFILE_FORM.
+                }
+
+    '''
+
     form, handled = _handle_profile(request, "profile")
 
     if handled and not form.errors:
@@ -292,7 +308,28 @@ def _handle_profile(request, prefix):
 
 @login_required
 def product_category(request, category_id):
-    ''' Registration selections form for a specific category of items.
+    ''' Form for selecting products from an individual product category.
+
+    Arguments:
+        category_id (castable to int): The id of the category to display.
+
+    Returns:
+        redirect or render:
+            If the form has been sucessfully submitted, redirect to
+            ``dashboard``. Otherwise, render
+            ``registrasion/product_category.html`` with data::
+
+                {
+                    "category": category,         # An inventory.Category for
+                                                  # category_id
+                    "discounts": discounts,       # A list of
+                                                  # DiscountAndQuantity
+                    "form": products_form,        # A form for selecting
+                                                  # products
+                    "voucher_form": voucher_form, # A form for entering a
+                                                  # voucher code
+                }
+
     '''
 
     PRODUCTS_FORM_PREFIX = "products"
@@ -456,7 +493,26 @@ def _handle_voucher(request, prefix):
 
 @login_required
 def checkout(request):
-    ''' Runs checkout for the current cart of items, ideally generating an
+    ''' Runs the checkout process for the current cart.
+
+    If the query string contains ``fix_errors=true``, Registrasion will attempt
+    to fix errors preventing the system from checking out, including by
+    cancelling expired discounts and vouchers, and removing any unavailable
+    products.
+
+    Returns:
+        render or redirect:
+            If the invoice is generated successfully, or there's already a
+            valid invoice for the current cart, redirect to ``invoice``.
+            If there are errors when generating the invoice, render
+            ``registrasion/checkout_errors.html`` with the following data::
+
+                {
+                    "error_list", [str, ...]  # The errors to display.
+                }
+
+
+    Runs checkout for the current cart of items, ideally generating an
     invoice. '''
 
     current_cart = CartController.for_user(request.user)
@@ -467,12 +523,12 @@ def checkout(request):
     try:
         current_invoice = InvoiceController.for_cart(current_cart.cart)
     except ValidationError as ve:
-        return checkout_errors(request, ve)
+        return _checkout_errors(request, ve)
 
     return redirect("invoice", current_invoice.invoice.id)
 
 
-def checkout_errors(request, errors):
+def _checkout_errors(request, errors):
 
     error_list = []
     for error in errors.error_list:
@@ -489,7 +545,20 @@ def checkout_errors(request, errors):
 
 def invoice_access(request, access_code):
     ''' Redirects to the first unpaid invoice for the attendee that matches
-    the given access code, if any. '''
+    the given access code, if any.
+
+    Arguments:
+
+        access_code (castable to int): The access code for the user whose
+            invoice you want to see.
+
+    Returns:
+        redirect:
+            Redirect to the first unpaid invoice for that user.
+
+    Raises:
+        Http404: If there is no such invoice.
+    '''
 
     invoices = commerce.Invoice.objects.filter(
         user__attendee__access_code=access_code,
@@ -505,10 +574,32 @@ def invoice_access(request, access_code):
 
 
 def invoice(request, invoice_id, access_code=None):
-    ''' Displays an invoice for a given invoice id.
+    ''' Displays an invoice.
+
     This view is not authenticated, but it will only allow access to either:
     the user the invoice belongs to; staff; or a request made with the correct
     access code.
+
+    Arguments:
+
+        invoice_id (castable to int): The invoice_id for the invoice you want
+            to view.
+
+        access_code (Optional[str]): The access code for the user who owns
+            this invoice.
+
+    Returns:
+        render:
+            Renders ``registrasion/invoice.html``, with the following data::
+
+                {
+                    "invoice": models.commerce.Invoice(),
+                }
+
+    Raises:
+        Http404: if the current user cannot view this invoice and the correct
+            access_code is not provided.
+
     '''
 
     current_invoice = InvoiceController.for_id_or_404(invoice_id)

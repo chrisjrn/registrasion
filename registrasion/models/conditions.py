@@ -392,8 +392,8 @@ class ProductFlag(EnablingConditionBase):
     ''' The condition is met because a specific product is purchased.
 
     Attributes:
-    enabling_products ([inventory.Product, ...]): The products that cause this
-        condition to be met.
+        enabling_products ([inventory.Product, ...]): The products that cause
+            this condition to be met.
     '''
 
     class Meta:

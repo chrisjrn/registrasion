@@ -23,6 +23,7 @@ Contents:
    inventory
    payments
    for-zookeepr-users
+   views
 
 
 Indices and tables

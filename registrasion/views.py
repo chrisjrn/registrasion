@@ -1,6 +1,7 @@
 import sys
 
 from registrasion import forms
+from registrasion import util
 from registrasion.models import commerce
 from registrasion.models import inventory
 from registrasion.models import people
@@ -24,7 +25,7 @@ from django.shortcuts import redirect
 from django.shortcuts import render
 
 
-GuidedRegistrationSection = namedtuple(
+_GuidedRegistrationSection = namedtuple(
     "GuidedRegistrationSection",
     (
         "title",
@@ -33,9 +34,26 @@ GuidedRegistrationSection = namedtuple(
         "form",
     )
 )
-GuidedRegistrationSection.__new__.__defaults__ = (
-    (None,) * len(GuidedRegistrationSection._fields)
-)
+
+
+@util.all_arguments_optional
+class GuidedRegistrationSection(_GuidedRegistrationSection):
+    ''' Represents a section of a guided registration page.
+
+    Attributes:
+        title (str): The title of the section.
+
+        discounts ([registrasion.contollers.discount.DiscountAndQuantity, ...]):
+            A list of discount objects that are available in the section. You
+            can display ``.clause`` to show what the discount applies to, and
+            ``.quantity`` to display the number of times that discount can be
+            applied.
+
+        description (str): A description of the section.
+
+        form (forms.Form): A form to display.
+    '''
+    pass
 
 
 def get_form(name):
@@ -46,13 +64,25 @@ def get_form(name):
 
 
 @login_required
-def guided_registration(request, page_id=0):
-    ''' Goes through the registration process in order,
-    making sure user sees all valid categories.
+def guided_registration(request):
+    ''' Goes through the registration process in order, making sure user sees
+    all valid categories.
 
-    WORK IN PROGRESS: the finalised version of this view will allow
-    grouping of categories into a specific page. Currently, it just goes
-    through each category one by one
+    The user must be logged in to see this view.
+
+    Returns:
+        render: Renders ``registrasion/guided_registration.html``,
+            with the following data::
+
+                {
+                    "current_step": int(),  # The current step in the
+                                            # registration
+                    "sections": sections,   # A list of
+                                            # GuidedRegistrationSections
+                    "title": str(),         # The title of the page
+                    "total_steps": int(),   # The total number of steps
+                }
+
     '''
 
     SESSION_KEY = "guided_registration_categories"

@@ -21,7 +21,6 @@ from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError
 from django.http import Http404
-from django.shortcuts import get_object_or_404
 from django.shortcuts import redirect
 from django.shortcuts import render
 
@@ -42,17 +41,17 @@ class GuidedRegistrationSection(_GuidedRegistrationSection):
     ''' Represents a section of a guided registration page.
 
     Attributes:
-        title (str): The title of the section.
+       title (str): The title of the section.
 
-        discounts ([registrasion.contollers.discount.DiscountAndQuantity, ...]):
+       discounts ([registrasion.contollers.discount.DiscountAndQuantity, ...]):
             A list of discount objects that are available in the section. You
             can display ``.clause`` to show what the discount applies to, and
             ``.quantity`` to display the number of times that discount can be
             applied.
 
-        description (str): A description of the section.
+       description (str): A description of the section.
 
-        form (forms.Form): A form to display.
+       form (forms.Form): A form to display.
     '''
     pass
 
@@ -569,7 +568,6 @@ def invoice_access(request, access_code):
         user__attendee__access_code=access_code,
     ).order_by("-issue_time")
 
-
     if not invoices:
         raise Http404()
 
@@ -634,6 +632,7 @@ def invoice(request, invoice_id, access_code=None):
 def _staff_only(user):
     ''' Returns true if the user is staff. '''
     return user.is_staff
+
 
 @user_passes_test(_staff_only)
 def manual_payment(request, invoice_id):

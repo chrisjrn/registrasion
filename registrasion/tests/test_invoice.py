@@ -484,7 +484,7 @@ class InvoiceTestCase(RegistrationCartTestCase):
         invoice.pay("Paying into the void.", cnval, pre_validate=False)
 
         notes = commerce.CreditNote.objects.filter(invoice=invoice.invoice)
-        notes = sorted(notes, key = lambda note: note.value)
+        notes = sorted(notes, key=lambda note: note.value)
 
         self.assertEqual(cnval, notes[0].value)
         self.assertEqual(val, notes[1].value)

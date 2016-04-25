@@ -26,12 +26,16 @@ class RegistrationCartTestCase(SetTimeMixin, TestCase):
         super(RegistrationCartTestCase, self).setUp()
 
     def tearDown(self):
-        if False:
+        if True:
             # If you're seeing segfaults in tests, enable this.
-            call_command('flush', verbosity=0, interactive=False,
-                             reset_sequences=False,
-                             allow_cascade=False,
-                             inhibit_post_migrate=False)
+            call_command(
+                'flush',
+                verbosity=0,
+                interactive=False,
+                reset_sequences=False,
+                allow_cascade=False,
+                inhibit_post_migrate=False
+            )
 
         super(RegistrationCartTestCase, self).tearDown()
 
@@ -51,11 +55,11 @@ class RegistrationCartTestCase(SetTimeMixin, TestCase):
             password='top_secret')
 
         attendee1 = people.Attendee.get_instance(cls.USER_1)
-        profile1 = people.AttendeeProfileBase.objects.create(
+        people.AttendeeProfileBase.objects.create(
             attendee=attendee1,
         )
         attendee2 = people.Attendee.get_instance(cls.USER_2)
-        profile2 = people.AttendeeProfileBase.objects.create(
+        people.AttendeeProfileBase.objects.create(
             attendee=attendee2,
         )
 

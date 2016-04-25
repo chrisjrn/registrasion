@@ -511,9 +511,7 @@ def checkout(request):
                     "error_list", [str, ...]  # The errors to display.
                 }
 
-
-    Runs checkout for the current cart of items, ideally generating an
-    invoice. '''
+    '''
 
     current_cart = CartController.for_user(request.user)
 
@@ -590,7 +588,8 @@ def invoice(request, invoice_id, access_code=None):
 
     Returns:
         render:
-            Renders ``registrasion/invoice.html``, with the following data::
+            Renders ``registrasion/invoice.html``, with the following
+            data::
 
                 {
                     "invoice": models.commerce.Invoice(),

@@ -3,9 +3,19 @@ Integrating Registrasion
 
 Registrasion is a Django app. It does not provide any templates -- you'll need to develop these yourself. You can use the `registrasion-demo <https://github.com/chrisjrn/registrasion-demo>`_ project as a starting point.
 
-To use Registrasion for your own conference, you'll need to do a small amount of development work, usually in your own Django App.
+To use Registrasion for your own conference, you'll need to do a small amount of configuration and development work, in your own Django App.
 
-The first is to define a model and form for your attendee profile, and the second is to implement a payment app.
+The configuration that you'll need to do is minimal. The first piece of development work is to define a model and form for your attendee profile, and the second is to implement a payment app.
+
+
+Configuring your Django App
+---------------------------
+
+In your Django ``settings.py`` file, you'll need to add the following to your ``INSTALLED_APPS``::
+
+  "registrasion",
+  "nested_admin",
+
 
 
 Attendee profile

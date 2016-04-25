@@ -1,7 +1,7 @@
 Integrating Registrasion
 ========================
 
-Registrasion is a Django app. It does not provide any templates -- you'll need to develop these yourself. You can use the ``registrasion-demo`` project as a starting point.
+Registrasion is a Django app. It does not provide any templates -- you'll need to develop these yourself. You can use the `registrasion-demo <https://github.com/chrisjrn/registrasion-demo>`_ project as a starting point.
 
 To use Registrasion for your own conference, you'll need to do a small amount of development work, usually in your own Django App.
 

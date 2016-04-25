@@ -5,6 +5,7 @@ from decimal import Decimal
 from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError
+from django.core.management import call_command
 from django.test import TestCase
 
 from registrasion.models import commerce
@@ -23,6 +24,16 @@ class RegistrationCartTestCase(SetTimeMixin, TestCase):
 
     def setUp(self):
         super(RegistrationCartTestCase, self).setUp()
+
+    def tearDown(self):
+        if False:
+            # If you're seeing segfaults in tests, enable this.
+            call_command('flush', verbosity=0, interactive=False,
+                             reset_sequences=False,
+                             allow_cascade=False,
+                             inhibit_post_migrate=False)
+
+        super(RegistrationCartTestCase, self).tearDown()
 
     @classmethod
     def setUpTestData(cls):

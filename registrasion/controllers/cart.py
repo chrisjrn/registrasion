@@ -266,7 +266,6 @@ class CartController(object):
         )
 
         for item in items:
-            print item
             required.remove(item.product.category)
 
         errors = []

@@ -100,6 +100,7 @@ class _QuantityBoxProductsForm(_ProductsForm):
                 label=product.name,
                 help_text=help_text,
                 min_value=0,
+                max_value=500,  # Issue #19. We should figure out real limit.
             )
             cls.base_fields[cls.field_name(product)] = field
 

@@ -26,7 +26,7 @@ class RegistrationCartTestCase(SetTimeMixin, TestCase):
         super(RegistrationCartTestCase, self).setUp()
 
     def tearDown(self):
-        if True:
+        if False:
             # If you're seeing segfaults in tests, enable this.
             call_command(
                 'flush',

@@ -1,6 +1,7 @@
 import sys
 
 from registrasion import forms
+from registrasion import util
 from registrasion.models import commerce
 from registrasion.models import inventory
 from registrasion.models import people
@@ -24,7 +25,7 @@ from django.shortcuts import redirect
 from django.shortcuts import render
 
 
-GuidedRegistrationSection = namedtuple(
+_GuidedRegistrationSection = namedtuple(
     "GuidedRegistrationSection",
     (
         "title",
@@ -33,9 +34,26 @@ GuidedRegistrationSection = namedtuple(
         "form",
     )
 )
-GuidedRegistrationSection.__new__.__defaults__ = (
-    (None,) * len(GuidedRegistrationSection._fields)
-)
+
+
+@util.all_arguments_optional
+class GuidedRegistrationSection(_GuidedRegistrationSection):
+    ''' Represents a section of a guided registration page.
+
+    Attributes:
+        title (str): The title of the section.
+
+        discounts ([registrasion.contollers.discount.DiscountAndQuantity, ...]):
+            A list of discount objects that are available in the section. You
+            can display ``.clause`` to show what the discount applies to, and
+            ``.quantity`` to display the number of times that discount can be
+            applied.
+
+        description (str): A description of the section.
+
+        form (forms.Form): A form to display.
+    '''
+    pass
 
 
 def get_form(name):
@@ -46,13 +64,25 @@ def get_form(name):
 
 
 @login_required
-def guided_registration(request, page_id=0):
-    ''' Goes through the registration process in order,
-    making sure user sees all valid categories.
+def guided_registration(request):
+    ''' Goes through the registration process in order, making sure user sees
+    all valid categories.
 
-    WORK IN PROGRESS: the finalised version of this view will allow
-    grouping of categories into a specific page. Currently, it just goes
-    through each category one by one
+    The user must be logged in to see this view.
+
+    Returns:
+        render: Renders ``registrasion/guided_registration.html``,
+            with the following data::
+
+                {
+                    "current_step": int(),  # The current step in the
+                                            # registration
+                    "sections": sections,   # A list of
+                                            # GuidedRegistrationSections
+                    "title": str(),         # The title of the page
+                    "total_steps": int(),   # The total number of steps
+                }
+
     '''
 
     SESSION_KEY = "guided_registration_categories"
@@ -90,8 +120,8 @@ def guided_registration(request, page_id=0):
         # Keep asking for the profile until everything passes.
         request.session[SESSION_KEY] = ASK_FOR_PROFILE
 
-        voucher_form, voucher_handled = handle_voucher(request, "voucher")
-        profile_form, profile_handled = handle_profile(request, "profile")
+        voucher_form, voucher_handled = _handle_voucher(request, "voucher")
+        profile_form, profile_handled = _handle_profile(request, "profile")
 
         voucher_section = GuidedRegistrationSection(
             title="Voucher Code",
@@ -158,7 +188,7 @@ def guided_registration(request, page_id=0):
             ]
 
             prefix = "category_" + str(category.id)
-            p = handle_products(request, category, products, prefix)
+            p = _handle_products(request, category, products, prefix)
             products_form, discounts, products_handled = p
 
             section = GuidedRegistrationSection(
@@ -201,7 +231,23 @@ def guided_registration(request, page_id=0):
 
 @login_required
 def edit_profile(request):
-    form, handled = handle_profile(request, "profile")
+    ''' View for editing an attendee's profile
+
+    The user must be logged in to edit their profile.
+
+    Returns:
+        redirect or render:
+            In the case of a ``POST`` request, it'll redirect to ``dashboard``,
+            or otherwise, it will render ``registrasion/profile_form.html``
+            with data::
+
+                {
+                    "form": form,  # Instance of ATTENDEE_PROFILE_FORM.
+                }
+
+    '''
+
+    form, handled = _handle_profile(request, "profile")
 
     if handled and not form.errors:
         messages.success(
@@ -216,7 +262,7 @@ def edit_profile(request):
     return render(request, "registrasion/profile_form.html", data)
 
 
-def handle_profile(request, prefix):
+def _handle_profile(request, prefix):
     ''' Returns a profile form instance, and a boolean which is true if the
     form was handled. '''
     attendee = people.Attendee.get_instance(request.user)
@@ -262,7 +308,28 @@ def handle_profile(request, prefix):
 
 @login_required
 def product_category(request, category_id):
-    ''' Registration selections form for a specific category of items.
+    ''' Form for selecting products from an individual product category.
+
+    Arguments:
+        category_id (castable to int): The id of the category to display.
+
+    Returns:
+        redirect or render:
+            If the form has been sucessfully submitted, redirect to
+            ``dashboard``. Otherwise, render
+            ``registrasion/product_category.html`` with data::
+
+                {
+                    "category": category,         # An inventory.Category for
+                                                  # category_id
+                    "discounts": discounts,       # A list of
+                                                  # DiscountAndQuantity
+                    "form": products_form,        # A form for selecting
+                                                  # products
+                    "voucher_form": voucher_form, # A form for entering a
+                                                  # voucher code
+                }
+
     '''
 
     PRODUCTS_FORM_PREFIX = "products"
@@ -270,7 +337,7 @@ def product_category(request, category_id):
 
     # Handle the voucher form *before* listing products.
     # Products can change as vouchers are entered.
-    v = handle_voucher(request, VOUCHERS_FORM_PREFIX)
+    v = _handle_voucher(request, VOUCHERS_FORM_PREFIX)
     voucher_form, voucher_handled = v
 
     category_id = int(category_id)  # Routing is [0-9]+
@@ -288,7 +355,7 @@ def product_category(request, category_id):
         )
         return redirect("dashboard")
 
-    p = handle_products(request, category, products, PRODUCTS_FORM_PREFIX)
+    p = _handle_products(request, category, products, PRODUCTS_FORM_PREFIX)
     products_form, discounts, products_handled = p
 
     if request.POST and not voucher_handled and not products_form.errors:
@@ -310,7 +377,7 @@ def product_category(request, category_id):
     return render(request, "registrasion/product_category.html", data)
 
 
-def handle_products(request, category, products, prefix):
+def _handle_products(request, category, products, prefix):
     ''' Handles a products list form in the given request. Returns the
     form instance, the discounts applicable to this form, and whether the
     contents were handled. '''
@@ -343,7 +410,7 @@ def handle_products(request, category, products, prefix):
 
     if request.method == "POST" and products_form.is_valid():
         if products_form.has_changed():
-            set_quantities_from_products_form(products_form, current_cart)
+            _set_quantities_from_products_form(products_form, current_cart)
 
         # If category is required, the user must have at least one
         # in an active+valid cart
@@ -365,7 +432,7 @@ def handle_products(request, category, products, prefix):
     return products_form, discounts, handled
 
 
-def set_quantities_from_products_form(products_form, current_cart):
+def _set_quantities_from_products_form(products_form, current_cart):
 
     quantities = list(products_form.product_quantities())
 
@@ -395,7 +462,7 @@ def set_quantities_from_products_form(products_form, current_cart):
             products_form.add_error(field, message)
 
 
-def handle_voucher(request, prefix):
+def _handle_voucher(request, prefix):
     ''' Handles a voucher form in the given request. Returns the voucher
     form instance, and whether the voucher code was handled. '''
 
@@ -426,8 +493,25 @@ def handle_voucher(request, prefix):
 
 @login_required
 def checkout(request):
-    ''' Runs checkout for the current cart of items, ideally generating an
-    invoice. '''
+    ''' Runs the checkout process for the current cart.
+
+    If the query string contains ``fix_errors=true``, Registrasion will attempt
+    to fix errors preventing the system from checking out, including by
+    cancelling expired discounts and vouchers, and removing any unavailable
+    products.
+
+    Returns:
+        render or redirect:
+            If the invoice is generated successfully, or there's already a
+            valid invoice for the current cart, redirect to ``invoice``.
+            If there are errors when generating the invoice, render
+            ``registrasion/checkout_errors.html`` with the following data::
+
+                {
+                    "error_list", [str, ...]  # The errors to display.
+                }
+
+    '''
 
     current_cart = CartController.for_user(request.user)
 
@@ -437,12 +521,12 @@ def checkout(request):
     try:
         current_invoice = InvoiceController.for_cart(current_cart.cart)
     except ValidationError as ve:
-        return checkout_errors(request, ve)
+        return _checkout_errors(request, ve)
 
     return redirect("invoice", current_invoice.invoice.id)
 
 
-def checkout_errors(request, errors):
+def _checkout_errors(request, errors):
 
     error_list = []
     for error in errors.error_list:
@@ -459,7 +543,20 @@ def checkout_errors(request, errors):
 
 def invoice_access(request, access_code):
     ''' Redirects to the first unpaid invoice for the attendee that matches
-    the given access code, if any. '''
+    the given access code, if any.
+
+    Arguments:
+
+        access_code (castable to int): The access code for the user whose
+            invoice you want to see.
+
+    Returns:
+        redirect:
+            Redirect to the first unpaid invoice for that user.
+
+    Raises:
+        Http404: If there is no such invoice.
+    '''
 
     invoices = commerce.Invoice.objects.filter(
         user__attendee__access_code=access_code,
@@ -475,10 +572,33 @@ def invoice_access(request, access_code):
 
 
 def invoice(request, invoice_id, access_code=None):
-    ''' Displays an invoice for a given invoice id.
+    ''' Displays an invoice.
+
     This view is not authenticated, but it will only allow access to either:
     the user the invoice belongs to; staff; or a request made with the correct
     access code.
+
+    Arguments:
+
+        invoice_id (castable to int): The invoice_id for the invoice you want
+            to view.
+
+        access_code (Optional[str]): The access code for the user who owns
+            this invoice.
+
+    Returns:
+        render:
+            Renders ``registrasion/invoice.html``, with the following
+            data::
+
+                {
+                    "invoice": models.commerce.Invoice(),
+                }
+
+    Raises:
+        Http404: if the current user cannot view this invoice and the correct
+            access_code is not provided.
+
     '''
 
     current_invoice = InvoiceController.for_id_or_404(invoice_id)
@@ -498,7 +618,28 @@ def invoice(request, invoice_id, access_code=None):
 
 @login_required
 def manual_payment(request, invoice_id):
-    ''' Allows staff to make manual payments or refunds on an invoice.'''
+    ''' Allows staff to make manual payments or refunds on an invoice.
+
+    This form requires a login, and the logged in user needs to be staff.
+
+    Arguments:
+        invoice_id (castable to int): The invoice ID to be paid
+
+    Returns:
+        render:
+            Renders ``registrasion/manual_payment.html`` with the following
+            data::
+
+                {
+                    "invoice": models.commerce.Invoice(),
+                    "form": form,   # A form that saves a ``ManualPayment``
+                                    # object.
+                }
+
+    Raises:
+        Http404: if the logged in user is not staff.
+
+    '''
 
     FORM_PREFIX = "manual_payment"
 
@@ -528,8 +669,22 @@ def manual_payment(request, invoice_id):
 
 @login_required
 def refund(request, invoice_id):
-    ''' Allows staff to refund payments against an invoice and request a
-    credit note.'''
+    ''' Marks an invoice as refunded and requests a credit note for the
+    full amount paid against the invoice.
+
+    This view requires a login, and the logged in user must be staff.
+
+    Arguments:
+        invoice_id (castable to int): The ID of the invoice to refund.
+
+    Returns:
+        redirect:
+            Redirects to ``invoice``.
+
+    Raises:
+        Http404: if the logged in user is not staff.
+
+    '''
 
     if not request.user.is_staff:
         raise Http404()
@@ -545,9 +700,36 @@ def refund(request, invoice_id):
     return redirect("invoice", invoice_id)
 
 
+@login_required
 def credit_note(request, note_id, access_code=None):
-    ''' Displays an credit note for a given id.
-    This view can only be seen by staff.
+    ''' Displays a credit note.
+
+    If ``request`` is a ``POST`` request, forms for applying or refunding
+    a credit note will be processed.
+
+    This view requires a login, and the logged in user must be staff.
+
+    Arguments:
+        note_id (castable to int): The ID of the credit note to view.
+
+    Returns:
+        render or redirect:
+            If the "apply to invoice" form is correctly processed, redirect to
+            that invoice, otherwise, render ``registration/credit_note.html``
+            with the following data::
+
+                {
+                    "credit_note": models.commerce.CreditNote(),
+                    "apply_form": form,  # A form for applying credit note
+                                         # to an invoice.
+                    "refund_form": form, # A form for applying a *manual*
+                                         # refund of the credit note.
+                }
+
+    Raises:
+        Http404: If the logged in user is not staff.
+
+
     '''
 
     if not request.user.is_staff:
@@ -584,7 +766,9 @@ def credit_note(request, note_id, access_code=None):
             request,
             "Applied manual refund to credit note."
         )
-        return redirect("invoice", invoice.id)
+        refund_form = forms.ManualCreditNoteRefundForm(
+            prefix="refund_note",
+        )
 
     data = {
         "credit_note": current_note.credit_note,

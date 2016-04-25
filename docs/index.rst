@@ -19,14 +19,17 @@ Contents:
    :maxdepth: 2
 
    overview
+   integration
    inventory
    payments
    for-zookeepr-users
+   views
 
 
 Indices and tables
 ==================
 
 * :ref:`genindex`
-.. * :ref:`modindex`
 * :ref:`search`
+
+.. * :ref:`modindex`

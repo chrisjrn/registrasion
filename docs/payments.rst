@@ -1,4 +1,5 @@
 .. automodule:: registrasion.models.commerce
+.. _payments_and_refunds:
 
 Payments and Refunds
 ====================
@@ -140,7 +141,7 @@ Credits can be applied to invoices::
 This will result in an instance of ``CreditNoteApplication`` being applied as a payment to ``invoice``. ``CreditNoteApplication`` will always be a payment of the full amount of its parent credit note. If this payment overpays the invoice it's being applied to, a credit note for the residual will be generated.
 
 Refunding credit notes
-~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~
 It is possible to release a credit note back to the original payment platform. To do so, you attach an instance of ``CreditNoteRefund`` to the original ``CreditNote``:
 
 .. autoclass :: CreditNoteRefund

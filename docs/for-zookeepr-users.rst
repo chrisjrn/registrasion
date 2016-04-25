@@ -1,4 +1,3 @@
-================================
 Registrasion for Zookeepr Keeprs
 ================================
 
@@ -16,11 +15,8 @@ Things that are the same
 
 Things that are different
 -------------------------
-* Ceilings can be used to apply discounts, so Early Bird ticket rates can be
-  implemented by applying a ceiling-type discount, rather than duplicating the
-  ticket type.
+* Ceilings can be used to apply discounts, so Early Bird ticket rates can be implemented by applying a ceiling-type discount, rather than duplicating the ticket type.
 * Vouchers can be used to enable products
  * e.g. Sponsor tickets do not appear until you supply a sponsor's voucher
 * Items may be enabled by having other specific items present
- * e.g. Extra accommodation nights do not appear until you purchase the main 
-   week worth of accommodation.
+ * e.g. Extra accommodation nights do not appear until you purchase the main week worth of accommodation.

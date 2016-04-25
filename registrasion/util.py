@@ -14,3 +14,14 @@ def generate_access_code():
     chars = string.uppercase + string.digits[1:]
     # 4 chars => 35 ** 4 = 1500625 (should be enough for anyone)
     return get_random_string(length=length, allowed_chars=chars)
+
+
+def all_arguments_optional(ntcls):
+    ''' Takes a namedtuple derivative and makes all of the arguments optional.
+    '''
+
+    ntcls.__new__.__defaults__ = (
+        (None,) * len(ntcls._fields)
+    )
+
+    return ntcls

@@ -29,6 +29,7 @@ In your Django ``settings.py`` file, you'll need to add the following to your ``
   "registrasion",
   "nested_admin",
 
+You will also need to configure ``symposion`` appropriately.
 
 
 Attendee profile

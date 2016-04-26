@@ -1,2 +1,2 @@
 django-nested-admin==2.2.6
-SymposionMaster==1.0.0b3-dev
+symposion==1.0b2.dev3

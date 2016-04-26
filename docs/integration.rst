@@ -11,14 +11,15 @@ The configuration that you'll need to do is minimal. The first piece of developm
 Installing Registrasion
 -----------------------
 
-Registrasion depends on an in-development version of Symposion. You'll need to add the following two lines to your ``requirements.txt`` files::
+Registrasion depends on an in-development version of Symposion. You'll need to add the following  line to your ``requirements.txt`` files::
 
-    git+https://github.com/pinax/symposion.git@ad81810
     git+https://github.com/chrisjrn/registrasion.git@releases/0.1
 
-Symposion currently specifies Django version 1.9.2.
+And also to enable dependency links in pip::
 
-Running ``pip install -r requirements.txt`` will pull down the git version of Symposion as well as the current 0.1 release of Registrasion.
+    pip install --process-dependency-links -r requirements.txt
+
+Symposion currently specifies Django version 1.9.2. Note that ``pip`` version 1.6 does not support ``--process-dependency-links``, so you'll need to use an earlier, or later version of ``pip``.
 
 
 Configuring your Django App

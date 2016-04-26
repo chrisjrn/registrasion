@@ -14,7 +14,6 @@ def read_file(filename):
     except IOError:
         return ''
 
-
 setup(
     name="registrasion",
     author="Christopher Neugebauer",
@@ -34,4 +33,5 @@ setup(
         "License :: OSI Approved :: Apache Software License",
     ),
     install_requires=read_file("requirements/base.txt").splitlines(),
+    dependency_links=read_file("requirements/dependencies.txt").splitlines(),
 )

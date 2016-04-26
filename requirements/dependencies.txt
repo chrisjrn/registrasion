@@ -1,1 +1,1 @@
-https://github.com/pinax/symposion/tarball/ad81810#egg=symposion-1.0b2.dev3
+https://github.com/pinax/symposion/tarball/ad81810#egg=symposion

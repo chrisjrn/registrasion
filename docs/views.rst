@@ -38,4 +38,4 @@ You'll need to render the following Django models in order to view invoices.
 
 .. autoclass:: LineItem
 
-.. autoclass:: PaymentBase
+See also: :class:`PaymentBase`

@@ -1,11 +1,24 @@
-Integrating Registrasion
-========================
+Installing and integrating Registrasion
+=======================================
 
 Registrasion is a Django app. It does not provide any templates -- you'll need to develop these yourself. You can use the `registrasion-demo <https://github.com/chrisjrn/registrasion-demo>`_ project as a starting point.
 
 To use Registrasion for your own conference, you'll need to do a small amount of configuration and development work, in your own Django App.
 
 The configuration that you'll need to do is minimal. The first piece of development work is to define a model and form for your attendee profile, and the second is to implement a payment app.
+
+
+Installing Registrasion
+-----------------------
+
+Registrasion depends on an in-development version of Symposion. You'll need to add the following two lines to your ``requirements.txt`` files::
+
+    git+https://github.com/pinax/symposion.git@ad81810
+    git+https://github.com/chrisjrn/registrasion.git@releases/0.1
+
+Symposion currently specifies Django version 1.9.2.
+
+Running ``pip install -r requirements.txt`` will pull down the git version of Symposion as well as the current 0.1 release of Registrasion.
 
 
 Configuring your Django App

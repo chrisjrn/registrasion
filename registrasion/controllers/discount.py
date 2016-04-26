@@ -27,7 +27,6 @@ class DiscountAndQuantity(object):
 
     '''
 
-
     def __init__(self, discount, clause, quantity):
         self.discount = discount
         self.clause = clause

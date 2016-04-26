@@ -1,4 +1,4 @@
 # Requirements that currently live in git land, so are necessary to make the
 # project build, but can't live in setup.py
 
--e git+https://github.com/pinax/symposion.git#egg=SymposionMaster # Symposion lives on git at the moment
+-e git+https://github.com/pinax/symposion.git@ad81810#egg=SymposionMaster-1.0.0b3-dev # Symposion lives on git at the moment

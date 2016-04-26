@@ -102,7 +102,39 @@ class DiscountItem(models.Model):
 @python_2_unicode_compatible
 class Invoice(models.Model):
     ''' An invoice. Invoices can be automatically generated when checking out
-    a Cart, in which case, it is attached to a given revision of a Cart. '''
+    a Cart, in which case, it is attached to a given revision of a Cart.
+
+    Attributes:
+
+        user (User): The owner of this invoice.
+
+        cart (commerce.Cart): The cart that was used to generate this invoice.
+
+        cart_revision (int): The value of ``cart.revision`` at the time of this
+            invoice's creation. If a change is made to the underlying cart,
+            this invoice is automatically void -- this change is detected
+            when ``cart.revision != cart_revision``.
+
+        status (int): One of ``STATUS_UNPAID``, ``STATUS_PAID``,
+            ``STATUS_REFUNDED``, OR ``STATUS_VOID``. Call
+            ``get_status_display`` for a human-readable representation.
+
+        recipient (str): A rendered representation of the invoice's recipient.
+
+        issue_time (datetime): When the invoice was issued.
+
+        due_time (datetime): When the invoice is due.
+
+        value (Decimal): The total value of the line items attached to the
+            invoice.
+
+        lineitem_set (Queryset[LineItem]): The set of line items that comprise
+            this invoice.
+
+        paymentbase_set(Queryset[PaymentBase]): The set of PaymentBase objects
+            that have been applied to this invoice.
+
+    '''
 
     class Meta:
         app_label = "registrasion"
@@ -165,7 +197,24 @@ class Invoice(models.Model):
 class LineItem(models.Model):
     ''' Line items for an invoice. These are denormalised from the ProductItems
     and DiscountItems that belong to a cart (for consistency), but also allow
-    for arbitrary line items when required. '''
+    for arbitrary line items when required.
+
+    Attributes:
+
+        invoice (commerce.Invoice): The invoice to which this LineItem is
+            attached.
+
+        description (str): A human-readable description of the line item.
+
+        quantity (int): The quantity of items represented by this line.
+
+        price (Decimal): The per-unit price for this line item.
+
+        product (Optional[inventory.Product]): The product that this LineItem
+            applies to. This allows you to do reports on sales and applied
+            discounts to individual products.
+
+    '''
 
     class Meta:
         app_label = "registrasion"

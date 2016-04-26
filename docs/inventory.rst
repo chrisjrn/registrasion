@@ -4,6 +4,11 @@ Inventory Management
 
 Registrasion uses an inventory model to keep track of tickets, and the other various products that attendees of your conference might want to have, such as t-shirts and dinner tickets.
 
+All of the classes described herein are available through the Django Admin interface.
+
+Overview
+--------
+
 The inventory model is split up into Categories and Products. Categories are used to group Products.
 
 Registrasion uses conditionals to build up complex tickets, or enable/disable specific items to specific users:

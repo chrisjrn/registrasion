@@ -8,6 +8,25 @@ from django.db.models import Sum
 
 
 class DiscountAndQuantity(object):
+    ''' Represents a discount that can be applied to a product or category
+    for a given user.
+
+    Attributes:
+
+        discount (conditions.DiscountBase): The discount object that the
+            clause arises from. A given DiscountBase can apply to multiple
+            clauses.
+
+        clause (conditions.DiscountForProduct|conditions.DiscountForCategory):
+            A clause describing which product or category this discount item
+            applies to. This casts to ``str()`` to produce a human-readable
+            version of the clause.
+
+        quantity (int): The number of times this discount item can be applied
+            for the given user.
+
+    '''
+
     def __init__(self, discount, clause, quantity):
         self.discount = discount
         self.clause = clause

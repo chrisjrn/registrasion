@@ -279,10 +279,7 @@ class FlagBase(models.Model):
             The Categories whose Products are affected by this flag.
     '''
 
-    class Meta:
-        # TODO: make concrete once https://code.djangoproject.com/ticket/26488
-        # is solved.
-        abstract = True
+    objects = InheritanceManager()
 
     DISABLE_IF_FALSE = 1
     ENABLE_IF_TRUE = 2
@@ -333,19 +330,7 @@ class FlagBase(models.Model):
     )
 
 
-class EnablingConditionBase(FlagBase):
-    ''' Reifies the abstract FlagBase. This is necessary because django
-    prevents renaming base classes in migrations. '''
-    # TODO: remove this, and make subclasses subclass FlagBase once
-    # https://code.djangoproject.com/ticket/26488 is solved.
-
-    class Meta:
-        app_label = "registrasion"
-
-    objects = InheritanceManager()
-
-
-class TimeOrStockLimitFlag(EnablingConditionBase):
+class TimeOrStockLimitFlag(FlagBase):
     ''' Product groupings that can be used to enable a product during a
     specific date range, or when fewer than a limit of products have been
     sold.
@@ -388,7 +373,7 @@ class TimeOrStockLimitFlag(EnablingConditionBase):
 
 
 @python_2_unicode_compatible
-class ProductFlag(EnablingConditionBase):
+class ProductFlag(FlagBase):
     ''' The condition is met because a specific product is purchased.
 
     Attributes:
@@ -412,7 +397,7 @@ class ProductFlag(EnablingConditionBase):
 
 
 @python_2_unicode_compatible
-class CategoryFlag(EnablingConditionBase):
+class CategoryFlag(FlagBase):
     ''' The condition is met because a product in a particular product is
     purchased.
 
@@ -437,7 +422,7 @@ class CategoryFlag(EnablingConditionBase):
 
 
 @python_2_unicode_compatible
-class VoucherFlag(EnablingConditionBase):
+class VoucherFlag(FlagBase):
     ''' The condition is met because a Voucher is present. This is for e.g.
     enabling sponsor tickets. '''
 

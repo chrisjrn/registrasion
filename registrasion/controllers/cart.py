@@ -266,7 +266,6 @@ class CartController(object):
         )
 
         for item in items:
-            print item
             required.remove(item.product.category)
 
         errors = []
@@ -279,7 +278,6 @@ class CartController(object):
 
     def _append_errors(self, errors, ve):
         for error in ve.error_list:
-            print error.message
             errors.append(error.message[1])
 
     def validate_cart(self):

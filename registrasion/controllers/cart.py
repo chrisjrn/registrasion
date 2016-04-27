@@ -307,6 +307,8 @@ class CartController(object):
             self._append_errors(errors, ve)
 
         # Validate the discounts
+        # TODO: refactor in terms of available_discounts
+        # why aren't we doing that here?!
         discount_items = commerce.DiscountItem.objects.filter(cart=cart)
         seen_discounts = set()
 

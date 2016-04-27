@@ -4,12 +4,18 @@ import operator
 from collections import defaultdict
 from collections import namedtuple
 
+from django.db.models import Case
+from django.db.models import Count
+from django.db.models import F, Q
 from django.db.models import Sum
+from django.db.models import Value
+from django.db.models import When
 from django.utils import timezone
 
 from registrasion.models import commerce
 from registrasion.models import conditions
 from registrasion.models import inventory
+
 
 
 ConditionAndRemainder = namedtuple(
@@ -21,16 +27,77 @@ ConditionAndRemainder = namedtuple(
 )
 
 
+_FlagCounter = namedtuple(
+    "_FlagCounter",
+    (
+        "products",
+        "categories",
+    ),
+)
+
+
+_ConditionsCount = namedtuple(
+    "ConditionsCount",
+    (
+        "dif",
+        "eit",
+    ),
+)
+
+
+class FlagCounter(_FlagCounter):
+
+    @classmethod
+    def count(cls):
+        # Get the count of how many conditions should exist per product
+        flagbases = conditions.FlagBase.objects
+
+        types = (
+            conditions.FlagBase.ENABLE_IF_TRUE,
+            conditions.FlagBase.DISABLE_IF_FALSE,
+        )
+        keys = ("eit", "dif")
+        flags = [
+            flagbases.filter(
+                condition=condition_type
+            ).values(
+                'products', 'categories'
+            ).annotate(
+                count=Count('id')
+            )
+            for condition_type in types
+        ]
+
+        cats = defaultdict(lambda: defaultdict(int))
+        prod = defaultdict(lambda: defaultdict(int))
+
+        for key, flagcounts in zip(keys, flags):
+            for row in flagcounts:
+                if row["products"] is not None:
+                    prod[row["products"]][key] = row["count"]
+                if row["categories"] is not None:
+                    cats[row["categories"]][key] = row["count"]
+
+        return cls(products=prod, categories=cats)
+
+    def get(self, product):
+        p = self.products[product.id]
+        c = self.categories[product.category.id]
+        eit = p["eit"] + c["eit"]
+        dif = p["dif"] + c["dif"]
+        return _ConditionsCount(dif=dif, eit=eit)
+
+
 class ConditionController(object):
     ''' Base class for testing conditions that activate Flag
     or Discount objects. '''
 
-    def __init__(self):
-        pass
+    def __init__(self, condition):
+        self.condition = condition
 
     @staticmethod
-    def for_condition(condition):
-        CONTROLLERS = {
+    def _controllers():
+        return {
             conditions.CategoryFlag: CategoryConditionController,
             conditions.IncludedProductDiscount: ProductConditionController,
             conditions.ProductFlag: ProductConditionController,
@@ -42,8 +109,14 @@ class ConditionController(object):
             conditions.VoucherFlag: VoucherConditionController,
         }
 
+    @staticmethod
+    def for_type(cls):
+        return ConditionController._controllers()[cls]
+
+    @staticmethod
+    def for_condition(condition):
         try:
-            return CONTROLLERS[type(condition)](condition)
+            return ConditionController.for_type(type(condition))(condition)
         except KeyError:
             return ConditionController()
 
@@ -91,20 +164,9 @@ class ConditionController(object):
             products = set(products)
             quantities = {}
 
-        # Get the conditions covered by the products themselves
-        prods = (
-            product.flagbase_set.select_subclasses()
-            for product in products
-        )
-        # Get the conditions covered by their categories
-        cats = (
-            category.flagbase_set.select_subclasses()
-            for category in set(product.category for product in products)
-        )
-
         if products:
             # Simplify the query.
-            all_conditions = reduce(operator.or_, itertools.chain(prods, cats))
+            all_conditions = cls._filtered_flags(user, products)
         else:
             all_conditions = []
 
@@ -114,11 +176,15 @@ class ConditionController(object):
         do_enable = defaultdict(lambda: False)
         # (if either sort of condition is present)
 
+        # Count the number of conditions for a product
+        dif_count = defaultdict(int)
+        eit_count = defaultdict(int)
+
         messages = {}
 
         for condition in all_conditions:
             cond = cls.for_condition(condition)
-            remainder = cond.user_quantity_remaining(user)
+            remainder = cond.user_quantity_remaining(user, filtered=True)
 
             # Get all products covered by this condition, and the products
             # from the categories covered by this condition
@@ -149,14 +215,41 @@ class ConditionController(object):
             for product in all_products:
                 if condition.is_disable_if_false:
                     do_not_disable[product] &= met
+                    dif_count[product] += 1
                 else:
                     do_enable[product] |= met
+                    eit_count[product] += 1
 
                 if not met and product not in messages:
                     messages[product] = message
 
+        total_flags = FlagCounter.count()
+
         valid = {}
+
+        # the problem is that now, not every condition falls into
+        # do_not_disable or do_enable '''
+        # You should look into this, chris :)
+
+        for product in products:
+            if quantities:
+                if quantities[product] == 0:
+                    continue
+
+            f = total_flags.get(product)
+            if f.dif > 0 and f.dif != dif_count[product]:
+                do_not_disable[product] = False
+                if product not in messages:
+                    messages[product] = "Some disable-if-false " \
+                                        "conditions were not met"
+            if f.eit > 0 and product not in do_enable:
+                do_enable[product] = False
+                if product not in messages:
+                    messages[product] = "Some enable-if-true " \
+                                        "conditions were not met"
+
         for product in itertools.chain(do_not_disable, do_enable):
+            f = total_flags.get(product)
             if product in do_enable:
                 # If there's an enable-if-true, we need need of those met too.
                 # (do_not_disable will default to true otherwise)
@@ -172,7 +265,71 @@ class ConditionController(object):
 
         return error_fields
 
-    def user_quantity_remaining(self, user):
+    @classmethod
+    def _filtered_flags(cls, user, products):
+        '''
+
+        Returns:
+            Sequence[flagbase]: All flags that passed the filter function.
+
+        '''
+
+        types = list(ConditionController._controllers())
+        flagtypes = [i for i in types if issubclass(i, conditions.FlagBase)]
+
+        # Get all flags for the products and categories.
+        prods = (
+            product.flagbase_set.all()
+            for product in products
+        )
+        cats = (
+            category.flagbase_set.all()
+            for category in set(product.category for product in products)
+        )
+        all_flags = reduce(operator.or_, itertools.chain(prods, cats))
+
+        all_subsets = []
+
+        for flagtype in flagtypes:
+            flags = flagtype.objects.filter(id__in=all_flags)
+            ctrl = ConditionController.for_type(flagtype)
+            flags = ctrl.pre_filter(flags, user)
+            all_subsets.append(flags)
+
+        return itertools.chain(*all_subsets)
+
+    @classmethod
+    def pre_filter(cls, queryset, user):
+        ''' Returns only the flag conditions that might be available for this
+        user. It should hopefully reduce the number of queries that need to be
+        executed to determine if a flag is met.
+
+        If this filtration implements the same query as is_met, then you should
+        be able to implement ``is_met()`` in terms of this.
+
+        Arguments:
+
+            queryset (Queryset[c]): The canditate conditions.
+
+            user (User): The user for whom we're testing these conditions.
+
+        Returns:
+            Queryset[c]: A subset of the conditions that pass the pre-filter
+                test for this user.
+
+        '''
+
+        # Default implementation does NOTHING.
+        return queryset
+
+    def passes_filter(self, user):
+        ''' Returns true if the condition passes the filter '''
+
+        cls = type(self.condition)
+        qs = cls.objects.filter(pk=self.condition.id)
+        return self.condition in self.pre_filter(qs, user)
+
+    def user_quantity_remaining(self, user, filtered=False):
         ''' Returns the number of items covered by this flag condition the
         user can add to the current cart. This default implementation returns
         a big number if is_met() is true, otherwise 0.
@@ -180,26 +337,37 @@ class ConditionController(object):
         Either this method, or is_met() must be overridden in subclasses.
         '''
 
-        return 99999999 if self.is_met(user) else 0
+        return _BIG_QUANTITY if self.is_met(user, filtered) else 0
 
-    def is_met(self, user):
+    def is_met(self, user, filtered=False):
         ''' Returns True if this flag condition is met, otherwise returns
         False.
 
         Either this method, or user_quantity_remaining() must be overridden
         in subclasses.
+
+        Arguments:
+
+            user (User): The user for whom this test must be met.
+
+            filter (bool): If true, this condition was part of a queryset
+                returned by pre_filter() for this user.
+
         '''
-        return self.user_quantity_remaining(user) > 0
+        return self.user_quantity_remaining(user, filtered) > 0
 
 
-class CategoryConditionController(ConditionController):
+class IsMetByFilter(object):
 
-    def __init__(self, condition):
-        self.condition = condition
+    def is_met(self, user, filtered=False):
+        ''' Returns True if this flag condition is met, otherwise returns
+        False. It determines if the condition is met by calling pre_filter
+        with a queryset containing only self.condition. '''
 
-    def is_met(self, user):
-        ''' returns True if the user has a product from a category that invokes
-        this condition in one of their carts '''
+        if filtered:
+            return True  # Why query again?
+
+        return self.passes_filter(user)
 
         carts = commerce.Cart.objects.filter(user=user)
         carts = carts.exclude(status=commerce.Cart.STATUS_RELEASED)
@@ -212,112 +380,176 @@ class CategoryConditionController(ConditionController):
         ).count()
         return products_count > 0
 
+class RemainderSetByFilter(object):
 
-class ProductConditionController(ConditionController):
+    def user_quantity_remaining(self, user, filtered=True):
+        ''' returns 0 if the date range is violated, otherwise, it will return
+        the quantity remaining under the stock limit.
+
+        The filter for this condition must add an annotation called "remainder"
+        in order for this to work.
+        '''
+
+        if filtered:
+            if hasattr(self.condition, "remainder"):
+                return self.condition.remainder
+
+
+
+        # Mark self.condition with a remainder
+        qs = type(self.condition).objects.filter(pk=self.condition.id)
+        qs = self.pre_filter(qs, user)
+
+        if len(qs) > 0:
+            return qs[0].remainder
+        else:
+            return 0
+
+
+class CategoryConditionController(IsMetByFilter, ConditionController):
+
+    @classmethod
+    def pre_filter(self, queryset, user):
+        ''' Returns all of the items from queryset where the user has a
+        product from a category invoking that item's condition in one of their
+        carts. '''
+
+        items = commerce.ProductItem.objects.filter(cart__user=user)
+        items = items.exclude(cart__status=commerce.Cart.STATUS_RELEASED)
+        items = items.select_related("product", "product__category")
+        categories = [item.product.category for item in items]
+
+        return queryset.filter(enabling_category__in=categories)
+
+
+class ProductConditionController(IsMetByFilter, ConditionController):
     ''' Condition tests for ProductFlag and
     IncludedProductDiscount. '''
 
-    def __init__(self, condition):
-        self.condition = condition
+    @classmethod
+    def pre_filter(self, queryset, user):
+        ''' Returns all of the items from queryset where the user has a
+        product invoking that item's condition in one of their carts. '''
 
-    def is_met(self, user):
-        ''' returns True if the user has a product that invokes this
-        condition in one of their carts '''
+        items = commerce.ProductItem.objects.filter(cart__user=user)
+        items = items.exclude(cart__status=commerce.Cart.STATUS_RELEASED)
+        items = items.select_related("product", "product__category")
+        products = [item.product for item in items]
 
-        carts = commerce.Cart.objects.filter(user=user)
-        carts = carts.exclude(status=commerce.Cart.STATUS_RELEASED)
-        products_count = commerce.ProductItem.objects.filter(
-            cart__in=carts,
-            product__in=self.condition.enabling_products.all(),
-        ).count()
-        return products_count > 0
+        return queryset.filter(enabling_products__in=products)
 
 
-class TimeOrStockLimitConditionController(ConditionController):
+class TimeOrStockLimitConditionController(
+        RemainderSetByFilter,
+        ConditionController,
+    ):
     ''' Common condition tests for TimeOrStockLimit Flag and
     Discount.'''
 
-    def __init__(self, ceiling):
-        self.ceiling = ceiling
+    @classmethod
+    def pre_filter(self, queryset, user):
+        ''' Returns all of the items from queryset where the date falls into
+        any specified range, but not yet where the stock limit is not yet
+        reached.'''
 
-    def user_quantity_remaining(self, user):
-        ''' returns 0 if the date range is violated, otherwise, it will return
-        the quantity remaining under the stock limit. '''
-
-        # Test date range
-        if not self._test_date_range():
-            return 0
-
-        return self._get_remaining_stock(user)
-
-    def _test_date_range(self):
         now = timezone.now()
 
-        if self.ceiling.start_time is not None:
-            if now < self.ceiling.start_time:
-                return False
+        # Keep items with no start time, or start time not yet met.
+        queryset = queryset.filter(Q(start_time=None) | Q(start_time__lte=now))
+        queryset = queryset.filter(Q(end_time=None) | Q(end_time__gte=now))
 
-        if self.ceiling.end_time is not None:
-            if now > self.ceiling.end_time:
-                return False
+        # Filter out items that have been reserved beyond the limits
+        quantity_or_zero = self._calculate_quantities(user)
 
-        return True
+        remainder = Case(
+            When(limit=None, then=Value(_BIG_QUANTITY)),
+            default=F("limit") - Sum(quantity_or_zero),
+        )
 
-    def _get_remaining_stock(self, user):
-        ''' Returns the stock that remains under this ceiling, excluding the
-        user's current cart. '''
+        queryset = queryset.annotate(remainder=remainder)
+        queryset = queryset.filter(remainder__gt=0)
 
-        if self.ceiling.limit is None:
-            return 99999999
+        return queryset
 
-        # We care about all reserved carts, but not the user's current cart
+    @classmethod
+    def _relevant_carts(cls, user):
         reserved_carts = commerce.Cart.reserved_carts()
         reserved_carts = reserved_carts.exclude(
             user=user,
             status=commerce.Cart.STATUS_ACTIVE,
         )
-
-        items = self._items()
-        items = items.filter(cart__in=reserved_carts)
-        count = items.aggregate(Sum("quantity"))["quantity__sum"] or 0
-
-        return self.ceiling.limit - count
+        return reserved_carts
 
 
 class TimeOrStockLimitFlagController(
         TimeOrStockLimitConditionController):
 
-    def _items(self):
-        category_products = inventory.Product.objects.filter(
-            category__in=self.ceiling.categories.all(),
-        )
-        products = self.ceiling.products.all() | category_products
+    @classmethod
+    def _calculate_quantities(cls, user):
+        reserved_carts = cls._relevant_carts(user)
 
-        product_items = commerce.ProductItem.objects.filter(
-            product__in=products.all(),
+        # Calculate category lines
+        cat_items = F('categories__product__productitem__product__category')
+        reserved_category_products = (
+            Q(categories=cat_items) &
+            Q(categories__product__productitem__cart__in=reserved_carts)
         )
-        return product_items
+
+        # Calculate product lines
+        reserved_products = (
+            Q(products=F('products__productitem__product')) &
+            Q(products__productitem__cart__in=reserved_carts)
+        )
+
+        category_quantity_in_reserved_carts = When(
+            reserved_category_products,
+            then="categories__product__productitem__quantity",
+        )
+
+        product_quantity_in_reserved_carts = When(
+            reserved_products,
+            then="products__productitem__quantity",
+        )
+
+        quantity_or_zero = Case(
+            category_quantity_in_reserved_carts,
+            product_quantity_in_reserved_carts,
+            default=Value(0),
+        )
+
+        return quantity_or_zero
 
 
 class TimeOrStockLimitDiscountController(TimeOrStockLimitConditionController):
 
-    def _items(self):
-        discount_items = commerce.DiscountItem.objects.filter(
-            discount=self.ceiling,
+    @classmethod
+    def _calculate_quantities(cls, user):
+        reserved_carts = cls._relevant_carts(user)
+
+        quantity_in_reserved_carts = When(
+            discountitem__cart__in=reserved_carts,
+            then="discountitem__quantity"
         )
-        return discount_items
+
+        quantity_or_zero = Case(
+            quantity_in_reserved_carts,
+            default=Value(0)
+        )
+
+        return quantity_or_zero
 
 
-class VoucherConditionController(ConditionController):
+class VoucherConditionController(IsMetByFilter, ConditionController):
     ''' Condition test for VoucherFlag and VoucherDiscount.'''
 
-    def __init__(self, condition):
-        self.condition = condition
+    @classmethod
+    def pre_filter(self, queryset, user):
+        ''' Returns all of the items from queryset where the user has entered
+        a voucher that invokes that item's condition in one of their carts. '''
 
-    def is_met(self, user):
-        ''' returns True if the user has the given voucher attached. '''
-        carts_count = commerce.Cart.objects.filter(
+        carts = commerce.Cart.objects.filter(
             user=user,
-            vouchers=self.condition.voucher,
-        ).count()
-        return carts_count > 0
+        )
+        vouchers = [cart.vouchers.all() for cart in carts]
+
+        return queryset.filter(voucher__in=itertools.chain(*vouchers))

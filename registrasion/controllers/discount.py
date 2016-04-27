@@ -4,7 +4,11 @@ from conditions import ConditionController
 from registrasion.models import commerce
 from registrasion.models import conditions
 
+from django.db.models import Case
+from django.db.models import Q
 from django.db.models import Sum
+from django.db.models import Value
+from django.db.models import When
 
 
 class DiscountAndQuantity(object):
@@ -43,6 +47,62 @@ def available_discounts(user, categories, products):
     and products. The discounts also list the available quantity for this user,
     not including products that are pending purchase. '''
 
+
+
+    filtered_clauses = _filtered_discounts(user, categories, products)
+
+    discounts = []
+
+    # Markers so that we don't need to evaluate given conditions more than once
+    accepted_discounts = set()
+    failed_discounts = set()
+
+    for clause in filtered_clauses:
+        discount = clause.discount
+        cond = ConditionController.for_condition(discount)
+
+        past_use_count = discount.past_use_count
+
+        # TODO: add test case --
+        # discount covers 2x prod_1 and 1x prod_2
+        # add 1x prod_2
+        # add 1x prod_1
+        # checkout
+        # discount should be available for prod_1
+
+        if past_use_count >= clause.quantity:
+            # This clause has exceeded its use count
+            pass
+        elif discount not in failed_discounts:
+            # This clause is still available
+            is_accepted = discount in accepted_discounts
+            if is_accepted or cond.is_met(user, filtered=True):
+                # This clause is valid for this user
+                discounts.append(DiscountAndQuantity(
+                    discount=discount,
+                    clause=clause,
+                    quantity=clause.quantity - past_use_count,
+                ))
+                accepted_discounts.add(discount)
+            else:
+                # This clause is not valid for this user
+                failed_discounts.add(discount)
+    return discounts
+
+
+def _filtered_discounts(user, categories, products):
+    '''
+
+    Returns:
+        Sequence[discountbase]: All discounts that passed the filter function.
+
+    '''
+
+    types = list(ConditionController._controllers())
+    discounttypes = [
+        i for i in types if issubclass(i, conditions.DiscountBase)
+    ]
+
     # discounts that match provided categories
     category_discounts = conditions.DiscountForCategory.objects.filter(
         category__in=categories
@@ -67,51 +127,56 @@ def available_discounts(user, categories, products):
         "category",
     )
 
+    valid_discounts = conditions.DiscountBase.objects.filter(
+        Q(discountforproduct__in=product_discounts) |
+        Q(discountforcategory__in=all_category_discounts)
+    )
+
+    all_subsets = []
+
+    for discounttype in discounttypes:
+        discounts = discounttype.objects.filter(id__in=valid_discounts)
+        ctrl = ConditionController.for_type(discounttype)
+        discounts = ctrl.pre_filter(discounts, user)
+        discounts = _annotate_with_past_uses(discounts, user)
+        all_subsets.append(discounts)
+
+    filtered_discounts = list(itertools.chain(*all_subsets))
+
+    # Map from discount key to itself (contains annotations added by filter)
+    from_filter = dict((i.id, i) for i in filtered_discounts)
+
     # The set of all potential discounts
-    potential_discounts = set(itertools.chain(
-        product_discounts,
-        all_category_discounts,
+    discount_clauses = set(itertools.chain(
+        product_discounts.filter(discount__in=filtered_discounts),
+        all_category_discounts.filter(discount__in=filtered_discounts),
     ))
 
-    discounts = []
+    # Replace discounts with the filtered ones
+    # These are the correct subclasses (saves query later on), and have
+    # correct annotations from filters if necessary.
+    for clause in discount_clauses:
+        clause.discount = from_filter[clause.discount.id]
 
-    # Markers so that we don't need to evaluate given conditions more than once
-    accepted_discounts = set()
-    failed_discounts = set()
+    return discount_clauses
 
-    for discount in potential_discounts:
-        real_discount = conditions.DiscountBase.objects.get_subclass(
-            pk=discount.discount.pk,
-        )
-        cond = ConditionController.for_condition(real_discount)
 
-        # Count the past uses of the given discount item.
-        # If this user has exceeded the limit for the clause, this clause
-        # is not available any more.
-        past_uses = commerce.DiscountItem.objects.filter(
-            cart__user=user,
-            cart__status=commerce.Cart.STATUS_PAID,  # Only past carts count
-            discount=real_discount,
-        )
-        agg = past_uses.aggregate(Sum("quantity"))
-        past_use_count = agg["quantity__sum"]
-        if past_use_count is None:
-            past_use_count = 0
+def _annotate_with_past_uses(queryset, user):
+    ''' Annotates the queryset with a usage count for that discount by the
+    given user. '''
 
-        if past_use_count >= discount.quantity:
-            # This clause has exceeded its use count
-            pass
-        elif real_discount not in failed_discounts:
-            # This clause is still available
-            if real_discount in accepted_discounts or cond.is_met(user):
-                # This clause is valid for this user
-                discounts.append(DiscountAndQuantity(
-                    discount=real_discount,
-                    clause=discount,
-                    quantity=discount.quantity - past_use_count,
-                ))
-                accepted_discounts.add(real_discount)
-            else:
-                # This clause is not valid for this user
-                failed_discounts.add(real_discount)
-    return discounts
+    past_use_quantity = When(
+        (
+            Q(discountitem__cart__user=user) &
+            Q(discountitem__cart__status=commerce.Cart.STATUS_PAID)
+        ),
+        then="discountitem__quantity",
+    )
+
+    past_use_quantity_or_zero = Case(
+        past_use_quantity,
+        default=Value(0),
+    )
+
+    queryset = queryset.annotate(past_use_count=Sum(past_use_quantity_or_zero))
+    return queryset

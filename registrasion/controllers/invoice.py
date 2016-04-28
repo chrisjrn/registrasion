@@ -99,6 +99,10 @@ class InvoiceController(ForId, object):
         )
 
         product_items = commerce.ProductItem.objects.filter(cart=cart)
+        product_items = product_items.select_related(
+            "product",
+            "product__category",
+        )
 
         if len(product_items) == 0:
             raise ValidationError("Your cart is empty.")
@@ -106,28 +110,40 @@ class InvoiceController(ForId, object):
         product_items = product_items.order_by(
             "product__category__order", "product__order"
         )
+
         discount_items = commerce.DiscountItem.objects.filter(cart=cart)
+        discount_items = discount_items.select_related(
+            "discount",
+            "product",
+            "product__category",
+        )
+
+        line_items = []
+
         invoice_value = Decimal()
         for item in product_items:
             product = item.product
-            line_item = commerce.LineItem.objects.create(
+            line_item = commerce.LineItem(
                 invoice=invoice,
                 description="%s - %s" % (product.category.name, product.name),
                 quantity=item.quantity,
                 price=product.price,
                 product=product,
             )
+            line_items.append(line_item)
             invoice_value += line_item.quantity * line_item.price
-
         for item in discount_items:
-            line_item = commerce.LineItem.objects.create(
+            line_item = commerce.LineItem(
                 invoice=invoice,
                 description=item.discount.description,
                 quantity=item.quantity,
                 price=cls.resolve_discount_value(item) * -1,
                 product=item.product,
             )
+            line_items.append(line_item)
             invoice_value += line_item.quantity * line_item.price
+
+        commerce.LineItem.objects.bulk_create(line_items)
 
         invoice.value = invoice_value
 

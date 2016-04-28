@@ -358,6 +358,7 @@ class CartController(object):
             errors.append(ve)
 
         items = commerce.ProductItem.objects.filter(cart=cart)
+        items = items.select_related("product", "product__category")
 
         product_quantities = list((i.product, i.quantity) for i in items)
         try:

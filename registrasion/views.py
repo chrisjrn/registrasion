@@ -181,33 +181,35 @@ def guided_registration(request):
             attendee.save()
             return next_step
 
-        for category in cats:
-            products = [
-                i for i in available_products
-                if i.category == category
-            ]
+        with CartController.operations_batch(request.user):
+            for category in cats:
+                products = [
+                    i for i in available_products
+                    if i.category == category
+                ]
 
-            prefix = "category_" + str(category.id)
-            p = _handle_products(request, category, products, prefix)
-            products_form, discounts, products_handled = p
+                prefix = "category_" + str(category.id)
+                p = _handle_products(request, category, products, prefix)
+                products_form, discounts, products_handled = p
 
-            section = GuidedRegistrationSection(
-                title=category.name,
-                description=category.description,
-                discounts=discounts,
-                form=products_form,
-            )
+                section = GuidedRegistrationSection(
+                    title=category.name,
+                    description=category.description,
+                    discounts=discounts,
+                    form=products_form,
+                )
 
-            if products:
-                # This product category has items to show.
-                sections.append(section)
-                # Add this to the list of things to show if the form errors.
-                request.session[SESSION_KEY].append(category.id)
+                if products:
+                    # This product category has items to show.
+                    sections.append(section)
+                    # Add this to the list of things to show if the form
+                    # errors.
+                    request.session[SESSION_KEY].append(category.id)
 
-                if request.method == "POST" and not products_form.errors:
-                    # This is only saved if we pass each form with no errors,
-                    # and if the form actually has products.
-                    attendee.guided_categories_complete.add(category)
+                    if request.method == "POST" and not products_form.errors:
+                        # This is only saved if we pass each form with no
+                        # errors, and if the form actually has products.
+                        attendee.guided_categories_complete.add(category)
 
     if sections and request.method == "POST":
         for section in sections:

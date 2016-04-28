@@ -4,6 +4,7 @@ import operator
 from collections import defaultdict
 from collections import namedtuple
 from django.db.models import Count
+from django.db.models import Q
 
 from .conditions import ConditionController
 
@@ -83,18 +84,16 @@ class FlagController(object):
 
             # Get all products covered by this condition, and the products
             # from the categories covered by this condition
-            cond_products = condition.products.all()
-            from_category = inventory.Product.objects.filter(
-                category__in=condition.categories.all(),
-            ).all()
-            all_products = cond_products | from_category
+
+            ids = [product.id for product in products]
+            all_products = inventory.Product.objects.filter(id__in=ids)
+            cond = (
+                Q(flagbase_set=condition) |
+                Q(category__in=condition.categories.all())
+            )
+
+            all_products = all_products.filter(cond)
             all_products = all_products.select_related("category")
-            # Remove the products that we aren't asking about
-            all_products = [
-                product
-                for product in all_products
-                if product in products
-            ]
 
             if quantities:
                 consumed = sum(quantities[i] for i in all_products)
@@ -221,6 +220,7 @@ _ConditionsCount = namedtuple(
 )
 
 
+# TODO: this should be cacheable.
 class FlagCounter(_FlagCounter):
 
     @classmethod

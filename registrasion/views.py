@@ -445,14 +445,17 @@ def _handle_products(request, category, products, prefix):
 def _set_quantities_from_products_form(products_form, current_cart):
 
     quantities = list(products_form.product_quantities())
-
+    id_to_quantity = dict(i[:2] for i in quantities)
     pks = [i[0] for i in quantities]
     products = inventory.Product.objects.filter(
         id__in=pks,
     ).select_related("category")
 
+
+
+    # TODO: This is fundamentally dumb
     product_quantities = [
-        (products.get(pk=i[0]), i[1]) for i in quantities
+        (product, id_to_quantity[product.id]) for product in products
     ]
     field_names = dict(
         (i[0][0], i[1][2]) for i in zip(product_quantities, quantities)

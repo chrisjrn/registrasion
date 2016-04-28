@@ -154,12 +154,17 @@ class CategoryConditionController(IsMetByFilter, ConditionController):
         product from a category invoking that item's condition in one of their
         carts. '''
 
-        items = commerce.ProductItem.objects.filter(cart__user=user)
-        items = items.exclude(cart__status=commerce.Cart.STATUS_RELEASED)
-        items = items.select_related("product", "product__category")
-        categories = [item.product.category for item in items]
+        in_user_carts = Q(
+            enabling_category__product__productitem__cart__user=user
+        )
+        released = commerce.Cart.STATUS_RELEASED
+        in_released_carts = Q(
+            enabling_category__product__productitem__cart__status=released
+        )
+        queryset = queryset.filter(in_user_carts)
+        queryset = queryset.exclude(in_released_carts)
 
-        return queryset.filter(enabling_category__in=categories)
+        return queryset
 
 
 class ProductConditionController(IsMetByFilter, ConditionController):
@@ -171,12 +176,15 @@ class ProductConditionController(IsMetByFilter, ConditionController):
         ''' Returns all of the items from queryset where the user has a
         product invoking that item's condition in one of their carts. '''
 
-        items = commerce.ProductItem.objects.filter(cart__user=user)
-        items = items.exclude(cart__status=commerce.Cart.STATUS_RELEASED)
-        items = items.select_related("product", "product__category")
-        products = [item.product for item in items]
+        in_user_carts = Q(enabling_products__productitem__cart__user=user)
+        released = commerce.Cart.STATUS_RELEASED
+        in_released_carts = Q(
+            enabling_products__productitem__cart__status=released
+        )
+        queryset = queryset.filter(in_user_carts)
+        queryset = queryset.exclude(in_released_carts)
 
-        return queryset.filter(enabling_products__in=products)
+        return queryset
 
 
 class TimeOrStockLimitConditionController(
@@ -287,9 +295,4 @@ class VoucherConditionController(IsMetByFilter, ConditionController):
         ''' Returns all of the items from queryset where the user has entered
         a voucher that invokes that item's condition in one of their carts. '''
 
-        carts = commerce.Cart.objects.filter(
-            user=user,
-        )
-        vouchers = [cart.vouchers.all() for cart in carts]
-
-        return queryset.filter(voucher__in=itertools.chain(*vouchers))
+        return queryset.filter(voucher__cart__user=user)

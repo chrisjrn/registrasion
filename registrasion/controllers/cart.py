@@ -8,6 +8,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Max
+from django.db.models import Q
 from django.utils import timezone
 
 from registrasion.exceptions import CartValidationError
@@ -83,6 +84,8 @@ class CartController(object):
         When a batch is ended, discounts are recalculated, and the cart's
         revision is increased.
         '''
+
+        # TODO cache carts mid-batch?
 
         ctrl = cls.for_user(user)
         _id = ctrl.cart.id
@@ -180,22 +183,28 @@ class CartController(object):
         # Validate that the limits we're adding are OK
         self._test_limits(all_product_quantities)
 
+        new_items = []
+        products = []
         for product, quantity in product_quantities:
-            try:
-                product_item = commerce.ProductItem.objects.get(
-                    cart=self.cart,
-                    product=product,
-                )
-                product_item.quantity = quantity
-                product_item.save()
-            except ObjectDoesNotExist:
-                commerce.ProductItem.objects.create(
-                    cart=self.cart,
-                    product=product,
-                    quantity=quantity,
-                )
+            products.append(product)
 
-        items_in_cart.filter(quantity=0).delete()
+            if quantity == 0:
+                continue
+
+            item = commerce.ProductItem(
+                cart=self.cart,
+                product=product,
+                quantity=quantity,
+            )
+            new_items.append(item)
+
+        to_delete = (
+            Q(quantity=0) |
+            Q(product__in=products)
+        )
+
+        items_in_cart.filter(to_delete).delete()
+        commerce.ProductItem.objects.bulk_create(new_items)
 
     def _test_limits(self, product_quantities):
         ''' Tests that the quantity changes we intend to make do not violate

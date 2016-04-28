@@ -245,7 +245,11 @@ class DiscountTestCase(RegistrationCartTestCase):
 
     # Tests for the DiscountController.available_discounts enumerator
     def test_enumerate_no_discounts_for_no_input(self):
-        discounts = DiscountController.available_discounts(self.USER_1, [], [])
+        discounts = DiscountController.available_discounts(
+            self.USER_1,
+            [],
+            [],
+        )
         self.assertEqual(0, len(discounts))
 
     def test_enumerate_no_discounts_if_condition_not_met(self):
@@ -258,7 +262,11 @@ class DiscountTestCase(RegistrationCartTestCase):
         )
         self.assertEqual(0, len(discounts))
 
-        discounts = DiscountController.available_discounts(self.USER_1, [self.CAT_2], [])
+        discounts = DiscountController.available_discounts(
+            self.USER_1,
+            [self.CAT_2],
+            [],
+        )
         self.assertEqual(0, len(discounts))
 
     def test_category_discount_appears_once_if_met_twice(self):
@@ -280,7 +288,11 @@ class DiscountTestCase(RegistrationCartTestCase):
         cart = TestingCartController.for_user(self.USER_1)
         cart.add_to_cart(self.PROD_1, 1)  # Enable the discount
 
-        discounts = DiscountController.available_discounts(self.USER_1, [self.CAT_2], [])
+        discounts = DiscountController.available_discounts(
+            self.USER_1,
+            [self.CAT_2],
+            [],
+        )
         self.assertEqual(1, len(discounts))
 
     def test_category_discount_appears_with_product(self):
@@ -328,7 +340,11 @@ class DiscountTestCase(RegistrationCartTestCase):
         cart = TestingCartController.for_user(self.USER_1)
         cart.add_to_cart(self.PROD_1, 1)  # Enable the discount
 
-        discounts = DiscountController.available_discounts(self.USER_1, [self.CAT_1], [])
+        discounts = DiscountController.available_discounts(
+            self.USER_1,
+            [self.CAT_1],
+            [],
+        )
         self.assertEqual(0, len(discounts))
 
     def test_discount_quantity_is_correct_before_first_purchase(self):
@@ -338,7 +354,11 @@ class DiscountTestCase(RegistrationCartTestCase):
         cart.add_to_cart(self.PROD_1, 1)  # Enable the discount
         cart.add_to_cart(self.PROD_3, 1)  # Exhaust the quantity
 
-        discounts = DiscountController.available_discounts(self.USER_1, [self.CAT_2], [])
+        discounts = DiscountController.available_discounts(
+            self.USER_1,
+            [self.CAT_2],
+            [],
+        )
         self.assertEqual(2, discounts[0].quantity)
 
         cart.next_cart()
@@ -349,14 +369,22 @@ class DiscountTestCase(RegistrationCartTestCase):
         cart = TestingCartController.for_user(self.USER_1)
         cart.add_to_cart(self.PROD_3, 1)  # Exhaust the quantity
 
-        discounts = DiscountController.available_discounts(self.USER_1, [self.CAT_2], [])
+        discounts = DiscountController.available_discounts(
+            self.USER_1,
+            [self.CAT_2],
+            [],
+        )
         self.assertEqual(1, discounts[0].quantity)
 
         cart.next_cart()
 
     def test_discount_is_gone_after_quantity_exhausted(self):
         self.test_discount_quantity_is_correct_after_first_purchase()
-        discounts = DiscountController.available_discounts(self.USER_1, [self.CAT_2], [])
+        discounts = DiscountController.available_discounts(
+            self.USER_1,
+            [self.CAT_2],
+            [],
+        )
         self.assertEqual(0, len(discounts))
 
     def test_product_discount_enabled_twice_appears_twice(self):

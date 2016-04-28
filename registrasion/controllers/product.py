@@ -5,7 +5,6 @@ from registrasion.models import commerce
 from registrasion.models import inventory
 
 from .category import CategoryController
-from .conditions import ConditionController
 from .flag import FlagController
 
 

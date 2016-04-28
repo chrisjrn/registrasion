@@ -228,12 +228,19 @@ class FlagCounter(_FlagCounter):
         # Get the count of how many conditions should exist per product
         flagbases = conditions.FlagBase.objects
 
-        types = (conditions.FlagBase.ENABLE_IF_TRUE, conditions.FlagBase.DISABLE_IF_FALSE)
+        types = (
+            conditions.FlagBase.ENABLE_IF_TRUE,
+            conditions.FlagBase.DISABLE_IF_FALSE,
+        )
         keys = ("eit", "dif")
         flags = [
-            flagbases.filter(condition=condition_type
-            ).values('products', 'categories'
-            ).annotate(count=Count('id'))
+            flagbases.filter(
+                condition=condition_type
+            ).values(
+                'products', 'categories'
+            ).annotate(
+                count=Count('id')
+            )
             for condition_type in types
         ]
 

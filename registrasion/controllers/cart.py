@@ -1,6 +1,5 @@
 import collections
 import datetime
-import discount
 import functools
 import itertools
 
@@ -378,7 +377,11 @@ class CartController(object):
         )
 
         products = [i.product for i in product_items]
-        discounts = DiscountController.available_discounts(self.cart.user, [], products)
+        discounts = DiscountController.available_discounts(
+            self.cart.user,
+            [],
+            products,
+        )
 
         # The highest-value discounts will apply to the highest-value
         # products first.

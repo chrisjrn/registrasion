@@ -427,7 +427,11 @@ def _handle_products(request, category, products, prefix):
                 )
     handled = False if products_form.errors else True
 
-    discounts = DiscountController.available_discounts(request.user, [], products)
+    discounts = DiscountController.available_discounts(
+        request.user,
+        [],
+        products,
+    )
 
     return products_form, discounts, handled
 

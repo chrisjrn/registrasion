@@ -1,11 +1,6 @@
 import itertools
-import operator
-
-from collections import defaultdict
-from collections import namedtuple
 
 from django.db.models import Case
-from django.db.models import Count
 from django.db.models import F, Q
 from django.db.models import Sum
 from django.db.models import Value
@@ -234,9 +229,9 @@ class TimeOrStockLimitFlagController(
         reserved_carts = cls._relevant_carts(user)
 
         # Calculate category lines
-        cat_items = F('categories__product__productitem__product__category')
+        item_cats = F('categories__product__productitem__product__category')
         reserved_category_products = (
-            Q(categories=F('categories__product__productitem__product__category')) &
+            Q(categories=item_cats) &
             Q(categories__product__productitem__cart__in=reserved_carts)
         )
 

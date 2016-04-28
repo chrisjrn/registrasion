@@ -149,7 +149,11 @@ class CeilingsTestCases(RegistrationCartTestCase):
             cart.add_to_cart(self.PROD_1, 1)
             cart.next_cart()
 
-        discounts = DiscountController.available_discounts(self.USER_1, [], [self.PROD_1])
+        discounts = DiscountController.available_discounts(
+            self.USER_1,
+            [],
+            [self.PROD_1],
+        )
 
         self.assertEqual(0, len(discounts))
 

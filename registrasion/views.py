@@ -429,7 +429,11 @@ def _handle_products(request, category, products, prefix):
                 )
     handled = False if products_form.errors else True
 
-    discounts = DiscountController.available_discounts(
+    # Making this a function to lazily evaluate when it's displayed
+    # in templates.
+
+    discounts = util.lazy(
+        DiscountController.available_discounts,
         request.user,
         [],
         products,

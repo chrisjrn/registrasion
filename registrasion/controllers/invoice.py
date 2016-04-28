@@ -29,6 +29,7 @@ class InvoiceController(ForId, object):
         If such an invoice does not exist, the cart is validated, and if valid,
         an invoice is generated.'''
 
+        cart.refresh_from_db()
         try:
             invoice = commerce.Invoice.objects.exclude(
                 status=commerce.Invoice.STATUS_VOID,
@@ -73,6 +74,8 @@ class InvoiceController(ForId, object):
     @transaction.atomic
     def _generate(cls, cart):
         ''' Generates an invoice for the given cart. '''
+
+        cart.refresh_from_db()
 
         issued = timezone.now()
         reservation_limit = cart.reservation_duration + cart.time_last_updated
@@ -251,6 +254,9 @@ class InvoiceController(ForId, object):
     def _invoice_matches_cart(self):
         ''' Returns true if there is no cart, or if the revision of this
         invoice matches the current revision of the cart. '''
+
+        self._refresh()
+
         cart = self.invoice.cart
         if not cart:
             return True

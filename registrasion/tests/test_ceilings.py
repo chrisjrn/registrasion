@@ -6,7 +6,7 @@ from django.core.exceptions import ValidationError
 from controller_helpers import TestingCartController
 from test_cart import RegistrationCartTestCase
 
-from registrasion.controllers.discount import available_discounts
+from registrasion.controllers.discount import DiscountController
 from registrasion.controllers.product import ProductController
 from registrasion.models import commerce
 from registrasion.models import conditions
@@ -149,7 +149,7 @@ class CeilingsTestCases(RegistrationCartTestCase):
             cart.add_to_cart(self.PROD_1, 1)
             cart.next_cart()
 
-        discounts = available_discounts(self.USER_1, [], [self.PROD_1])
+        discounts = DiscountController.available_discounts(self.USER_1, [], [self.PROD_1])
 
         self.assertEqual(0, len(discounts))
 

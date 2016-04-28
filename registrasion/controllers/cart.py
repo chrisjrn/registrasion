@@ -17,6 +17,7 @@ from registrasion.models import inventory
 
 from .category import CategoryController
 from .conditions import ConditionController
+from .discount import DiscountController
 from .flag import FlagController
 from .product import ProductController
 
@@ -377,7 +378,7 @@ class CartController(object):
         )
 
         products = [i.product for i in product_items]
-        discounts = discount.available_discounts(self.cart.user, [], products)
+        discounts = DiscountController.available_discounts(self.cart.user, [], products)
 
         # The highest-value discounts will apply to the highest-value
         # products first.

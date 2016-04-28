@@ -5,7 +5,7 @@ from registrasion import util
 from registrasion.models import commerce
 from registrasion.models import inventory
 from registrasion.models import people
-from registrasion.controllers import discount
+from registrasion.controllers.discount import DiscountController
 from registrasion.controllers.cart import CartController
 from registrasion.controllers.credit_note import CreditNoteController
 from registrasion.controllers.invoice import InvoiceController
@@ -427,7 +427,7 @@ def _handle_products(request, category, products, prefix):
                 )
     handled = False if products_form.errors else True
 
-    discounts = discount.available_discounts(request.user, [], products)
+    discounts = DiscountController.available_discounts(request.user, [], products)
 
     return products_form, discounts, handled
 

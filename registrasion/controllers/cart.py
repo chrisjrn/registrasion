@@ -203,13 +203,17 @@ class CartController(object):
 
         errors = []
 
+        # Pre-annotate products
+        products = [p for (p, q) in product_quantities]
+        r = ProductController.attach_user_remainders(self.cart.user, products)
+        with_remainders = dict((p, p) for p in r)
+
         # Test each product limit here
         for product, quantity in product_quantities:
             if quantity < 0:
                 errors.append((product, "Value must be zero or greater."))
 
-            prod = ProductController(product)
-            limit = prod.user_quantity_remaining(self.cart.user)
+            limit = with_remainders[product].remainder
 
             if quantity > limit:
                 errors.append((
@@ -224,10 +228,15 @@ class CartController(object):
         for product, quantity in product_quantities:
             by_cat[product.category].append((product, quantity))
 
+        # Pre-annotate categories
+        r = CategoryController.attach_user_remainders(self.cart.user, by_cat)
+        with_remainders = dict((cat, cat) for cat in r)
+
         # Test each category limit here
         for category in by_cat:
-            ctrl = CategoryController(category)
-            limit = ctrl.user_quantity_remaining(self.cart.user)
+            #ctrl = CategoryController(category)
+            #limit = ctrl.user_quantity_remaining(self.cart.user)
+            limit = with_remainders[category].remainder
 
             # Get the amount so far in the cart
             to_add = sum(i[1] for i in by_cat[category])

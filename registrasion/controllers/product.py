@@ -4,8 +4,9 @@ from django.db.models import Sum
 from registrasion.models import commerce
 from registrasion.models import inventory
 
-from category import CategoryController
-from conditions import ConditionController
+from .category import CategoryController
+from .conditions import ConditionController
+from .flag import FlagController
 
 
 class ProductController(object):
@@ -46,7 +47,7 @@ class ProductController(object):
             if cls(product).user_quantity_remaining(user) > 0
         )
 
-        failed_and_messages = ConditionController.test_flags(
+        failed_and_messages = FlagController.test_flags(
             user, products=passed_limits
         )
         failed_conditions = set(i[0] for i in failed_and_messages)

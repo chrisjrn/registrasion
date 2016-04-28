@@ -18,74 +18,7 @@ from registrasion.models import inventory
 
 
 
-ConditionAndRemainder = namedtuple(
-    "ConditionAndRemainder",
-    (
-        "condition",
-        "remainder",
-    ),
-)
-
-
-_FlagCounter = namedtuple(
-    "_FlagCounter",
-    (
-        "products",
-        "categories",
-    ),
-)
-
-
-_ConditionsCount = namedtuple(
-    "ConditionsCount",
-    (
-        "dif",
-        "eit",
-    ),
-)
-
-
-class FlagCounter(_FlagCounter):
-
-    @classmethod
-    def count(cls):
-        # Get the count of how many conditions should exist per product
-        flagbases = conditions.FlagBase.objects
-
-        types = (
-            conditions.FlagBase.ENABLE_IF_TRUE,
-            conditions.FlagBase.DISABLE_IF_FALSE,
-        )
-        keys = ("eit", "dif")
-        flags = [
-            flagbases.filter(
-                condition=condition_type
-            ).values(
-                'products', 'categories'
-            ).annotate(
-                count=Count('id')
-            )
-            for condition_type in types
-        ]
-
-        cats = defaultdict(lambda: defaultdict(int))
-        prod = defaultdict(lambda: defaultdict(int))
-
-        for key, flagcounts in zip(keys, flags):
-            for row in flagcounts:
-                if row["products"] is not None:
-                    prod[row["products"]][key] = row["count"]
-                if row["categories"] is not None:
-                    cats[row["categories"]][key] = row["count"]
-
-        return cls(products=prod, categories=cats)
-
-    def get(self, product):
-        p = self.products[product.id]
-        c = self.categories[product.category.id]
-        eit = p["eit"] + c["eit"]
-        dif = p["dif"] + c["dif"]
-        return _ConditionsCount(dif=dif, eit=eit)
+_BIG_QUANTITY = 99999999  # A big quantity
 
 
 class ConditionController(object):
@@ -119,184 +52,6 @@ class ConditionController(object):
             return ConditionController.for_type(type(condition))(condition)
         except KeyError:
             return ConditionController()
-
-    SINGLE = True
-    PLURAL = False
-    NONE = True
-    SOME = False
-    MESSAGE = {
-        NONE: {
-            SINGLE:
-                "%(items)s is no longer available to you",
-            PLURAL:
-                "%(items)s are no longer available to you",
-        },
-        SOME: {
-            SINGLE:
-                "Only %(remainder)d of the following item remains: %(items)s",
-            PLURAL:
-                "Only %(remainder)d of the following items remain: %(items)s"
-        },
-    }
-
-    @classmethod
-    def test_flags(
-            cls, user, products=None, product_quantities=None):
-        ''' Evaluates all of the flag conditions on the given products.
-
-        If `product_quantities` is supplied, the condition is only met if it
-        will permit the sum of the product quantities for all of the products
-        it covers. Otherwise, it will be met if at least one item can be
-        accepted.
-
-        If all flag conditions pass, an empty list is returned, otherwise
-        a list is returned containing all of the products that are *not
-        enabled*. '''
-
-        if products is not None and product_quantities is not None:
-            raise ValueError("Please specify only products or "
-                             "product_quantities")
-        elif products is None:
-            products = set(i[0] for i in product_quantities)
-            quantities = dict((product, quantity)
-                              for product, quantity in product_quantities)
-        elif product_quantities is None:
-            products = set(products)
-            quantities = {}
-
-        if products:
-            # Simplify the query.
-            all_conditions = cls._filtered_flags(user, products)
-        else:
-            all_conditions = []
-
-        # All disable-if-false conditions on a product need to be met
-        do_not_disable = defaultdict(lambda: True)
-        # At least one enable-if-true condition on a product must be met
-        do_enable = defaultdict(lambda: False)
-        # (if either sort of condition is present)
-
-        # Count the number of conditions for a product
-        dif_count = defaultdict(int)
-        eit_count = defaultdict(int)
-
-        messages = {}
-
-        for condition in all_conditions:
-            cond = cls.for_condition(condition)
-            remainder = cond.user_quantity_remaining(user, filtered=True)
-
-            # Get all products covered by this condition, and the products
-            # from the categories covered by this condition
-            cond_products = condition.products.all()
-            from_category = inventory.Product.objects.filter(
-                category__in=condition.categories.all(),
-            ).all()
-            all_products = cond_products | from_category
-            all_products = all_products.select_related("category")
-            # Remove the products that we aren't asking about
-            all_products = [
-                product
-                for product in all_products
-                if product in products
-            ]
-
-            if quantities:
-                consumed = sum(quantities[i] for i in all_products)
-            else:
-                consumed = 1
-            met = consumed <= remainder
-
-            if not met:
-                items = ", ".join(str(product) for product in all_products)
-                base = cls.MESSAGE[remainder == 0][len(all_products) == 1]
-                message = base % {"items": items, "remainder": remainder}
-
-            for product in all_products:
-                if condition.is_disable_if_false:
-                    do_not_disable[product] &= met
-                    dif_count[product] += 1
-                else:
-                    do_enable[product] |= met
-                    eit_count[product] += 1
-
-                if not met and product not in messages:
-                    messages[product] = message
-
-        total_flags = FlagCounter.count()
-
-        valid = {}
-
-        # the problem is that now, not every condition falls into
-        # do_not_disable or do_enable '''
-        # You should look into this, chris :)
-
-        for product in products:
-            if quantities:
-                if quantities[product] == 0:
-                    continue
-
-            f = total_flags.get(product)
-            if f.dif > 0 and f.dif != dif_count[product]:
-                do_not_disable[product] = False
-                if product not in messages:
-                    messages[product] = "Some disable-if-false " \
-                                        "conditions were not met"
-            if f.eit > 0 and product not in do_enable:
-                do_enable[product] = False
-                if product not in messages:
-                    messages[product] = "Some enable-if-true " \
-                                        "conditions were not met"
-
-        for product in itertools.chain(do_not_disable, do_enable):
-            f = total_flags.get(product)
-            if product in do_enable:
-                # If there's an enable-if-true, we need need of those met too.
-                # (do_not_disable will default to true otherwise)
-                valid[product] = do_not_disable[product] and do_enable[product]
-            elif product in do_not_disable:
-                # If there's a disable-if-false condition, all must be met
-                valid[product] = do_not_disable[product]
-
-        error_fields = [
-            (product, messages[product])
-            for product in valid if not valid[product]
-        ]
-
-        return error_fields
-
-    @classmethod
-    def _filtered_flags(cls, user, products):
-        '''
-
-        Returns:
-            Sequence[flagbase]: All flags that passed the filter function.
-
-        '''
-
-        types = list(ConditionController._controllers())
-        flagtypes = [i for i in types if issubclass(i, conditions.FlagBase)]
-
-        # Get all flags for the products and categories.
-        prods = (
-            product.flagbase_set.all()
-            for product in products
-        )
-        cats = (
-            category.flagbase_set.all()
-            for category in set(product.category for product in products)
-        )
-        all_flags = reduce(operator.or_, itertools.chain(prods, cats))
-
-        all_subsets = []
-
-        for flagtype in flagtypes:
-            flags = flagtype.objects.filter(id__in=all_flags)
-            ctrl = ConditionController.for_type(flagtype)
-            flags = ctrl.pre_filter(flags, user)
-            all_subsets.append(flags)
-
-        return itertools.chain(*all_subsets)
 
     @classmethod
     def pre_filter(cls, queryset, user):
@@ -369,16 +124,6 @@ class IsMetByFilter(object):
 
         return self.passes_filter(user)
 
-        carts = commerce.Cart.objects.filter(user=user)
-        carts = carts.exclude(status=commerce.Cart.STATUS_RELEASED)
-        enabling_products = inventory.Product.objects.filter(
-            category=self.condition.enabling_category,
-        )
-        products_count = commerce.ProductItem.objects.filter(
-            cart__in=carts,
-            product__in=enabling_products,
-        ).count()
-        return products_count > 0
 
 class RemainderSetByFilter(object):
 
@@ -491,7 +236,7 @@ class TimeOrStockLimitFlagController(
         # Calculate category lines
         cat_items = F('categories__product__productitem__product__category')
         reserved_category_products = (
-            Q(categories=cat_items) &
+            Q(categories=F('categories__product__productitem__product__category')) &
             Q(categories__product__productitem__cart__in=reserved_carts)
         )
 

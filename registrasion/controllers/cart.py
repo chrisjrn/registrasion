@@ -15,9 +15,10 @@ from registrasion.models import commerce
 from registrasion.models import conditions
 from registrasion.models import inventory
 
-from category import CategoryController
-from conditions import ConditionController
-from product import ProductController
+from .category import CategoryController
+from .conditions import ConditionController
+from .flag import FlagController
+from .product import ProductController
 
 
 def _modifies_cart(func):
@@ -185,7 +186,7 @@ class CartController(object):
                 ))
 
         # Test the flag conditions
-        errs = ConditionController.test_flags(
+        errs = FlagController.test_flags(
             self.cart.user,
             product_quantities=product_quantities,
         )

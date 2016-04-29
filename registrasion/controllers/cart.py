@@ -390,19 +390,22 @@ class CartController(object):
         # Validate the discounts
         # TODO: refactor in terms of available_discounts
         # why aren't we doing that here?!
-        discount_items = commerce.DiscountItem.objects.filter(cart=cart)
-        seen_discounts = set()
 
+        #     def available_discounts(cls, user, categories, products):
+
+        products = [i.product for i in items]
+        discounts_with_quantity = DiscountController.available_discounts(
+            user,
+            [],
+            products,
+        )
+        discounts = set(i.discount.id for i in discounts_with_quantity)
+
+        discount_items = commerce.DiscountItem.objects.filter(cart=cart)
         for discount_item in discount_items:
             discount = discount_item.discount
-            if discount in seen_discounts:
-                continue
-            seen_discounts.add(discount)
-            real_discount = conditions.DiscountBase.objects.get_subclass(
-                pk=discount.pk)
-            cond = ConditionController.for_condition(real_discount)
 
-            if not cond.is_met(user):
+            if discount.id not in discounts:
                 errors.append(
                     ValidationError("Discounts are no longer available")
                 )

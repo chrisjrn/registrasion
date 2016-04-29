@@ -38,7 +38,6 @@ class CategoryController(object):
 
         return set(i.category for i in available)
 
-
     @classmethod
     def attach_user_remainders(cls, user, categories):
         '''

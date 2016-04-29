@@ -451,9 +451,6 @@ def _set_quantities_from_products_form(products_form, current_cart):
         id__in=pks,
     ).select_related("category")
 
-
-
-    # TODO: This is fundamentally dumb
     product_quantities = [
         (product, id_to_quantity[product.id]) for product in products
     ]

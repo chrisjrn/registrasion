@@ -36,10 +36,10 @@ class ProductController(object):
 
         categories = set(product.category for product in all_products)
         r = CategoryController.attach_user_remainders(user, categories)
-        cat_quants = dict((c,c) for c in r)
+        cat_quants = dict((c, c) for c in r)
 
         r = ProductController.attach_user_remainders(user, all_products)
-        prod_quants = dict((p,p) for p in r)
+        prod_quants = dict((p, p) for p in r)
 
         passed_limits = set(
             product
@@ -57,7 +57,6 @@ class ProductController(object):
         out.sort(key=lambda product: product.order)
 
         return out
-
 
     @classmethod
     def attach_user_remainders(cls, user, products):

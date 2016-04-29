@@ -17,7 +17,6 @@ from registrasion.models import conditions
 from registrasion.models import inventory
 
 from .category import CategoryController
-from .conditions import ConditionController
 from .discount import DiscountController
 from .flag import FlagController
 from .product import ProductController
@@ -64,7 +63,6 @@ class CartController(object):
                 reservation_duration=datetime.timedelta(),
             )
         return cls(existing)
-
 
     # Marks the carts that are currently in batches
     _FOR_USER = {}
@@ -155,7 +153,6 @@ class CartController(object):
         ``operations_batch``.
 
         '''
-
 
         self.cart.refresh_from_db()
 
@@ -250,8 +247,6 @@ class CartController(object):
 
         # Test each category limit here
         for category in by_cat:
-            #ctrl = CategoryController(category)
-            #limit = ctrl.user_quantity_remaining(self.cart.user)
             limit = with_remainders[category].remainder
 
             # Get the amount so far in the cart

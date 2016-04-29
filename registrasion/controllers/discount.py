@@ -50,7 +50,6 @@ class DiscountController(object):
         categories and products. The discounts also list the available quantity
         for this user, not including products that are pending purchase. '''
 
-
         filtered_clauses = cls._filtered_discounts(user, categories, products)
 
         discounts = []

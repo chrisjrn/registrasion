@@ -103,7 +103,7 @@ def items_purchased(context, category=None):
 
     '''
 
-    in_cart=(
+    in_cart = (
         Q(productitem__cart__user=context.request.user) &
         Q(productitem__cart__status=commerce.Cart.STATUS_PAID)
     )

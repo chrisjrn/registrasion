@@ -1,5 +1,3 @@
-import itertools
-
 from django.db.models import Case
 from django.db.models import F, Q
 from django.db.models import Sum
@@ -9,8 +7,6 @@ from django.utils import timezone
 
 from registrasion.models import commerce
 from registrasion.models import conditions
-from registrasion.models import inventory
-
 
 
 _BIG_QUANTITY = 99999999  # A big quantity
@@ -134,8 +130,6 @@ class RemainderSetByFilter(object):
             if hasattr(self.condition, "remainder"):
                 return self.condition.remainder
 
-
-
         # Mark self.condition with a remainder
         qs = type(self.condition).objects.filter(pk=self.condition.id)
         qs = self.pre_filter(qs, user)
@@ -188,9 +182,9 @@ class ProductConditionController(IsMetByFilter, ConditionController):
 
 
 class TimeOrStockLimitConditionController(
-        RemainderSetByFilter,
-        ConditionController,
-    ):
+            RemainderSetByFilter,
+            ConditionController,
+        ):
     ''' Common condition tests for TimeOrStockLimit Flag and
     Discount.'''
 

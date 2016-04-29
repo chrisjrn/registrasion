@@ -398,6 +398,29 @@ class DiscountTestCase(RegistrationCartTestCase):
         )
         self.assertEqual(2, len(discounts))
 
+    def test_product_discount_applied_on_different_invoices(self):
+        # quantity=1 means "quantity per product"
+        self.add_discount_prod_1_includes_prod_3_and_prod_4(quantity=1)
+        cart = TestingCartController.for_user(self.USER_1)
+        cart.add_to_cart(self.PROD_1, 1)  # Enable the discount
+        discounts = DiscountController.available_discounts(
+            self.USER_1,
+            [],
+            [self.PROD_3, self.PROD_4],
+        )
+        self.assertEqual(2, len(discounts))
+        # adding one of PROD_3 should make it no longer an available discount.
+        cart.add_to_cart(self.PROD_3, 1)
+        cart.next_cart()
+
+        # should still have (and only have) the discount for prod_4
+        discounts = DiscountController.available_discounts(
+            self.USER_1,
+            [],
+            [self.PROD_3, self.PROD_4],
+        )
+        self.assertEqual(1, len(discounts))
+
     def test_discounts_are_released_by_refunds(self):
         self.add_discount_prod_1_includes_prod_2(quantity=2)
         cart = TestingCartController.for_user(self.USER_1)

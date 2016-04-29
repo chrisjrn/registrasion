@@ -67,6 +67,7 @@ class CartController(object):
 
 
     # Marks the carts that are currently in batches
+    _FOR_USER = {}
     _BATCH_COUNT = collections.defaultdict(int)
     _MODIFIED_CARTS = set()
 
@@ -85,10 +86,11 @@ class CartController(object):
         revision is increased.
         '''
 
-        # TODO cache carts mid-batch?
+        if user not in cls._FOR_USER:
+            _ctrl = cls.for_user(user)
+            cls._FOR_USER[user] = (_ctrl, _ctrl.cart.id)
 
-        ctrl = cls.for_user(user)
-        _id = ctrl.cart.id
+        ctrl, _id = cls._FOR_USER[user]
 
         cls._BATCH_COUNT[_id] += 1
         try:
@@ -108,9 +110,14 @@ class CartController(object):
             # Only end on the outermost batch marker, and only if
             # it excited cleanly, and a modification occurred
             modified = _id in cls._MODIFIED_CARTS
-            if modified and cls._BATCH_COUNT[_id] == 0 and success:
+            outermost = cls._BATCH_COUNT[_id] == 0
+            if modified and outermost and success:
                 ctrl._end_batch()
                 cls._MODIFIED_CARTS.remove(_id)
+
+            # Clear out the cache on the outermost operation
+            if outermost:
+                del cls._FOR_USER[user]
 
     def _fail_if_cart_is_not_active(self):
         self.cart.refresh_from_db()

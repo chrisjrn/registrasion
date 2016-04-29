@@ -4,7 +4,11 @@ from registrasion.controllers.category import CategoryController
 
 from collections import namedtuple
 from django import template
+from django.db.models import Case
+from django.db.models import Q
 from django.db.models import Sum
+from django.db.models import When
+from django.db.models import Value
 
 register = template.Library()
 
@@ -99,20 +103,33 @@ def items_purchased(context, category=None):
 
     '''
 
-    all_items = commerce.ProductItem.objects.filter(
-        cart__user=context.request.user,
-        cart__status=commerce.Cart.STATUS_PAID,
-    ).select_related("product", "product__category")
+    in_cart = (
+        Q(productitem__cart__user=context.request.user) &
+        Q(productitem__cart__status=commerce.Cart.STATUS_PAID)
+    )
+
+    quantities_in_cart = When(
+        in_cart,
+        then="productitem__quantity",
+    )
+
+    quantities_or_zero = Case(
+        quantities_in_cart,
+        default=Value(0),
+    )
+
+    products = inventory.Product.objects
 
     if category:
-        all_items = all_items.filter(product__category=category)
+        products = products.filter(category=category)
 
-    pq = all_items.values("product").annotate(quantity=Sum("quantity")).all()
-    products = inventory.Product.objects.all()
+    products = products.select_related("category")
+    products = products.annotate(quantity=Sum(quantities_or_zero))
+    products = products.filter(quantity__gt=0)
+
     out = []
-    for item in pq:
-        prod = products.get(pk=item["product"])
-        out.append(ProductAndQuantity(prod, item["quantity"]))
+    for prod in products:
+        out.append(ProductAndQuantity(prod, prod.quantity))
     return out
 
 

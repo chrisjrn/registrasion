@@ -25,3 +25,33 @@ def all_arguments_optional(ntcls):
     )
 
     return ntcls
+
+
+def lazy(function, *args, **kwargs):
+    ''' Produces a callable so that functions can be lazily evaluated in
+    templates.
+
+    Arguments:
+
+        function (callable): The function to call at evaluation time.
+
+        args: Positional arguments, passed directly to ``function``.
+
+        kwargs: Keyword arguments, passed directly to ``function``.
+
+    Return:
+
+        callable: A callable that will evaluate a call to ``function`` with
+            the specified arguments.
+
+    '''
+
+    NOT_EVALUATED = object()
+    retval = [NOT_EVALUATED]
+
+    def evaluate():
+        if retval[0] is NOT_EVALUATED:
+            retval[0] = function(*args, **kwargs)
+        return retval[0]
+
+    return evaluate

@@ -5,7 +5,7 @@ from registrasion import util
 from registrasion.models import commerce
 from registrasion.models import inventory
 from registrasion.models import people
-from registrasion.controllers import discount
+from registrasion.controllers.discount import DiscountController
 from registrasion.controllers.cart import CartController
 from registrasion.controllers.credit_note import CreditNoteController
 from registrasion.controllers.invoice import InvoiceController
@@ -181,33 +181,35 @@ def guided_registration(request):
             attendee.save()
             return next_step
 
-        for category in cats:
-            products = [
-                i for i in available_products
-                if i.category == category
-            ]
+        with CartController.operations_batch(request.user):
+            for category in cats:
+                products = [
+                    i for i in available_products
+                    if i.category == category
+                ]
 
-            prefix = "category_" + str(category.id)
-            p = _handle_products(request, category, products, prefix)
-            products_form, discounts, products_handled = p
+                prefix = "category_" + str(category.id)
+                p = _handle_products(request, category, products, prefix)
+                products_form, discounts, products_handled = p
 
-            section = GuidedRegistrationSection(
-                title=category.name,
-                description=category.description,
-                discounts=discounts,
-                form=products_form,
-            )
+                section = GuidedRegistrationSection(
+                    title=category.name,
+                    description=category.description,
+                    discounts=discounts,
+                    form=products_form,
+                )
 
-            if products:
-                # This product category has items to show.
-                sections.append(section)
-                # Add this to the list of things to show if the form errors.
-                request.session[SESSION_KEY].append(category.id)
+                if products:
+                    # This product category has items to show.
+                    sections.append(section)
+                    # Add this to the list of things to show if the form
+                    # errors.
+                    request.session[SESSION_KEY].append(category.id)
 
-                if request.method == "POST" and not products_form.errors:
-                    # This is only saved if we pass each form with no errors,
-                    # and if the form actually has products.
-                    attendee.guided_categories_complete.add(category)
+                    if request.method == "POST" and not products_form.errors:
+                        # This is only saved if we pass each form with no
+                        # errors, and if the form actually has products.
+                        attendee.guided_categories_complete.add(category)
 
     if sections and request.method == "POST":
         for section in sections:
@@ -427,7 +429,15 @@ def _handle_products(request, category, products, prefix):
                 )
     handled = False if products_form.errors else True
 
-    discounts = discount.available_discounts(request.user, [], products)
+    # Making this a function to lazily evaluate when it's displayed
+    # in templates.
+
+    discounts = util.lazy(
+        DiscountController.available_discounts,
+        request.user,
+        [],
+        products,
+    )
 
     return products_form, discounts, handled
 
@@ -435,14 +445,14 @@ def _handle_products(request, category, products, prefix):
 def _set_quantities_from_products_form(products_form, current_cart):
 
     quantities = list(products_form.product_quantities())
-
+    id_to_quantity = dict(i[:2] for i in quantities)
     pks = [i[0] for i in quantities]
     products = inventory.Product.objects.filter(
         id__in=pks,
     ).select_related("category")
 
     product_quantities = [
-        (products.get(pk=i[0]), i[1]) for i in quantities
+        (product, id_to_quantity[product.id]) for product in products
     ]
     field_names = dict(
         (i[0][0], i[1][2]) for i in zip(product_quantities, quantities)

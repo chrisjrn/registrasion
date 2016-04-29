@@ -6,6 +6,8 @@ from django.core.exceptions import ValidationError
 from controller_helpers import TestingCartController
 from test_cart import RegistrationCartTestCase
 
+from registrasion.controllers.discount import DiscountController
+from registrasion.controllers.product import ProductController
 from registrasion.models import commerce
 from registrasion.models import conditions
 
@@ -134,6 +136,43 @@ class CeilingsTestCases(RegistrationCartTestCase):
         self.add_timedelta(self.RESERVATION + datetime.timedelta(seconds=1))
         with self.assertRaises(ValidationError):
             first_cart.validate_cart()
+
+    def test_discount_ceiling_aggregates_products(self):
+        # Create two carts, add 1xprod_1 to each. Ceiling should disappear
+        # after second.
+        self.make_discount_ceiling(
+            "Multi-product limit discount ceiling",
+            limit=2,
+        )
+        for i in xrange(2):
+            cart = TestingCartController.for_user(self.USER_1)
+            cart.add_to_cart(self.PROD_1, 1)
+            cart.next_cart()
+
+        discounts = DiscountController.available_discounts(
+            self.USER_1,
+            [],
+            [self.PROD_1],
+        )
+
+        self.assertEqual(0, len(discounts))
+
+    def test_flag_ceiling_aggregates_products(self):
+        # Create two carts, add 1xprod_1 to each. Ceiling should disappear
+        # after second.
+        self.make_ceiling("Multi-product limit ceiling", limit=2)
+
+        for i in xrange(2):
+            cart = TestingCartController.for_user(self.USER_1)
+            cart.add_to_cart(self.PROD_1, 1)
+            cart.next_cart()
+
+        products = ProductController.available_products(
+            self.USER_1,
+            products=[self.PROD_1],
+        )
+
+        self.assertEqual(0, len(products))
 
     def test_items_released_from_ceiling_by_refund(self):
         self.make_ceiling("Limit ceiling", limit=1)

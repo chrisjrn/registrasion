@@ -1,6 +1,6 @@
 import collections
+import contextlib
 import datetime
-import discount
 import functools
 import itertools
 
@@ -8,6 +8,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Max
+from django.db.models import Q
 from django.utils import timezone
 
 from registrasion.exceptions import CartValidationError
@@ -15,19 +16,27 @@ from registrasion.models import commerce
 from registrasion.models import conditions
 from registrasion.models import inventory
 
-from category import CategoryController
-from conditions import ConditionController
-from product import ProductController
+from .category import CategoryController
+from .discount import DiscountController
+from .flag import FlagController
+from .product import ProductController
 
 
 def _modifies_cart(func):
     ''' Decorator that makes the wrapped function raise ValidationError
-    if we're doing something that could modify the cart. '''
+    if we're doing something that could modify the cart.
+
+    It also wraps the execution of this function in a database transaction,
+    and marks the boundaries of a cart operations batch.
+    '''
 
     @functools.wraps(func)
     def inner(self, *a, **k):
         self._fail_if_cart_is_not_active()
-        return func(self, *a, **k)
+        with transaction.atomic():
+            with CartController.operations_batch(self.cart.user) as mark:
+                mark.mark = True  # Marker that we've modified the cart
+                return func(self, *a, **k)
 
     return inner
 
@@ -55,13 +64,65 @@ class CartController(object):
             )
         return cls(existing)
 
+    # Marks the carts that are currently in batches
+    _FOR_USER = {}
+    _BATCH_COUNT = collections.defaultdict(int)
+    _MODIFIED_CARTS = set()
+
+    class _ModificationMarker(object):
+        pass
+
+    @classmethod
+    @contextlib.contextmanager
+    def operations_batch(cls, user):
+        ''' Marks the boundary for a batch of operations on a user's cart.
+
+        These markers can be nested. Only on exiting the outermost marker will
+        a batch be ended.
+
+        When a batch is ended, discounts are recalculated, and the cart's
+        revision is increased.
+        '''
+
+        if user not in cls._FOR_USER:
+            _ctrl = cls.for_user(user)
+            cls._FOR_USER[user] = (_ctrl, _ctrl.cart.id)
+
+        ctrl, _id = cls._FOR_USER[user]
+
+        cls._BATCH_COUNT[_id] += 1
+        try:
+            success = False
+
+            marker = cls._ModificationMarker()
+            yield marker
+
+            if hasattr(marker, "mark"):
+                cls._MODIFIED_CARTS.add(_id)
+
+            success = True
+        finally:
+
+            cls._BATCH_COUNT[_id] -= 1
+
+            # Only end on the outermost batch marker, and only if
+            # it excited cleanly, and a modification occurred
+            modified = _id in cls._MODIFIED_CARTS
+            outermost = cls._BATCH_COUNT[_id] == 0
+            if modified and outermost and success:
+                ctrl._end_batch()
+                cls._MODIFIED_CARTS.remove(_id)
+
+            # Clear out the cache on the outermost operation
+            if outermost:
+                del cls._FOR_USER[user]
+
     def _fail_if_cart_is_not_active(self):
         self.cart.refresh_from_db()
         if self.cart.status != commerce.Cart.STATUS_ACTIVE:
             raise ValidationError("You can only amend active carts.")
 
-    @_modifies_cart
-    def extend_reservation(self):
+    def _autoextend_reservation(self):
         ''' Updates the cart's time last updated value, which is used to
         determine whether the cart has reserved the items and discounts it
         holds. '''
@@ -83,21 +144,25 @@ class CartController(object):
         self.cart.time_last_updated = timezone.now()
         self.cart.reservation_duration = max(reservations)
 
-    @_modifies_cart
-    def end_batch(self):
+    def _end_batch(self):
         ''' Performs operations that occur occur at the end of a batch of
         product changes/voucher applications etc.
-        THIS SHOULD BE PRIVATE
+
+        You need to call this after you've finished modifying the user's cart.
+        This is normally done by wrapping a block of code using
+        ``operations_batch``.
+
         '''
 
-        self.recalculate_discounts()
+        self.cart.refresh_from_db()
 
-        self.extend_reservation()
+        self._recalculate_discounts()
+
+        self._autoextend_reservation()
         self.cart.revision += 1
         self.cart.save()
 
     @_modifies_cart
-    @transaction.atomic
     def set_quantities(self, product_quantities):
         ''' Sets the quantities on each of the products on each of the
         products specified. Raises an exception (ValidationError) if a limit
@@ -122,24 +187,28 @@ class CartController(object):
         # Validate that the limits we're adding are OK
         self._test_limits(all_product_quantities)
 
+        new_items = []
+        products = []
         for product, quantity in product_quantities:
-            try:
-                product_item = commerce.ProductItem.objects.get(
-                    cart=self.cart,
-                    product=product,
-                )
-                product_item.quantity = quantity
-                product_item.save()
-            except ObjectDoesNotExist:
-                commerce.ProductItem.objects.create(
-                    cart=self.cart,
-                    product=product,
-                    quantity=quantity,
-                )
+            products.append(product)
 
-        items_in_cart.filter(quantity=0).delete()
+            if quantity == 0:
+                continue
 
-        self.end_batch()
+            item = commerce.ProductItem(
+                cart=self.cart,
+                product=product,
+                quantity=quantity,
+            )
+            new_items.append(item)
+
+        to_delete = (
+            Q(quantity=0) |
+            Q(product__in=products)
+        )
+
+        items_in_cart.filter(to_delete).delete()
+        commerce.ProductItem.objects.bulk_create(new_items)
 
     def _test_limits(self, product_quantities):
         ''' Tests that the quantity changes we intend to make do not violate
@@ -147,13 +216,17 @@ class CartController(object):
 
         errors = []
 
+        # Pre-annotate products
+        products = [p for (p, q) in product_quantities]
+        r = ProductController.attach_user_remainders(self.cart.user, products)
+        with_remainders = dict((p, p) for p in r)
+
         # Test each product limit here
         for product, quantity in product_quantities:
             if quantity < 0:
                 errors.append((product, "Value must be zero or greater."))
 
-            prod = ProductController(product)
-            limit = prod.user_quantity_remaining(self.cart.user)
+            limit = with_remainders[product].remainder
 
             if quantity > limit:
                 errors.append((
@@ -168,10 +241,13 @@ class CartController(object):
         for product, quantity in product_quantities:
             by_cat[product.category].append((product, quantity))
 
+        # Pre-annotate categories
+        r = CategoryController.attach_user_remainders(self.cart.user, by_cat)
+        with_remainders = dict((cat, cat) for cat in r)
+
         # Test each category limit here
         for category in by_cat:
-            ctrl = CategoryController(category)
-            limit = ctrl.user_quantity_remaining(self.cart.user)
+            limit = with_remainders[category].remainder
 
             # Get the amount so far in the cart
             to_add = sum(i[1] for i in by_cat[category])
@@ -185,7 +261,7 @@ class CartController(object):
                 ))
 
         # Test the flag conditions
-        errs = ConditionController.test_flags(
+        errs = FlagController.test_flags(
             self.cart.user,
             product_quantities=product_quantities,
         )
@@ -212,7 +288,6 @@ class CartController(object):
 
         # If successful...
         self.cart.vouchers.add(voucher)
-        self.end_batch()
 
     def _test_voucher(self, voucher):
         ''' Tests whether this voucher is allowed to be applied to this cart.
@@ -294,6 +369,7 @@ class CartController(object):
             errors.append(ve)
 
         items = commerce.ProductItem.objects.filter(cart=cart)
+        items = items.select_related("product", "product__category")
 
         product_quantities = list((i.product, i.quantity) for i in items)
         try:
@@ -307,19 +383,24 @@ class CartController(object):
             self._append_errors(errors, ve)
 
         # Validate the discounts
-        discount_items = commerce.DiscountItem.objects.filter(cart=cart)
-        seen_discounts = set()
+        # TODO: refactor in terms of available_discounts
+        # why aren't we doing that here?!
 
+        #     def available_discounts(cls, user, categories, products):
+
+        products = [i.product for i in items]
+        discounts_with_quantity = DiscountController.available_discounts(
+            user,
+            [],
+            products,
+        )
+        discounts = set(i.discount.id for i in discounts_with_quantity)
+
+        discount_items = commerce.DiscountItem.objects.filter(cart=cart)
         for discount_item in discount_items:
             discount = discount_item.discount
-            if discount in seen_discounts:
-                continue
-            seen_discounts.add(discount)
-            real_discount = conditions.DiscountBase.objects.get_subclass(
-                pk=discount.pk)
-            cond = ConditionController.for_condition(real_discount)
 
-            if not cond.is_met(user):
+            if discount.id not in discounts:
                 errors.append(
                     ValidationError("Discounts are no longer available")
                 )
@@ -328,7 +409,6 @@ class CartController(object):
             raise ValidationError(errors)
 
     @_modifies_cart
-    @transaction.atomic
     def fix_simple_errors(self):
         ''' This attempts to fix the easy errors raised by ValidationError.
         This includes removing items from the cart that are no longer
@@ -360,11 +440,9 @@ class CartController(object):
 
         self.set_quantities(zeros)
 
-    @_modifies_cart
     @transaction.atomic
-    def recalculate_discounts(self):
-        ''' Calculates all of the discounts available for this product.
-        '''
+    def _recalculate_discounts(self):
+        ''' Calculates all of the discounts available for this product.'''
 
         # Delete the existing entries.
         commerce.DiscountItem.objects.filter(cart=self.cart).delete()
@@ -374,7 +452,11 @@ class CartController(object):
         )
 
         products = [i.product for i in product_items]
-        discounts = discount.available_discounts(self.cart.user, [], products)
+        discounts = DiscountController.available_discounts(
+            self.cart.user,
+            [],
+            products,
+        )
 
         # The highest-value discounts will apply to the highest-value
         # products first.

@@ -50,7 +50,7 @@ class DiscountController(object):
         categories and products. The discounts also list the available quantity
         for this user, not including products that are pending purchase. '''
 
-        filtered_clauses = cls._filtered_clauses(user, categories, products)
+        filtered_clauses = cls._filtered_clauses(user)
 
         # clauses that match provided categories
         categories = set(categories)
@@ -103,8 +103,8 @@ class DiscountController(object):
         '''
 
         Returns:
-            Sequence[discountbase]: All discounts that passed the filter
-            function.
+            Sequence[DiscountForProduct | DiscountForCategory]: All clauses
+            that passed the filter function.
 
         '''
 

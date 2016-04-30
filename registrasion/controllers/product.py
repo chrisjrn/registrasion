@@ -38,14 +38,13 @@ class ProductController(object):
         r = CategoryController.attach_user_remainders(user, categories)
         cat_quants = dict((c, c) for c in r)
 
-        r = ProductController.attach_user_remainders(user, all_products)
-        prod_quants = dict((p, p) for p in r)
+        product_remainders = ProductController.user_remainders(user)
 
         passed_limits = set(
             product
             for product in all_products
             if cat_quants[product.category].remainder > 0
-            if prod_quants[product].remainder > 0
+            if product_remainders[product.id] > 0
         )
 
         failed_and_messages = FlagController.test_flags(
@@ -59,17 +58,15 @@ class ProductController(object):
         return out
 
     @classmethod
-    def attach_user_remainders(cls, user, products):
+    def user_remainders(cls, user):
         '''
 
         Return:
-            queryset(inventory.Product): A queryset containing items from
-            ``product``, with an extra attribute -- remainder = the amount of
-            this item that is remaining.
+            Mapping[int->int]: A dictionary that maps the product ID to the
+            user's remainder for that product.
         '''
 
-        ids = [product.id for product in products]
-        products = inventory.Product.objects.filter(id__in=ids)
+        products = inventory.Product.objects.all()
 
         cart_filter = (
             Q(productitem__cart__user=user) &
@@ -93,12 +90,4 @@ class ProductController(object):
 
         products = products.annotate(remainder=remainder)
 
-        return products
-
-    def user_quantity_remaining(self, user):
-        ''' Returns the quantity of this product that the user add in the
-        current cart. '''
-
-        with_remainders = self.attach_user_remainders(user, [self.product])
-
-        return with_remainders[0].remainder
+        return dict((product.id, product.remainder) for product in products)

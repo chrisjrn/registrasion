@@ -217,16 +217,14 @@ class CartController(object):
         errors = []
 
         # Pre-annotate products
-        products = [p for (p, q) in product_quantities]
-        r = ProductController.attach_user_remainders(self.cart.user, products)
-        with_remainders = dict((p, p) for p in r)
+        remainders = ProductController.user_remainders(self.cart.user)
 
         # Test each product limit here
         for product, quantity in product_quantities:
             if quantity < 0:
                 errors.append((product, "Value must be zero or greater."))
 
-            limit = with_remainders[product].remainder
+            limit = remainders[product.id]
 
             if quantity > limit:
                 errors.append((

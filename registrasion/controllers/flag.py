@@ -47,8 +47,6 @@ class FlagController(object):
         a list is returned containing all of the products that are *not
         enabled*. '''
 
-        print "GREPME: test_flags()"
-
         if products is not None and product_quantities is not None:
             raise ValueError("Please specify only products or "
                              "product_quantities")
@@ -62,7 +60,7 @@ class FlagController(object):
 
         if products:
             # Simplify the query.
-            all_conditions = cls._filtered_flags(user, products)
+            all_conditions = cls._filtered_flags(user)
         else:
             all_conditions = []
 
@@ -160,7 +158,7 @@ class FlagController(object):
         return error_fields
 
     @classmethod
-    def _filtered_flags(cls, user, products):
+    def _filtered_flags(cls, user):
         '''
 
         Returns:
@@ -171,16 +169,7 @@ class FlagController(object):
         types = list(ConditionController._controllers())
         flagtypes = [i for i in types if issubclass(i, conditions.FlagBase)]
 
-        # Get all flags for the products and categories.
-        prods = (
-            product.flagbase_set.all()
-            for product in products
-        )
-        cats = (
-            category.flagbase_set.all()
-            for category in set(product.category for product in products)
-        )
-        all_flags = reduce(operator.or_, itertools.chain(prods, cats))
+        all_flags = conditions.FlagBase.objects.all()
 
         all_subsets = []
 

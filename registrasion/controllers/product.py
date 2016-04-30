@@ -34,16 +34,13 @@ class ProductController(object):
         if products is not None:
             all_products = set(itertools.chain(all_products, products))
 
-        categories = set(product.category for product in all_products)
-        r = CategoryController.attach_user_remainders(user, categories)
-        cat_quants = dict((c, c) for c in r)
-
+        category_remainders = CategoryController.user_remainders(user)
         product_remainders = ProductController.user_remainders(user)
 
         passed_limits = set(
             product
             for product in all_products
-            if cat_quants[product.category].remainder > 0
+            if category_remainders[product.category.id] > 0
             if product_remainders[product.id] > 0
         )
 

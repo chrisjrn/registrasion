@@ -240,12 +240,11 @@ class CartController(object):
             by_cat[product.category].append((product, quantity))
 
         # Pre-annotate categories
-        r = CategoryController.attach_user_remainders(self.cart.user, by_cat)
-        with_remainders = dict((cat, cat) for cat in r)
+        remainders = CategoryController.user_remainders(self.cart.user)
 
         # Test each category limit here
         for category in by_cat:
-            limit = with_remainders[category].remainder
+            limit = remainders[category.id]
 
             # Get the amount so far in the cart
             to_add = sum(i[1] for i in by_cat[category])

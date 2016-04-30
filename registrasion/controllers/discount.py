@@ -50,7 +50,22 @@ class DiscountController(object):
         categories and products. The discounts also list the available quantity
         for this user, not including products that are pending purchase. '''
 
-        filtered_clauses = cls._filtered_discounts(user, categories, products)
+        filtered_clauses = cls._filtered_clauses(user, categories, products)
+
+        # clauses that match provided categories
+        categories = set(categories)
+        # clauses that match provided products
+        products = set(products)
+        # clauses that match categories for provided products
+        product_categories = set(product.category for product in products)
+        # (Not relevant: clauses that match products in provided categories)
+        all_categories = categories | product_categories
+
+        filtered_clauses = (
+            clause for clause in filtered_clauses
+            if hasattr(clause, 'product') and clause.product in products or
+            hasattr(clause, 'category') and clause.category in all_categories
+        )
 
         discounts = []
 
@@ -84,7 +99,7 @@ class DiscountController(object):
         return discounts
 
     @classmethod
-    def _filtered_discounts(cls, user, categories, products):
+    def _filtered_clauses(cls, user):
         '''
 
         Returns:
@@ -98,37 +113,17 @@ class DiscountController(object):
             i for i in types if issubclass(i, conditions.DiscountBase)
         ]
 
-        # discounts that match provided categories
-        category_discounts = conditions.DiscountForCategory.objects.filter(
-            category__in=categories
-        )
-        # discounts that match provided products
-        product_discounts = conditions.DiscountForProduct.objects.filter(
-            product__in=products
-        )
-        # discounts that match categories for provided products
-        product_category_discounts = conditions.DiscountForCategory.objects
-        product_category_discounts = product_category_discounts.filter(
-            category__in=(product.category for product in products)
-        )
-        # (Not relevant: discounts that match products in provided categories)
-
-        product_discounts = product_discounts.select_related(
+        product_clauses = conditions.DiscountForProduct.objects.all()
+        product_clauses = product_clauses.select_related(
             "product",
             "product__category",
         )
-
-        all_category_discounts = (
-            category_discounts | product_category_discounts
-        )
-        all_category_discounts = all_category_discounts.select_related(
+        category_clauses = conditions.DiscountForCategory.objects.all()
+        category_clauses = category_clauses.select_related(
             "category",
         )
 
-        valid_discounts = conditions.DiscountBase.objects.filter(
-            Q(discountforproduct__in=product_discounts) |
-            Q(discountforcategory__in=all_category_discounts)
-        )
+        valid_discounts = conditions.DiscountBase.objects.all()
 
         all_subsets = []
 
@@ -145,8 +140,8 @@ class DiscountController(object):
         from_filter = dict((i.id, i) for i in filtered_discounts)
 
         clause_sets = (
-            product_discounts.filter(discount__in=filtered_discounts),
-            all_category_discounts.filter(discount__in=filtered_discounts),
+            product_clauses.filter(discount__in=filtered_discounts),
+            category_clauses.filter(discount__in=filtered_discounts),
         )
 
         clause_sets = (

@@ -173,12 +173,10 @@ class FlagController(object):
         types = list(ConditionController._controllers())
         flagtypes = [i for i in types if issubclass(i, conditions.FlagBase)]
 
-        all_flags = conditions.FlagBase.objects.all()
-
         all_subsets = []
 
         for flagtype in flagtypes:
-            flags = flagtype.objects.filter(id__in=all_flags)
+            flags = flagtype.objects.all()
             ctrl = ConditionController.for_type(flagtype)
             flags = ctrl.pre_filter(flags, user)
             all_subsets.append(flags)

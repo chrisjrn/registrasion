@@ -127,12 +127,10 @@ class DiscountController(object):
             "discount",
         )
 
-        valid_discounts = conditions.DiscountBase.objects.all()
-
         all_subsets = []
 
         for discounttype in discounttypes:
-            discounts = discounttype.objects.filter(id__in=valid_discounts)
+            discounts = discounttype.objects.all()
             ctrl = ConditionController.for_type(discounttype)
             discounts = ctrl.pre_filter(discounts, user)
             all_subsets.append(discounts)

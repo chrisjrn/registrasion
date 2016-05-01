@@ -81,3 +81,42 @@ class BatchTestCase(RegistrationCartTestCase):
 
         self.assertIs(cache_2, cache_3)
         self.assertIsNot(cache_1, cache_2)
+
+    def test_memoisation_happens_in_batch_context(self):
+        with BatchController.batch(self.USER_1):
+            output_1 = self._memoiseme(self.USER_1)
+
+            with BatchController.batch(self.USER_1):
+                output_2 = self._memoiseme(self.USER_1)
+
+        self.assertIs(output_1, output_2)
+
+    def test_memoisaion_does_not_happen_outside_batch_context(self):
+        output_1 = self._memoiseme(self.USER_1)
+        output_2 = self._memoiseme(self.USER_1)
+
+        self.assertIsNot(output_1, output_2)
+
+    def test_memoisation_is_user_independent(self):
+        with BatchController.batch(self.USER_1):
+            output_1 = self._memoiseme(self.USER_1)
+            with BatchController.batch(self.USER_2):
+                output_2 = self._memoiseme(self.USER_2)
+                output_3 = self._memoiseme(self.USER_1)
+
+        self.assertIsNot(output_1, output_2)
+        self.assertIs(output_1, output_3)
+
+    def test_memoisation_clears_outside_batches(self):
+        with BatchController.batch(self.USER_1):
+            output_1 = self._memoiseme(self.USER_1)
+
+        with BatchController.batch(self.USER_1):
+            output_2 = self._memoiseme(self.USER_1)
+
+        self.assertIsNot(output_1, output_2)
+
+    @classmethod
+    @BatchController.memoise
+    def _memoiseme(self, user):
+        return object()

@@ -49,13 +49,23 @@ class BatchController(object):
         cache[cls._NESTING_KEY] -= 1
 
         if cache[cls._NESTING_KEY] == 0:
+            cls._call_end_batch_methods(user)
+            del cls._user_caches[user]
 
-            for key in cache:
+    @classmethod
+    def _call_end_batch_methods(cls, user):
+        cache = cls._user_caches[user]
+        ended = set()
+        while True:
+            keys = set(cache.keys())
+            if ended == keys:
+                break
+            keys_to_end = keys - ended
+            for key in keys_to_end:
                 item = cache[key]
                 if hasattr(item, 'end_batch') and callable(item.end_batch):
                     item.end_batch()
-
-            del cls._user_caches[user]
+            ended = ended | keys_to_end
 
     @classmethod
     def memoise(cls, func):

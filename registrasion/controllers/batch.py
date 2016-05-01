@@ -49,7 +49,11 @@ class BatchController(object):
         cache[cls._NESTING_KEY] -= 1
 
         if cache[cls._NESTING_KEY] == 0:
-            # TODO: Handle batch end cases
+
+            for key in cache:
+                item = cache[key]
+                if hasattr(item, 'end_batch') and callable(item.end_batch):
+                    item.end_batch()
 
             del cls._user_caches[user]
 
@@ -115,6 +119,4 @@ Tests:
 - ``end_batch`` behaviour for CartController (use for_user *A LOT*)
   - discounts not calculated until outermost batch point exits.
   - Revision number shouldn't change until outermost batch point exits.
-- Make sure memoisation ONLY happens when we're in a batch.
-
 '''

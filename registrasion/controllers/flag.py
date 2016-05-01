@@ -6,6 +6,7 @@ from collections import namedtuple
 from django.db.models import Count
 from django.db.models import Q
 
+from .batch import BatchController
 from .conditions import ConditionController
 
 from registrasion.models import conditions
@@ -115,7 +116,7 @@ class FlagController(object):
                 if not met and product not in messages:
                     messages[product] = message
 
-        total_flags = FlagCounter.count()
+        total_flags = FlagCounter.count(user)
 
         valid = {}
 
@@ -158,6 +159,7 @@ class FlagController(object):
         return error_fields
 
     @classmethod
+    @BatchController.memoise
     def _filtered_flags(cls, user):
         '''
 
@@ -209,11 +211,11 @@ _ConditionsCount = namedtuple(
 )
 
 
-# TODO: this should be cacheable.
 class FlagCounter(_FlagCounter):
 
     @classmethod
-    def count(cls):
+    @BatchController.memoise
+    def count(cls, user):
         # Get the count of how many conditions should exist per product
         flagbases = conditions.FlagBase.objects
 

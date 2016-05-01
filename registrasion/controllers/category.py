@@ -7,6 +7,7 @@ from django.db.models import Sum
 from django.db.models import When
 from django.db.models import Value
 
+from .batch import BatchController
 
 class AllProducts(object):
     pass
@@ -39,6 +40,7 @@ class CategoryController(object):
         return set(i.category for i in available)
 
     @classmethod
+    @BatchController.memoise
     def user_remainders(cls, user):
         '''
 

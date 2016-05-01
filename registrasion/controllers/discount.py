@@ -1,6 +1,8 @@
 import itertools
 
-from conditions import ConditionController
+from .batch import BatchController
+from .conditions import ConditionController
+
 from registrasion.models import commerce
 from registrasion.models import conditions
 
@@ -9,7 +11,6 @@ from django.db.models import F, Q
 from django.db.models import Sum
 from django.db.models import Value
 from django.db.models import When
-
 
 class DiscountAndQuantity(object):
     ''' Represents a discount that can be applied to a product or category
@@ -99,6 +100,7 @@ class DiscountController(object):
         return discounts
 
     @classmethod
+    @BatchController.memoise
     def _filtered_clauses(cls, user):
         '''
 

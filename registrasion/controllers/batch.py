@@ -107,16 +107,3 @@ class BatchController(object):
         cache = {}
         cache[cls._NESTING_KEY] = 0
         return cache
-
-'''
-TODO: memoise CartController.for_user
-TODO: memoise user_remainders (Product, Category)
-TODO: memoise _filtered_flags
-TODO: memoise FlagCounter.count() (doesn't take user, but it'll do for now)
-TODO: memoise _filtered_discounts
-
-Tests:
-- ``end_batch`` behaviour for CartController (use for_user *A LOT*)
-  - discounts not calculated until outermost batch point exits.
-  - Revision number shouldn't change until outermost batch point exits.
-'''

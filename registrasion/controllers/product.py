@@ -9,6 +9,7 @@ from django.db.models import Value
 from registrasion.models import commerce
 from registrasion.models import inventory
 
+from .batch import BatchController
 from .category import CategoryController
 from .flag import FlagController
 
@@ -55,6 +56,7 @@ class ProductController(object):
         return out
 
     @classmethod
+    @BatchController.memoise
     def user_remainders(cls, user):
         '''
 

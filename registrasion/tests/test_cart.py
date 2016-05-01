@@ -402,7 +402,7 @@ class BasicCartTests(RegistrationCartTestCase):
 
         cart = TestingCartController.for_user(self.USER_1)
         self.make_discount_ceiling("FLOOZLE")
-        count_0 = count_discounts(cart.cart)
+        count_0 = count_discounts(cart)
 
         with BatchController.batch(self.USER_1):
             # Memoise the cart
@@ -413,12 +413,13 @@ class BasicCartTests(RegistrationCartTestCase):
                 same_cart_2 = TestingCartController.for_user(self.USER_1)
 
                 same_cart_2.add_to_cart(self.PROD_1, 1)
-                count_1 = count_discounts(same_cart_2.cart)
+                count_1 = count_discounts(same_cart_2)
 
-            count_2 = count_discounts(same_cart.cart)
+            count_2 = count_discounts(same_cart)
 
-        count_3 = count_discounts(cart.cart)
+        count_3 = count_discounts(cart)
+
         self.assertEqual(0, count_0)
         self.assertEqual(0, count_1)
         self.assertEqual(0, count_2)
-        self.assertEqual(1, count_1)
+        self.assertEqual(1, count_3)

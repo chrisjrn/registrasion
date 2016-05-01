@@ -1,6 +1,8 @@
 import itertools
 
-from conditions import ConditionController
+from .batch import BatchController
+from .conditions import ConditionController
+
 from registrasion.models import commerce
 from registrasion.models import conditions
 
@@ -9,7 +11,6 @@ from django.db.models import F, Q
 from django.db.models import Sum
 from django.db.models import Value
 from django.db.models import When
-
 
 class DiscountAndQuantity(object):
     ''' Represents a discount that can be applied to a product or category
@@ -50,7 +51,22 @@ class DiscountController(object):
         categories and products. The discounts also list the available quantity
         for this user, not including products that are pending purchase. '''
 
-        filtered_clauses = cls._filtered_discounts(user, categories, products)
+        filtered_clauses = cls._filtered_clauses(user)
+
+        # clauses that match provided categories
+        categories = set(categories)
+        # clauses that match provided products
+        products = set(products)
+        # clauses that match categories for provided products
+        product_categories = set(product.category for product in products)
+        # (Not relevant: clauses that match products in provided categories)
+        all_categories = categories | product_categories
+
+        filtered_clauses = (
+            clause for clause in filtered_clauses
+            if hasattr(clause, 'product') and clause.product in products or
+            hasattr(clause, 'category') and clause.category in all_categories
+        )
 
         discounts = []
 
@@ -84,12 +100,13 @@ class DiscountController(object):
         return discounts
 
     @classmethod
-    def _filtered_discounts(cls, user, categories, products):
+    @BatchController.memoise
+    def _filtered_clauses(cls, user):
         '''
 
         Returns:
-            Sequence[discountbase]: All discounts that passed the filter
-            function.
+            Sequence[DiscountForProduct | DiscountForCategory]: All clauses
+            that passed the filter function.
 
         '''
 
@@ -98,42 +115,22 @@ class DiscountController(object):
             i for i in types if issubclass(i, conditions.DiscountBase)
         ]
 
-        # discounts that match provided categories
-        category_discounts = conditions.DiscountForCategory.objects.filter(
-            category__in=categories
-        )
-        # discounts that match provided products
-        product_discounts = conditions.DiscountForProduct.objects.filter(
-            product__in=products
-        )
-        # discounts that match categories for provided products
-        product_category_discounts = conditions.DiscountForCategory.objects
-        product_category_discounts = product_category_discounts.filter(
-            category__in=(product.category for product in products)
-        )
-        # (Not relevant: discounts that match products in provided categories)
-
-        product_discounts = product_discounts.select_related(
+        product_clauses = conditions.DiscountForProduct.objects.all()
+        product_clauses = product_clauses.select_related(
+            "discount",
             "product",
             "product__category",
         )
-
-        all_category_discounts = (
-            category_discounts | product_category_discounts
-        )
-        all_category_discounts = all_category_discounts.select_related(
+        category_clauses = conditions.DiscountForCategory.objects.all()
+        category_clauses = category_clauses.select_related(
             "category",
-        )
-
-        valid_discounts = conditions.DiscountBase.objects.filter(
-            Q(discountforproduct__in=product_discounts) |
-            Q(discountforcategory__in=all_category_discounts)
+            "discount",
         )
 
         all_subsets = []
 
         for discounttype in discounttypes:
-            discounts = discounttype.objects.filter(id__in=valid_discounts)
+            discounts = discounttype.objects.all()
             ctrl = ConditionController.for_type(discounttype)
             discounts = ctrl.pre_filter(discounts, user)
             all_subsets.append(discounts)
@@ -145,8 +142,8 @@ class DiscountController(object):
         from_filter = dict((i.id, i) for i in filtered_discounts)
 
         clause_sets = (
-            product_discounts.filter(discount__in=filtered_discounts),
-            all_category_discounts.filter(discount__in=filtered_discounts),
+            product_clauses.filter(discount__in=filtered_discounts),
+            category_clauses.filter(discount__in=filtered_discounts),
         )
 
         clause_sets = (

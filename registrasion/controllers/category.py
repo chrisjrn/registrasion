@@ -7,6 +7,7 @@ from django.db.models import Sum
 from django.db.models import When
 from django.db.models import Value
 
+from .batch import BatchController
 
 class AllProducts(object):
     pass
@@ -39,17 +40,17 @@ class CategoryController(object):
         return set(i.category for i in available)
 
     @classmethod
-    def attach_user_remainders(cls, user, categories):
+    @BatchController.memoise
+    def user_remainders(cls, user):
         '''
 
         Return:
-            queryset(inventory.Product): A queryset containing items from
-            ``categories``, with an extra attribute -- remainder = the amount
-            of items from this category that is remaining.
+            Mapping[int->int]: A dictionary that maps the category ID to the
+            user's remainder for that category.
+
         '''
 
-        ids = [category.id for category in categories]
-        categories = inventory.Category.objects.filter(id__in=ids)
+        categories = inventory.Category.objects.all()
 
         cart_filter = (
             Q(product__productitem__cart__user=user) &
@@ -73,12 +74,4 @@ class CategoryController(object):
 
         categories = categories.annotate(remainder=remainder)
 
-        return categories
-
-    def user_quantity_remaining(self, user):
-        ''' Returns the quantity of this product that the user add in the
-        current cart. '''
-
-        with_remainders = self.attach_user_remainders(user, [self.category])
-
-        return with_remainders[0].remainder
+        return dict((cat.id, cat.remainder) for cat in categories)

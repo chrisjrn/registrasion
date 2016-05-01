@@ -12,6 +12,7 @@ from registrasion.models import commerce
 from registrasion.models import conditions
 from registrasion.models import inventory
 from registrasion.models import people
+from registrasion.controllers.batch import BatchController
 from registrasion.controllers.product import ProductController
 
 from controller_helpers import TestingCartController
@@ -360,3 +361,65 @@ class BasicCartTests(RegistrationCartTestCase):
 
     def test_available_products_respects_product_limits(self):
         self.__available_products_test(self.PROD_4, 6)
+
+    def test_cart_controller_for_user_is_memoised(self):
+        # - that for_user is memoised
+        with BatchController.batch(self.USER_1):
+            cart = TestingCartController.for_user(self.USER_1)
+            cart_2 = TestingCartController.for_user(self.USER_1)
+        self.assertIs(cart, cart_2)
+
+    def test_cart_revision_does_not_increment_if_not_modified(self):
+        cart = TestingCartController.for_user(self.USER_1)
+        rev_0 = cart.cart.revision
+
+        with BatchController.batch(self.USER_1):
+            # Memoise the cart
+            same_cart = TestingCartController.for_user(self.USER_1)
+            # Do nothing on exit
+        
+        rev_1 = self.reget(cart.cart).revision
+        self.assertEqual(rev_0, rev_1)
+
+    def test_cart_revision_only_increments_at_end_of_batches(self):
+        cart = TestingCartController.for_user(self.USER_1)
+        rev_0 = cart.cart.revision
+
+        with BatchController.batch(self.USER_1):
+            # Memoise the cart
+            same_cart = TestingCartController.for_user(self.USER_1)
+            same_cart.add_to_cart(self.PROD_1, 1)
+            rev_1 = self.reget(same_cart.cart).revision
+
+        rev_2 = self.reget(cart.cart).revision
+
+        self.assertEqual(rev_0, rev_1)
+        self.assertNotEqual(rev_0, rev_2)
+
+    def test_cart_discounts_only_calculated_at_end_of_batches(self):
+        def count_discounts(cart):
+            return cart.cart.discountitem_set.count()
+
+        cart = TestingCartController.for_user(self.USER_1)
+        self.make_discount_ceiling("FLOOZLE")
+        count_0 = count_discounts(cart)
+
+        with BatchController.batch(self.USER_1):
+            # Memoise the cart
+            same_cart = TestingCartController.for_user(self.USER_1)
+
+            with BatchController.batch(self.USER_1):
+                # Memoise the cart
+                same_cart_2 = TestingCartController.for_user(self.USER_1)
+
+                same_cart_2.add_to_cart(self.PROD_1, 1)
+                count_1 = count_discounts(same_cart_2)
+
+            count_2 = count_discounts(same_cart)
+
+        count_3 = count_discounts(cart)
+
+        self.assertEqual(0, count_0)
+        self.assertEqual(0, count_1)
+        self.assertEqual(0, count_2)
+        self.assertEqual(1, count_3)

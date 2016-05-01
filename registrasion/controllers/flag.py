@@ -6,6 +6,7 @@ from collections import namedtuple
 from django.db.models import Count
 from django.db.models import Q
 
+from .batch import BatchController
 from .conditions import ConditionController
 
 from registrasion.models import conditions
@@ -47,8 +48,6 @@ class FlagController(object):
         a list is returned containing all of the products that are *not
         enabled*. '''
 
-        print "GREPME: test_flags()"
-
         if products is not None and product_quantities is not None:
             raise ValueError("Please specify only products or "
                              "product_quantities")
@@ -62,7 +61,7 @@ class FlagController(object):
 
         if products:
             # Simplify the query.
-            all_conditions = cls._filtered_flags(user, products)
+            all_conditions = cls._filtered_flags(user)
         else:
             all_conditions = []
 
@@ -86,6 +85,8 @@ class FlagController(object):
             # from the categories covered by this condition
 
             ids = [product.id for product in products]
+
+            # TODO: This is re-evaluated a lot.
             all_products = inventory.Product.objects.filter(id__in=ids)
             cond = (
                 Q(flagbase_set=condition) |
@@ -117,7 +118,7 @@ class FlagController(object):
                 if not met and product not in messages:
                     messages[product] = message
 
-        total_flags = FlagCounter.count()
+        total_flags = FlagCounter.count(user)
 
         valid = {}
 
@@ -160,7 +161,8 @@ class FlagController(object):
         return error_fields
 
     @classmethod
-    def _filtered_flags(cls, user, products):
+    @BatchController.memoise
+    def _filtered_flags(cls, user):
         '''
 
         Returns:
@@ -171,26 +173,15 @@ class FlagController(object):
         types = list(ConditionController._controllers())
         flagtypes = [i for i in types if issubclass(i, conditions.FlagBase)]
 
-        # Get all flags for the products and categories.
-        prods = (
-            product.flagbase_set.all()
-            for product in products
-        )
-        cats = (
-            category.flagbase_set.all()
-            for category in set(product.category for product in products)
-        )
-        all_flags = reduce(operator.or_, itertools.chain(prods, cats))
-
         all_subsets = []
 
         for flagtype in flagtypes:
-            flags = flagtype.objects.filter(id__in=all_flags)
+            flags = flagtype.objects.all()
             ctrl = ConditionController.for_type(flagtype)
             flags = ctrl.pre_filter(flags, user)
             all_subsets.append(flags)
 
-        return itertools.chain(*all_subsets)
+        return list(itertools.chain(*all_subsets))
 
 
 ConditionAndRemainder = namedtuple(
@@ -220,11 +211,11 @@ _ConditionsCount = namedtuple(
 )
 
 
-# TODO: this should be cacheable.
 class FlagCounter(_FlagCounter):
 
     @classmethod
-    def count(cls):
+    @BatchController.memoise
+    def count(cls, user):
         # Get the count of how many conditions should exist per product
         flagbases = conditions.FlagBase.objects
 

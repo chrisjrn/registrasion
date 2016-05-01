@@ -5,9 +5,10 @@ from registrasion import util
 from registrasion.models import commerce
 from registrasion.models import inventory
 from registrasion.models import people
-from registrasion.controllers.discount import DiscountController
+from registrasion.controllers.batch import BatchController
 from registrasion.controllers.cart import CartController
 from registrasion.controllers.credit_note import CreditNoteController
+from registrasion.controllers.discount import DiscountController
 from registrasion.controllers.invoice import InvoiceController
 from registrasion.controllers.product import ProductController
 from registrasion.exceptions import CartValidationError
@@ -170,18 +171,18 @@ def guided_registration(request):
             category__in=cats,
         ).select_related("category")
 
-        available_products = set(ProductController.available_products(
-            request.user,
-            products=all_products,
-        ))
+        with BatchController.batch(request.user):
+            available_products = set(ProductController.available_products(
+                request.user,
+                products=all_products,
+            ))
 
-        if len(available_products) == 0:
-            # We've filled in every category
-            attendee.completed_registration = True
-            attendee.save()
-            return next_step
+            if len(available_products) == 0:
+                # We've filled in every category
+                attendee.completed_registration = True
+                attendee.save()
+                return next_step
 
-        with CartController.operations_batch(request.user):
             for category in cats:
                 products = [
                     i for i in available_products
@@ -345,20 +346,21 @@ def product_category(request, category_id):
     category_id = int(category_id)  # Routing is [0-9]+
     category = inventory.Category.objects.get(pk=category_id)
 
-    products = ProductController.available_products(
-        request.user,
-        category=category,
-    )
-
-    if not products:
-        messages.warning(
-            request,
-            "There are no products available from category: " + category.name,
+    with BatchController.batch(request.user):
+        products = ProductController.available_products(
+            request.user,
+            category=category,
         )
-        return redirect("dashboard")
 
-    p = _handle_products(request, category, products, PRODUCTS_FORM_PREFIX)
-    products_form, discounts, products_handled = p
+        if not products:
+            messages.warning(
+                request,
+                "There are no products available from category: " + category.name,
+            )
+            return redirect("dashboard")
+
+        p = _handle_products(request, category, products, PRODUCTS_FORM_PREFIX)
+        products_form, discounts, products_handled = p
 
     if request.POST and not voucher_handled and not products_form.errors:
         # Only return to the dashboard if we didn't add a voucher code

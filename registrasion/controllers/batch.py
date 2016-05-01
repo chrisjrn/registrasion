@@ -19,14 +19,37 @@ class BatchController(object):
     '''
 
     _user_caches = {}
+    _NESTING_KEY = "nesting_count"
 
     @classmethod
     @contextlib.contextmanager
     def batch(cls, user):
         ''' Marks the entry point for a batch for the given user. '''
-        pass
-        # TODO: store nesting count *inside* the cache object. You know it
-        # makes sense.
+
+        cls._enter_batch_context(user)
+        try:
+            yield
+        finally:
+            # Make sure we clean up in case of errors.
+            cls._exit_batch_context(user)
+
+    @classmethod
+    def _enter_batch_context(cls, user):
+        if user not in cls._user_caches:
+            cls._user_caches[user] = cls._new_cache()
+
+        cache = cls._user_caches[user]
+        cache[cls._NESTING_KEY] += 1
+
+    @classmethod
+    def _exit_batch_context(cls, user):
+        cache = cls._user_caches[user]
+        cache[cls._NESTING_KEY] -= 1
+
+        if cache[cls._NESTING_KEY] == 0:
+            # TODO: Handle batch end cases
+
+            del cls._user_caches[user]
 
     @classmethod
     def memoise(cls, func):
@@ -57,10 +80,17 @@ class BatchController(object):
     @classmethod
     def get_cache(cls, user):
         if user not in cls._user_caches:
-            return {}  # Return blank cache here, we'll just discard :)
+            # Return blank cache here, we'll just discard :)
+            return cls._new_cache()
 
         return cls._user_caches[user]
 
+    @classmethod
+    def _new_cache(cls):
+        ''' Returns a new cache dictionary. '''
+        cache = {}
+        cache[cls._NESTING_KEY] = 0
+        return cache
 
 '''
 TODO: memoise CartController.for_user
@@ -70,13 +100,6 @@ TODO: memoise FlagCounter.count() (doesn't take user, but it'll do for now)
 TODO: memoise _filtered_discounts
 
 Tests:
-- Correct nesting behaviour
- - do we get different cache objects every time we get a cache in non-batched
-   contexts?
- - do we get the same cache object for nested caches?
-  - do we get different cache objects when we back out of a batch and enter a
-   new one
-- are cache clears independent for different users?
 - ``end_batch`` behaviour for CartController (use for_user *A LOT*)
   - discounts not calculated until outermost batch point exits.
   - Revision number shouldn't change until outermost batch point exits.

@@ -122,7 +122,6 @@ class BatchTestCase(RegistrationCartTestCase):
         return object()
 
     def test_batch_end_functionality_is_called(self):
-
         class Ender(object):
             end_count = 0
             def end_batch(self):

@@ -1,6 +1,8 @@
 import contextlib
 import functools
 
+from django.contrib.auth.models import User
+
 
 class BatchController(object):
     ''' Batches are sets of operations where certain queries for users may be
@@ -54,26 +56,36 @@ class BatchController(object):
     @classmethod
     def memoise(cls, func):
         ''' Decorator that stores the result of the stored function in the
-        user's results cache until the batch completes.
+        user's results cache until the batch completes. Keyword arguments are
+        not yet supported.
 
         Arguments:
-            func (callable(user, *a, **k)): The function whose results we want
-                to store. ``user`` must be the first argument; this is used as
-                the cache key.
+            func (callable(*a)): The function whose results we want
+                to store. The positional arguments, ``a``, are used as cache
+                keys.
 
         Returns:
-            callable(user, *a, **k): The memosing version of ``func``.
+            callable(*a): The memosing version of ``func``.
 
         '''
 
         @functools.wraps(func)
-        def f(user, *a, **k):
+        def f(*a):
 
+            for arg in a:
+                if isinstance(arg, User):
+                    user = arg
+                    break
+            else:
+                raise ValueError("One position argument must be a User")
+
+            func_key = (func, tuple(a))
             cache = cls.get_cache(user)
-            if func not in cache:
-                cache[func] = func(user, *a, **k)
 
-            return cache[func]
+            if func_key not in cache:
+                cache[func_key] = func(*a)
+
+            return cache[func_key]
 
         return f
 

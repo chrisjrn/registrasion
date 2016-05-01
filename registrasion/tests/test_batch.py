@@ -120,3 +120,26 @@ class BatchTestCase(RegistrationCartTestCase):
     @BatchController.memoise
     def _memoiseme(self, user):
         return object()
+
+    def test_batch_end_functionality_is_called(self):
+
+        class Ender(object):
+            end_count = 0
+            def end_batch(self):
+                self.end_count += 1
+
+        @BatchController.memoise
+        def get_ender(user):
+            return Ender()
+
+        # end_batch should get called once on exiting the batch
+        with BatchController.batch(self.USER_1):
+            ender = get_ender(self.USER_1)
+        self.assertEquals(1, ender.end_count)
+
+        # end_batch should get called once on exiting the batch
+        # no matter how deep the object gets cached
+        with BatchController.batch(self.USER_1):
+            with BatchController.batch(self.USER_1):
+                ender = get_ender(self.USER_1)
+        self.assertEquals(1, ender.end_count)

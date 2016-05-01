@@ -16,6 +16,7 @@ from registrasion.models import commerce
 from registrasion.models import conditions
 from registrasion.models import inventory
 
+from.batch import BatchController
 from .category import CategoryController
 from .discount import DiscountController
 from .flag import FlagController
@@ -34,10 +35,11 @@ def _modifies_cart(func):
     def inner(self, *a, **k):
         self._fail_if_cart_is_not_active()
         with transaction.atomic():
-            with CartController.operations_batch(self.cart.user) as mark:
-                mark.mark = True  # Marker that we've modified the cart
+            with BatchController.batch(self.cart.user):
+                # Mark the version of self in the batch cache as modified
+                memoised = self.for_user(self.cart.user)
+                memoised._modified_by_batch = True
                 return func(self, *a, **k)
-
     return inner
 
 
@@ -47,6 +49,7 @@ class CartController(object):
         self.cart = cart
 
     @classmethod
+    @BatchController.memoise
     def for_user(cls, user):
         ''' Returns the user's current cart, or creates a new cart
         if there isn't one ready yet. '''
@@ -63,59 +66,6 @@ class CartController(object):
                 reservation_duration=datetime.timedelta(),
             )
         return cls(existing)
-
-    # Marks the carts that are currently in batches
-    _FOR_USER = {}
-    _BATCH_COUNT = collections.defaultdict(int)
-    _MODIFIED_CARTS = set()
-
-    class _ModificationMarker(object):
-        pass
-
-    @classmethod
-    @contextlib.contextmanager
-    def operations_batch(cls, user):
-        ''' Marks the boundary for a batch of operations on a user's cart.
-
-        These markers can be nested. Only on exiting the outermost marker will
-        a batch be ended.
-
-        When a batch is ended, discounts are recalculated, and the cart's
-        revision is increased.
-        '''
-
-        if user not in cls._FOR_USER:
-            _ctrl = cls.for_user(user)
-            cls._FOR_USER[user] = (_ctrl, _ctrl.cart.id)
-
-        ctrl, _id = cls._FOR_USER[user]
-
-        cls._BATCH_COUNT[_id] += 1
-        try:
-            success = False
-
-            marker = cls._ModificationMarker()
-            yield marker
-
-            if hasattr(marker, "mark"):
-                cls._MODIFIED_CARTS.add(_id)
-
-            success = True
-        finally:
-
-            cls._BATCH_COUNT[_id] -= 1
-
-            # Only end on the outermost batch marker, and only if
-            # it excited cleanly, and a modification occurred
-            modified = _id in cls._MODIFIED_CARTS
-            outermost = cls._BATCH_COUNT[_id] == 0
-            if modified and outermost and success:
-                ctrl._end_batch()
-                cls._MODIFIED_CARTS.remove(_id)
-
-            # Clear out the cache on the outermost operation
-            if outermost:
-                del cls._FOR_USER[user]
 
     def _fail_if_cart_is_not_active(self):
         self.cart.refresh_from_db()
@@ -143,6 +93,13 @@ class CartController(object):
 
         self.cart.time_last_updated = timezone.now()
         self.cart.reservation_duration = max(reservations)
+
+
+    def end_batch(self):
+        ''' Calls ``_end_batch`` if a modification has been performed in the
+        previous batch. '''
+        if hasattr(self,'_modified_by_batch'):
+            self._end_batch()
 
     def _end_batch(self):
         ''' Performs operations that occur occur at the end of a batch of

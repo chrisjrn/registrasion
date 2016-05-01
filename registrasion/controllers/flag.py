@@ -85,6 +85,8 @@ class FlagController(object):
             # from the categories covered by this condition
 
             ids = [product.id for product in products]
+
+            # TODO: This is re-evaluated a lot.
             all_products = inventory.Product.objects.filter(id__in=ids)
             cond = (
                 Q(flagbase_set=condition) |
@@ -181,7 +183,7 @@ class FlagController(object):
             flags = ctrl.pre_filter(flags, user)
             all_subsets.append(flags)
 
-        return itertools.chain(*all_subsets)
+        return list(itertools.chain(*all_subsets))
 
 
 ConditionAndRemainder = namedtuple(

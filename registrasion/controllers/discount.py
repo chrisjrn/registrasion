@@ -117,12 +117,14 @@ class DiscountController(object):
 
         product_clauses = conditions.DiscountForProduct.objects.all()
         product_clauses = product_clauses.select_related(
+            "discount",
             "product",
             "product__category",
         )
         category_clauses = conditions.DiscountForCategory.objects.all()
         category_clauses = category_clauses.select_related(
             "category",
+            "discount",
         )
 
         valid_discounts = conditions.DiscountBase.objects.all()

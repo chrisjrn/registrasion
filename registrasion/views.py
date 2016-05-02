@@ -451,7 +451,8 @@ def _set_quantities_from_products_form(products_form, current_cart):
     pks = [i[0] for i in quantities]
     products = inventory.Product.objects.filter(
         id__in=pks,
-    ).select_related("category")
+    ).select_related("category").order_by("id")
+    quantities.sort(key = lambda i: i[0])
 
     product_quantities = [
         (product, id_to_quantity[product.id]) for product in products

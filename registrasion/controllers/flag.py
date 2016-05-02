@@ -15,25 +15,6 @@ from registrasion.models import inventory
 
 class FlagController(object):
 
-    SINGLE = True
-    PLURAL = False
-    NONE = True
-    SOME = False
-    MESSAGE = {
-        NONE: {
-            SINGLE:
-                "%(items)s is no longer available to you",
-            PLURAL:
-                "%(items)s are no longer available to you",
-        },
-        SOME: {
-            SINGLE:
-                "Only %(remainder)d of the following item remains: %(items)s",
-            PLURAL:
-                "Only %(remainder)d of the following items remain: %(items)s"
-        },
-    }
-
     @classmethod
     def test_flags(
             cls, user, products=None, product_quantities=None):
@@ -103,9 +84,7 @@ class FlagController(object):
             met = consumed <= remainder
 
             if not met:
-                items = ", ".join(str(product) for product in all_products)
-                base = cls.MESSAGE[remainder == 0][len(all_products) == 1]
-                message = base % {"items": items, "remainder": remainder}
+                message = cls._error_message(all_products, remainder)
 
             for product in all_products:
                 if condition.is_disable_if_false:
@@ -135,13 +114,11 @@ class FlagController(object):
             if f.dif > 0 and f.dif != dif_count[product]:
                 do_not_disable[product] = False
                 if product not in messages:
-                    messages[product] = "Some disable-if-false " \
-                                        "conditions were not met"
+                    messages[product] = cls._error_message([product], 0)
             if f.eit > 0 and product not in do_enable:
                 do_enable[product] = False
                 if product not in messages:
-                    messages[product] = "Some enable-if-true " \
-                                        "conditions were not met"
+                    messages[product] = cls._error_message([product], 0)
 
         for product in itertools.chain(do_not_disable, do_enable):
             f = total_flags.get(product)
@@ -159,6 +136,33 @@ class FlagController(object):
         ]
 
         return error_fields
+
+    SINGLE = True
+    PLURAL = False
+    NONE = True
+    SOME = False
+    MESSAGE = {
+        NONE: {
+            SINGLE:
+                "%(items)s is no longer available to you",
+            PLURAL:
+                "%(items)s are no longer available to you",
+        },
+        SOME: {
+            SINGLE:
+                "Only %(remainder)d of the following item remains: %(items)s",
+            PLURAL:
+                "Only %(remainder)d of the following items remain: %(items)s"
+        },
+    }
+
+    @classmethod
+    def _error_message(cls, affected, remainder):
+        product_strings = (str(product) for product in affected)
+        items = ", ".join(product_strings)
+        base = cls.MESSAGE[remainder == 0][len(affected) == 1]
+        message = base % {"items": items, "remainder": remainder}
+        return message
 
     @classmethod
     @BatchController.memoise

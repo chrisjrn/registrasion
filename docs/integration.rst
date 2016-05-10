@@ -13,7 +13,7 @@ Installing Registrasion
 
 Registrasion depends on an in-development version of Symposion. You'll need to add the following  line to your ``requirements.txt`` files::
 
-    registrasion==0.1.0
+    registrasion==0.1.1
     https://github.com/pinax/symposion/tarball/ad81810#egg=symposion
 
 And also to enable dependency links in pip::

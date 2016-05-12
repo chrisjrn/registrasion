@@ -16,7 +16,7 @@ handles inventory management, as well as complex product inclusions, automatic
 calculation of discounts, and invoicing. Payment of invoices can be faciliated
 by manual filings of payments by staff, or through plugging in a payment app.
 
-Initial development of ``registration`` was funded with the generous support of
+Initial development of ``registrasion`` was funded with the generous support of
 the Python Software Foundation.
 
 Quickstart

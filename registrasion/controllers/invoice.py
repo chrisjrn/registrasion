@@ -5,6 +5,8 @@ from django.db import transaction
 from django.db.models import Sum
 from django.utils import timezone
 
+from registrasion.contrib.mail import send_email
+
 from registrasion.models import commerce
 from registrasion.models import conditions
 from registrasion.models import people
@@ -148,6 +150,8 @@ class InvoiceController(ForId, object):
         invoice.value = invoice_value
 
         invoice.save()
+
+        cls.email_on_invoice_creation(invoice)
 
         return invoice
 
@@ -314,3 +318,33 @@ class InvoiceController(ForId, object):
 
         CreditNoteController.generate_from_invoice(self.invoice, amount)
         self.update_status()
+
+    @classmethod
+    def email(cls, invoice, kind):
+        ''' Sends out an e-mail notifying the user about something to do
+        with that invoice. '''
+
+        context = {
+            "invoice": invoice,
+        }
+
+        send_email(invoice.user.email, kind, context=context)
+
+    @classmethod
+    def email_on_invoice_creation(cls, invoice):
+        ''' Sends out an e-mail notifying the user that an invoice has been
+        created. '''
+
+        cls.email(invoice, "invoice_created")
+
+    @classmethod
+    def email_on_invoice_change(cls, invoice, old_status, new_status):
+        ''' Sends out all of the necessary notifications that the status of the
+        invoice has changed to:
+
+        - Invoice is now paid
+        - Invoice is now refunded
+
+        '''
+
+        cls.email(invoice, "invoice_updated")

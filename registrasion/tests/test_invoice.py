@@ -533,3 +533,40 @@ class InvoiceTestCase(RegistrationCartTestCase):
         # Now that we don't have CAT_1, we can't checkout this cart
         with self.assertRaises(ValidationError):
             invoice = TestingInvoiceController.for_cart(cart.cart)
+
+    def test_sends_email_on_invoice_creation(self):
+        invoice = self._invoice_containing_prod_1(1)
+        self.assertEquals(1, len(self.emails))
+        email = self.emails[0]
+        self.assertEquals([self.USER_1.email], email["to"])
+        self.assertEquals("invoice_created", email["kind"])
+        self.assertEquals(invoice.invoice, email["context"]["invoice"])
+
+    def test_sends_first_change_email_on_invoice_fully_paid(self):
+        invoice = self._invoice_containing_prod_1(1)
+
+        self.assertEquals(1, len(self.emails))
+        invoice.pay("Partial", invoice.invoice.value - 1)
+        # Should have an "invoice_created" email and nothing else.
+        self.assertEquals(1, len(self.emails))
+        invoice.pay("Remainder", 1)
+        self.assertEquals(2, len(self.emails))
+
+        email = self.emails[1]
+        self.assertEquals([self.USER_1.email], email["to"])
+        self.assertEquals("invoice_updated", email["kind"])
+        self.assertEquals(invoice.invoice, email["context"]["invoice"])
+
+    def test_sends_email_when_invoice_refunded(self):
+        invoice = self._invoice_containing_prod_1(1)
+
+        self.assertEquals(1, len(self.emails))
+        invoice.pay("Payment", invoice.invoice.value)
+        self.assertEquals(2, len(self.emails))
+        invoice.refund()
+        self.assertEquals(3, len(self.emails))
+
+        email = self.emails[2]
+        self.assertEquals([self.USER_1.email], email["to"])
+        self.assertEquals("invoice_updated", email["kind"])
+        self.assertEquals(invoice.invoice, email["context"]["invoice"])

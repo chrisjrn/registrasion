@@ -5,6 +5,8 @@ from django.db import transaction
 from django.db.models import Sum
 from django.utils import timezone
 
+from registrasion.contrib.mail import send_email
+
 from registrasion.models import commerce
 from registrasion.models import conditions
 from registrasion.models import people
@@ -149,6 +151,8 @@ class InvoiceController(ForId, object):
 
         invoice.save()
 
+        cls.email_on_invoice_creation(invoice)
+
         return invoice
 
     def can_view(self, user=None, access_code=None):
@@ -241,6 +245,12 @@ class InvoiceController(ForId, object):
         if residual != 0:
             CreditNoteController.generate_from_invoice(self.invoice, residual)
 
+        self.email_on_invoice_change(
+            self.invoice,
+            old_status,
+            self.invoice.status,
+        )
+
     def _mark_paid(self):
         ''' Marks the invoice as paid, and updates the attached cart if
         necessary. '''
@@ -314,3 +324,44 @@ class InvoiceController(ForId, object):
 
         CreditNoteController.generate_from_invoice(self.invoice, amount)
         self.update_status()
+
+    @classmethod
+    def email(cls, invoice, kind):
+        ''' Sends out an e-mail notifying the user about something to do
+        with that invoice. '''
+
+        context = {
+            "invoice": invoice,
+        }
+
+        send_email([invoice.user.email], kind, context=context)
+
+    @classmethod
+    def email_on_invoice_creation(cls, invoice):
+        ''' Sends out an e-mail notifying the user that an invoice has been
+        created. '''
+
+        cls.email(invoice, "invoice_created")
+
+    @classmethod
+    def email_on_invoice_change(cls, invoice, old_status, new_status):
+        ''' Sends out all of the necessary notifications that the status of the
+        invoice has changed to:
+
+        - Invoice is now paid
+        - Invoice is now refunded
+
+        '''
+
+        # The statuses that we don't care about.
+        silent_status = [
+            commerce.Invoice.STATUS_VOID,
+            commerce.Invoice.STATUS_UNPAID,
+        ]
+
+        if old_status == new_status:
+            return
+        if False and new_status in silent_status:
+            pass
+
+        cls.email(invoice, "invoice_updated")

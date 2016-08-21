@@ -334,7 +334,7 @@ class InvoiceController(ForId, object):
             "invoice": invoice,
         }
 
-        send_email(invoice.user.email, kind, context=context)
+        send_email([invoice.user.email], kind, context=context)
 
     @classmethod
     def email_on_invoice_creation(cls, invoice):

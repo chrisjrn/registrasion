@@ -538,7 +538,7 @@ class InvoiceTestCase(RegistrationCartTestCase):
         invoice = self._invoice_containing_prod_1(1)
         self.assertEquals(1, len(self.emails))
         email = self.emails[0]
-        self.assertEquals(self.USER_1.email, email["to"])
+        self.assertEquals([self.USER_1.email], email["to"])
         self.assertEquals("invoice_created", email["kind"])
         self.assertEquals(invoice.invoice, email["context"]["invoice"])
 
@@ -553,7 +553,7 @@ class InvoiceTestCase(RegistrationCartTestCase):
         self.assertEquals(2, len(self.emails))
 
         email = self.emails[1]
-        self.assertEquals(self.USER_1.email, email["to"])
+        self.assertEquals([self.USER_1.email], email["to"])
         self.assertEquals("invoice_updated", email["kind"])
         self.assertEquals(invoice.invoice, email["context"]["invoice"])
 
@@ -567,6 +567,6 @@ class InvoiceTestCase(RegistrationCartTestCase):
         self.assertEquals(3, len(self.emails))
 
         email = self.emails[2]
-        self.assertEquals(self.USER_1.email, email["to"])
+        self.assertEquals([self.USER_1.email], email["to"])
         self.assertEquals("invoice_updated", email["kind"])
         self.assertEquals(invoice.invoice, email["context"]["invoice"])

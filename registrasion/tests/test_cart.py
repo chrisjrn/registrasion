@@ -16,12 +16,12 @@ from registrasion.controllers.batch import BatchController
 from registrasion.controllers.product import ProductController
 
 from controller_helpers import TestingCartController
-from patch_datetime import SetTimeMixin
+from patches import MixInPatches
 
 UTC = pytz.timezone('UTC')
 
 
-class RegistrationCartTestCase(SetTimeMixin, TestCase):
+class RegistrationCartTestCase(MixInPatches, TestCase):
 
     def setUp(self):
         super(RegistrationCartTestCase, self).setUp()
@@ -377,7 +377,7 @@ class BasicCartTests(RegistrationCartTestCase):
             # Memoise the cart
             same_cart = TestingCartController.for_user(self.USER_1)
             # Do nothing on exit
-        
+
         rev_1 = self.reget(cart.cart).revision
         self.assertEqual(rev_0, rev_1)
 

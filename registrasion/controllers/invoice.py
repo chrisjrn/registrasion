@@ -245,6 +245,12 @@ class InvoiceController(ForId, object):
         if residual != 0:
             CreditNoteController.generate_from_invoice(self.invoice, residual)
 
+        self.email_on_invoice_change(
+            self.invoice,
+            old_status,
+            self.invoice.status,
+        )
+
     def _mark_paid(self):
         ''' Marks the invoice as paid, and updates the attached cart if
         necessary. '''
@@ -346,5 +352,16 @@ class InvoiceController(ForId, object):
         - Invoice is now refunded
 
         '''
+
+        # The statuses that we don't care about.
+        silent_status = [
+            commerce.Invoice.STATUS_VOID,
+            commerce.Invoice.STATUS_UNPAID,
+        ]
+
+        if old_status == new_status:
+            return
+        if False and new_status in silent_status:
+            pass
 
         cls.email(invoice, "invoice_updated")

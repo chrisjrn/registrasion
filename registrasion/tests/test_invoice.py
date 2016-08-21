@@ -533,3 +533,11 @@ class InvoiceTestCase(RegistrationCartTestCase):
         # Now that we don't have CAT_1, we can't checkout this cart
         with self.assertRaises(ValidationError):
             invoice = TestingInvoiceController.for_cart(cart.cart)
+
+    def test_sends_email_on_invoice_creation(self):
+        invoice = self._invoice_containing_prod_1(1)
+        assert(1, len(self.emails))
+        email = self.emails[0]
+        self.assertEquals(self.USER_1.email, email["to"])
+        self.assertEquals("invoice_created", email["kind"])
+        self.assertEquals(invoice.invoice, email["context"]["invoice"])

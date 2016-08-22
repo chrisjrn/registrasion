@@ -446,33 +446,29 @@ def _handle_products(request, category, products, prefix):
 
 def _set_quantities_from_products_form(products_form, current_cart):
 
+    # Makes id_to_quantity, a dictionary from product ID to its quantity
     quantities = list(products_form.product_quantities())
-    id_to_quantity = dict(i[:2] for i in quantities)
+    id_to_quantity = dict(quantities)
+
+    # Get the actual product objects
     pks = [i[0] for i in quantities]
     products = inventory.Product.objects.filter(
         id__in=pks,
     ).select_related("category").order_by("id")
+
     quantities.sort(key = lambda i: i[0])
 
+    # Match the product objects to their quantities
     product_quantities = [
         (product, id_to_quantity[product.id]) for product in products
     ]
-    field_names = dict(
-        (i[0][0], i[1][2]) for i in zip(product_quantities, quantities)
-    )
 
     try:
         current_cart.set_quantities(product_quantities)
     except CartValidationError as ve:
         for ve_field in ve.error_list:
             product, message = ve_field.message
-            if product in field_names:
-                field = field_names[product]
-            elif isinstance(product, inventory.Product):
-                continue
-            else:
-                field = None
-            products_form.add_error(field, message)
+            products_form.add_product_error(product, message)
 
 
 def _handle_voucher(request, prefix):

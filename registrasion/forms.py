@@ -2,6 +2,7 @@ from registrasion.models import commerce
 from registrasion.models import inventory
 
 from django import forms
+from django.core.exceptions import ValidationError
 
 
 class ApplyCreditNoteForm(forms.Form):
@@ -64,6 +65,13 @@ def ProductsForm(category, products):
         pass
 
     ProductsForm.set_fields(category, products)
+
+    if category.render_type == inventory.Category.RENDER_TYPE_ITEM_QUANTITY:
+        ProductsForm = forms.formset_factory(
+            ProductsForm,
+            formset=_ItemQuantityProductsFormSet,
+        )
+
     return ProductsForm
 
 
@@ -99,6 +107,18 @@ class _HasProductsFields(object):
         ''' Yields a sequence of (product, quantity) tuples from the
         cleaned form data. '''
         return iter([])
+
+    def add_product_error(self, product, error):
+        ''' Adds an error to the given product's field '''
+
+        ''' if product in field_names:
+            field = field_names[product]
+        elif isinstance(product, inventory.Product):
+            return
+        else:
+            field = None '''
+
+        self.add_error(self.field_name(product), error)
 
 
 class _ProductsForm(_HasProductsFields, forms.Form):
@@ -140,7 +160,7 @@ class _QuantityBoxProductsForm(_ProductsForm):
         for name, value in self.cleaned_data.items():
             if name.startswith(self.PRODUCT_PREFIX):
                 product_id = int(name[len(self.PRODUCT_PREFIX):])
-                yield (product_id, value, name)
+                yield (product_id, value)
 
 
 class _RadioButtonProductsForm(_ProductsForm):
@@ -190,10 +210,14 @@ class _RadioButtonProductsForm(_ProductsForm):
                 self.FIELD,
             )
 
+    def add_product_error(self, product, error):
+        self.add_error(cls.FIELD, error)
+
 class _ItemQuantityProductsForm(_ProductsForm):
     ''' Products entry form that allows users to select a product type, and
-     enter a quantity of that product. This version _only_ allows a specific
-     product type to be purchased.'''
+     enter a quantity of that product. This version _only_ allows a single
+     product type to be purchased. This form is usually used in concert with the
+     _ItemQuantityProductsFormSet to allow selection of multiple products.'''
 
     CHOICE_FIELD = "choice"
     QUANTITY_FIELD = "quantity"
@@ -201,17 +225,19 @@ class _ItemQuantityProductsForm(_ProductsForm):
     @classmethod
     def set_fields(cls, category, products):
         choices = []
+
+        if not category.required:
+            choices.append((0, "---"))
+
         for product in products:
             choice_text = "%s -- $%d each" % (product.name, product.price)
             choices.append((product.id, choice_text))
-
-        if not category.required:
-            choices.append((0, "No selection"))
 
         cls.base_fields[cls.CHOICE_FIELD] = forms.TypedChoiceField(
             label=category.name,
             widget=forms.Select,
             choices=choices,
+            initial=0,
             empty_value=0,
             coerce=int,
         )
@@ -244,8 +270,72 @@ class _ItemQuantityProductsForm(_ProductsForm):
             yield (
                 choice_value,
                 our_quantity if our_choice == choice_value else 0,
-                self.CHOICE_FIELD,
             )
+
+    def add_product_error(self, product, error):
+        if self.CHOICE_FIELD not in self.cleaned_data:
+            return
+
+        if product.id == self.cleaned_data[self.CHOICE_FIELD]:
+            self.add_error(self.QUANTITY_FIELD, error)
+
+
+class _ItemQuantityProductsFormSet(_HasProductsFields, forms.BaseFormSet):
+
+    @classmethod
+    def set_fields(cls, category, products):
+        raise ValueError("set_fields must be called on the underlying Form")
+
+    @classmethod
+    def initial_data(cls, product_quantities):
+        ''' Prepares initial data for an instance of this form.
+        product_quantities is a sequence of (product,quantity) tuples '''
+
+        f = [
+            {
+                _ItemQuantityProductsForm.CHOICE_FIELD: product.id,
+                _ItemQuantityProductsForm.QUANTITY_FIELD: quantity,
+            }
+            for product, quantity in product_quantities
+            if quantity > 0
+        ]
+        return f
+
+    def product_quantities(self):
+        ''' Yields a sequence of (product, quantity) tuples from the
+        cleaned form data. '''
+
+        products = set()
+        # Track everything so that we can yield some zeroes
+        all_products = set()
+
+        for form in self:
+            if form.empty_permitted and not form.cleaned_data:
+                # This is the magical empty form at the end of the list.
+                continue
+
+            for product, quantity in form.product_quantities():
+                all_products.add(product)
+                if quantity == 0:
+                    continue
+                if product in products:
+                    form.add_error(
+                        _ItemQuantityProductsForm.CHOICE_FIELD,
+                        "You may only choose each product type once.",
+                    )
+                    form.add_error(
+                        _ItemQuantityProductsForm.QUANTITY_FIELD,
+                        "You may only choose each product type once.",
+                    )
+                products.add(product)
+                yield product, quantity
+
+        for product in (all_products - products):
+            yield product, 0
+
+    def add_product_error(self, product, error):
+        for form in self.forms:
+            form.add_product_error(product, error)
 
 
 class VoucherForm(forms.Form):

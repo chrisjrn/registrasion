@@ -277,6 +277,7 @@ class _ItemQuantityProductsForm(_ProductsForm):
             return
 
         if product.id == self.cleaned_data[self.CHOICE_FIELD]:
+            self.add_error(self.CHOICE_FIELD, error)
             self.add_error(self.QUANTITY_FIELD, error)
 
 

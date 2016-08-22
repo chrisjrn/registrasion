@@ -47,7 +47,7 @@ class ManualPaymentForm(forms.ModelForm):
 # Products forms -- none of these have any fields: they are to be subclassed
 # and the fields added as needs be.
 
-class _ProductsForm(forms.Form):
+class _HasProductsFields(object):
 
     PRODUCT_PREFIX = "product_"
 
@@ -57,7 +57,7 @@ class _ProductsForm(forms.Form):
             initial = self.initial_data(k["product_quantities"])
             k["initial"] = initial
             del k["product_quantities"]
-        super(_ProductsForm, self).__init__(*a, **k)
+        super(_ProductsFieldsHelpers, self).__init__(*a, **k)
 
     @classmethod
     def field_name(cls, product):
@@ -79,6 +79,10 @@ class _ProductsForm(forms.Form):
         ''' Yields a sequence of (product, quantity) tuples from the
         cleaned form data. '''
         return iter([])
+
+
+class _ProductsForm(_HasProductsFields, forms.Form):
+    pass
 
 
 class _QuantityBoxProductsForm(_ProductsForm):

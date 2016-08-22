@@ -36,6 +36,12 @@ class Category(models.Model):
             where the user can specify a quantity of each Product type. This is
             useful for additional extras, like Dinner Tickets.
 
+            ``RENDER_TYPE_ITEM_QUANTITY`` shows a select menu to select a
+            Product type, and an input field, where the user can specify the
+            quantity for that Product type. This is useful for categories that
+            have a lot of options, from which the user is not going to select
+            all of the options.
+
         limit_per_user (Optional[int]): This restricts the number of items
             from this Category that each attendee may claim. This extends
             across multiple Invoices.
@@ -56,10 +62,12 @@ class Category(models.Model):
 
     RENDER_TYPE_RADIO = 1
     RENDER_TYPE_QUANTITY = 2
+    RENDER_TYPE_ITEM_QUANTITY = 3
 
     CATEGORY_RENDER_TYPES = [
         (RENDER_TYPE_RADIO, _("Radio button")),
         (RENDER_TYPE_QUANTITY, _("Quantity boxes")),
+        (RENDER_TYPE_ITEM_QUANTITY, _("Product selector and quantity box")),
     ]
 
     name = models.CharField(

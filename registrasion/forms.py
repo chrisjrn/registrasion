@@ -45,7 +45,26 @@ class ManualPaymentForm(forms.ModelForm):
 
 
 # Products forms -- none of these have any fields: they are to be subclassed
-# and the fields added as needs be.
+# and the fields added as needs be. ProductsForm (the function) is responsible
+# for the subclassing.
+
+def ProductsForm(category, products):
+    ''' Produces an appropriate _ProductsForm subclass for the given render
+    type. '''
+
+    # Each Category.RENDER_TYPE value has a subclass here.
+    RENDER_TYPES = {
+        inventory.Category.RENDER_TYPE_QUANTITY: _QuantityBoxProductsForm,
+        inventory.Category.RENDER_TYPE_RADIO: _RadioButtonProductsForm,
+    }
+
+    # Produce a subclass of _ProductsForm which we can alter the base_fields on
+    class ProductsForm(RENDER_TYPES[category.render_type]):
+        pass
+
+    ProductsForm.set_fields(category, products)
+    return ProductsForm
+
 
 class _HasProductsFields(object):
 
@@ -57,7 +76,7 @@ class _HasProductsFields(object):
             initial = self.initial_data(k["product_quantities"])
             k["initial"] = initial
             del k["product_quantities"]
-        super(_ProductsFieldsHelpers, self).__init__(*a, **k)
+        super(_HasProductsFields, self).__init__(*a, **k)
 
     @classmethod
     def field_name(cls, product):
@@ -170,24 +189,6 @@ class _RadioButtonProductsForm(_ProductsForm):
                 1 if ours == choice_value else 0,
                 self.FIELD,
             )
-
-
-def ProductsForm(category, products):
-    ''' Produces an appropriate _ProductsForm subclass for the given render
-    type. '''
-
-    # Each Category.RENDER_TYPE value has a subclass here.
-    RENDER_TYPES = {
-        inventory.Category.RENDER_TYPE_QUANTITY: _QuantityBoxProductsForm,
-        inventory.Category.RENDER_TYPE_RADIO: _RadioButtonProductsForm,
-    }
-
-    # Produce a subclass of _ProductsForm which we can alter the base_fields on
-    class ProductsForm(RENDER_TYPES[category.render_type]):
-        pass
-
-    ProductsForm.set_fields(category, products)
-    return ProductsForm
 
 
 class VoucherForm(forms.Form):

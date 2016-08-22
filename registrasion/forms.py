@@ -56,6 +56,7 @@ def ProductsForm(category, products):
     RENDER_TYPES = {
         inventory.Category.RENDER_TYPE_QUANTITY: _QuantityBoxProductsForm,
         inventory.Category.RENDER_TYPE_RADIO: _RadioButtonProductsForm,
+        inventory.Category.RENDER_TYPE_ITEM_QUANTITY: _ItemQuantityProductsForm,
     }
 
     # Produce a subclass of _ProductsForm which we can alter the base_fields on
@@ -152,7 +153,6 @@ class _RadioButtonProductsForm(_ProductsForm):
     def set_fields(cls, category, products):
         choices = []
         for product in products:
-
             choice_text = "%s -- $%d" % (product.name, product.price)
             choices.append((product.id, choice_text))
 
@@ -188,6 +188,63 @@ class _RadioButtonProductsForm(_ProductsForm):
                 choice_value,
                 1 if ours == choice_value else 0,
                 self.FIELD,
+            )
+
+class _ItemQuantityProductsForm(_ProductsForm):
+    ''' Products entry form that allows users to select a product type, and
+     enter a quantity of that product. This version _only_ allows a specific
+     product type to be purchased.'''
+
+    CHOICE_FIELD = "choice"
+    QUANTITY_FIELD = "quantity"
+
+    @classmethod
+    def set_fields(cls, category, products):
+        choices = []
+        for product in products:
+            choice_text = "%s -- $%d each" % (product.name, product.price)
+            choices.append((product.id, choice_text))
+
+        if not category.required:
+            choices.append((0, "No selection"))
+
+        cls.base_fields[cls.CHOICE_FIELD] = forms.TypedChoiceField(
+            label=category.name,
+            widget=forms.Select,
+            choices=choices,
+            empty_value=0,
+            coerce=int,
+        )
+
+        cls.base_fields[cls.QUANTITY_FIELD] = forms.IntegerField(
+            label="Quantity",  # TODO: internationalise
+            min_value=0,
+            max_value=500,  # Issue #19. We should figure out real limit.
+        )
+
+    @classmethod
+    def initial_data(cls, product_quantities):
+        initial = {}
+
+        for product, quantity in product_quantities:
+            if quantity > 0:
+                initial[cls.CHOICE_FIELD] = product.id
+                initial[cls.QUANTITY_FIELD] = quantity
+                break
+
+        return initial
+
+    def product_quantities(self):
+        our_choice = self.cleaned_data[self.CHOICE_FIELD]
+        our_quantity = self.cleaned_data[self.QUANTITY_FIELD]
+        choices = self.fields[self.CHOICE_FIELD].choices
+        for choice_value, choice_display in choices:
+            if choice_value == 0:
+                continue
+            yield (
+                choice_value,
+                our_quantity if our_choice == choice_value else 0,
+                self.CHOICE_FIELD,
             )
 
 

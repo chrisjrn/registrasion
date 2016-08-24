@@ -122,12 +122,19 @@ class InvoiceController(ForId, object):
 
         line_items = []
 
+        def format_product(product):
+            return "%s - %s" % (product.category.name, product.name)
+
+        def format_discount(discount, product):
+            description = discount.description
+            return "%s (%s)" % (description, format_product(product))
+
         invoice_value = Decimal()
         for item in product_items:
             product = item.product
             line_item = commerce.LineItem(
                 invoice=invoice,
-                description="%s - %s" % (product.category.name, product.name),
+                description=format_product(product),
                 quantity=item.quantity,
                 price=product.price,
                 product=product,
@@ -137,7 +144,7 @@ class InvoiceController(ForId, object):
         for item in discount_items:
             line_item = commerce.LineItem(
                 invoice=invoice,
-                description=item.discount.description,
+                description=format_discount(item.discount, item.product),
                 quantity=item.quantity,
                 price=cls.resolve_discount_value(item) * -1,
                 product=item.product,

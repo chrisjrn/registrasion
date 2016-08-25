@@ -53,11 +53,9 @@ def report(view):
     displays a Report.
 
     '''
-    print "hello"
 
     @wraps(view)
     def inner_view(request, *a, **k):
-        print "lol"
         report = view(request, *a, **k)
 
         ctx = {
@@ -74,8 +72,6 @@ def report(view):
 def items_sold(request):
     ''' Summarises the items sold and discounts granted for a given set of
     products, or products from categories. '''
-
-    print "beep"
 
     form = forms.ProductAndCategoryForm(request.GET)
 

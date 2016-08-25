@@ -1,6 +1,7 @@
 import forms
 
 from django.db.models import Q
+from django.db.models import Sum
 from django.shortcuts import render
 from functools import wraps
 
@@ -84,14 +85,28 @@ def items_sold(request):
 
         # TODO augment the form to allow us to filter by invoice status.
         line_items = commerce.LineItem.objects.filter(
-            Q(product=products) | Q(product__category=categories),
+            Q(product__in=products) | Q(product__category__in=categories),
             invoice__status=commerce.Invoice.STATUS_PAID,
         ).select_related("invoice")
 
-        headings = ["invoice_id", "description", "quantity", "price"]
+        line_items = line_items.order_by(
+            # sqlite requires an order_by for .values() to work
+            "-price", "description",
+        ).values(
+            "price", "description",
+        ).annotate(
+            total_quantity=Sum("quantity"),
+        )
+
+        print line_items
+
+        headings = ["description", "quantity", "price", "total"]
 
         data = []
         for line in line_items:
-            data.append([line.invoice.id, line.description, line.quantity, line.price])
+            data.append([
+                line["description"], line["total_quantity"],
+                line["price"], line["total_quantity"] * line["price"],
+            ])
 
     return Report(form, headings, data)

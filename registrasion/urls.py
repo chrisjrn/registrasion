@@ -1,4 +1,5 @@
 import views
+import staff_views
 
 from django.conf.urls import url, patterns
 
@@ -30,4 +31,5 @@ urlpatterns = [
     url(r"^register$", guided_registration, name="guided_registration"),
     url(r"^register/([0-9]+)$", guided_registration,
         name="guided_registration"),
+    url(r"^report$", staff_views.items_sold, name="items_sold"),  # TODO: rm
 ]

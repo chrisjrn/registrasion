@@ -345,3 +345,16 @@ class VoucherForm(forms.Form):
         help_text="If you have a voucher code, enter it here",
         required=False,
     )
+
+
+# Staff-facing forms.
+
+class ProductAndCategoryForm(forms.Form):
+    product = forms.ModelMultipleChoiceField(
+        queryset=inventory.Product.objects.all(),
+        required=False,
+    )
+    category = forms.ModelMultipleChoiceField(
+        queryset=inventory.Category.objects.all(),
+        required=False,
+    )

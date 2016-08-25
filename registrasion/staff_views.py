@@ -28,10 +28,16 @@ A table
 
 class Report(object):
 
-    def __init__(self, form, headings, data):
+    def __init__(self, title, form, headings, data):
+        self._title = title
         self._form = form
         self._headings = headings
         self._data = data
+
+    @property
+    def title(self):
+        ''' Returns the form. '''
+        return self._title
 
     @property
     def form(self):
@@ -60,6 +66,7 @@ def report(view):
         report = view(request, *a, **k)
 
         ctx = {
+            "title": report.title,
             "form": report.form,
             "report": report,
         }
@@ -74,6 +81,8 @@ def items_sold(request):
     ''' Summarises the items sold and discounts granted for a given set of
     products, or products from categories. '''
 
+    title = "Paid items"
+
     form = forms.ProductAndCategoryForm(request.GET)
 
     data = None
@@ -83,7 +92,6 @@ def items_sold(request):
         products = form.cleaned_data["product"]
         categories = form.cleaned_data["category"]
 
-        # TODO augment the form to allow us to filter by invoice status.
         line_items = commerce.LineItem.objects.filter(
             Q(product__in=products) | Q(product__category__in=categories),
             invoice__status=commerce.Invoice.STATUS_PAID,
@@ -109,4 +117,4 @@ def items_sold(request):
                 line["price"], line["total_quantity"] * line["price"],
             ])
 
-    return Report(form, headings, data)
+    return Report(title, form, headings, data)

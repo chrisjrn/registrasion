@@ -1,11 +1,14 @@
 import forms
 
+from django.db import models
 from django.db.models import Q
 from django.db.models import Sum
+from django.db.models import Case, When, Value
 from django.shortcuts import render
 from functools import wraps
 
 from models import commerce
+from models import inventory
 
 
 '''
@@ -108,7 +111,7 @@ def items_sold(request):
 
         print line_items
 
-        headings = ["description", "quantity", "price", "total"]
+        headings = ["Description", "Quantity", "Price", "Total"]
 
         data = []
         total_income = 0
@@ -123,5 +126,71 @@ def items_sold(request):
         data.append([
             "(TOTAL)", "--", "--", total_income,
         ])
+
+    return Report(title, form, headings, data)
+
+
+@report
+def inventory(request):
+    ''' Summarises the inventory status of the given items, grouping by
+    invoice status. '''
+
+    title = "Inventory"
+
+    form = forms.ProductAndCategoryForm(request.GET)
+
+    data = None
+    headings = None
+
+    if form.is_valid() and form.has_changed():
+        products = form.cleaned_data["product"]
+        categories = form.cleaned_data["category"]
+
+        items = commerce.ProductItem.objects.filter(
+            Q(product__in=products) | Q(product__category__in=categories),
+        ).select_related("cart", "product")
+
+        # TODO annotate with whether the item is reserved or not.
+
+        items = items.annotate(is_reserved=Case(
+            When(cart__in=commerce.Cart.reserved_carts(), then=Value(1)),
+            default=Value(0),
+            output_field=models.BooleanField(),
+        ))
+
+        items = items.order_by(
+            "cart__status",
+            "product__category__order",
+            "product__order",
+        ).values(
+            "product",
+            "product__category__name",
+            "product__name",
+            "cart__status",
+            "is_reserved",
+        ).annotate(
+            total_quantity=Sum("quantity"),
+        )
+
+        headings = ["Product", "Status", "Quantity"]
+        data = []
+
+        def status(reserved, status):
+            r = "Reserved" if reserved else "Unreserved"
+            s = "".join(
+                "%s" % i[1]
+                for i in commerce.Cart.STATUS_TYPES if i[0]==status
+            )
+            return "%s - %s" % (r, s)
+
+        for item in items:
+            print commerce.Cart.STATUS_TYPES
+            data.append([
+                "%s - %s" % (
+                    item["product__category__name"], item["product__name"]
+                ),
+                status(item["is_reserved"], item["cart__status"]),
+                item["total_quantity"],
+            ])
 
     return Report(title, form, headings, data)

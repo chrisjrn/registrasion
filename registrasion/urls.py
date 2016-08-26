@@ -37,6 +37,7 @@ public = [
 
 
 reports = [
+    url(r"^inventory/?$", staff_views.inventory, name="inventory"),
     url(r"^items_sold/?$", staff_views.items_sold, name="items_sold"),
 ]
 

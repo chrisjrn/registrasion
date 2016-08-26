@@ -111,10 +111,17 @@ def items_sold(request):
         headings = ["description", "quantity", "price", "total"]
 
         data = []
+        total_income = 0
         for line in line_items:
+            cost = line["total_quantity"] * line["price"]
             data.append([
                 line["description"], line["total_quantity"],
-                line["price"], line["total_quantity"] * line["price"],
+                line["price"], cost,
             ])
+            total_income += cost
+
+        data.append([
+            "(TOTAL)", "--", "--", total_income,
+        ])
 
     return Report(title, form, headings, data)

@@ -1,7 +1,7 @@
 import forms
 
 from django.db import models
-from django.db.models import Q
+from django.db.models import F, Q
 from django.db.models import Sum
 from django.db.models import Case, When, Value
 from django.shortcuts import render
@@ -141,46 +141,72 @@ def inventory(request, form):
         Q(product__in=products) | Q(product__category__in=categories),
     ).select_related("cart", "product")
 
-    # TODO annotate with whether the item is reserved or not.
-
-    items = items.annotate(is_reserved=Case(
-        When(cart__in=commerce.Cart.reserved_carts(), then=Value(1)),
-        default=Value(0),
-        output_field=models.BooleanField(),
-    ))
+    items = items.annotate(
+        is_reserved=Case(
+            When(cart__in=commerce.Cart.reserved_carts(), then=Value(1)),
+            default=Value(0),
+            output_field=models.BooleanField(),
+        ),
+    )
 
     items = items.order_by(
-        "cart__status",
         "product__category__order",
         "product__order",
     ).values(
         "product",
         "product__category__name",
         "product__name",
-        "cart__status",
-        "is_reserved",
     ).annotate(
-        total_quantity=Sum("quantity"),
+        total_paid=Sum(Case(
+            When(
+                cart__status=commerce.Cart.STATUS_PAID,
+                then=F("quantity"),
+            ),
+            default=Value(0),
+        )),
+        total_refunded=Sum(Case(
+            When(
+                cart__status=commerce.Cart.STATUS_RELEASED,
+                then=F("quantity"),
+            ),
+            default=Value(0),
+        )),
+        total_unreserved=Sum(Case(
+            When(
+                (
+                    Q(cart__status=commerce.Cart.STATUS_ACTIVE) &
+                    Q(is_reserved=False)
+                ),
+                then=F("quantity"),
+            ),
+            default=Value(0),
+        )),
+        total_reserved=Sum(Case(
+            When(
+                (
+                    Q(cart__status=commerce.Cart.STATUS_ACTIVE) &
+                    Q(is_reserved=True)
+                ),
+                then=F("quantity"),
+            ),
+            default=Value(0),
+        )),
     )
 
-    headings = ["Product", "Status", "Quantity"]
+    headings = [
+        "Product", "Paid", "Reserved", "Unreserved", "Refunded",
+    ]
     data = []
-
-    def status(reserved, status):
-        r = "Reserved" if reserved else "Unreserved"
-        # This is a bit weird -- can we simplify?
-        s = "".join(
-            "%s" % i[1] for i in commerce.Cart.STATUS_TYPES if i[0]==status
-        )
-        return "%s - %s" % (r, s)
 
     for item in items:
         data.append([
             "%s - %s" % (
                 item["product__category__name"], item["product__name"]
             ),
-            status(item["is_reserved"], item["cart__status"]),
-            item["total_quantity"],
+            item["total_paid"],
+            item["total_reserved"],
+            item["total_unreserved"],
+            item["total_refunded"],
         ])
 
     return Report("Inventory", headings, data)

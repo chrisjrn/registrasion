@@ -31,21 +31,14 @@ A table
 
 class Report(object):
 
-    def __init__(self, title, form, headings, data):
-        self._title = title
-        self._form = form
+    def __init__(self, title, headings, data):
         self._headings = headings
         self._data = data
 
     @property
     def title(self):
-        ''' Returns the form. '''
+        ''' Returns the title for this report. '''
         return self._title
-
-    @property
-    def form(self):
-        ''' Returns the form. '''
-        return self._form
 
     @property
     def headings(self):
@@ -58,139 +51,136 @@ class Report(object):
         return self._data
 
 
-def report(view):
+def report(title, form_type):
     ''' Decorator that converts a report view function into something that
     displays a Report.
 
+    Arguments:
+        form_type: A form class that can make this report display things.
+
     '''
 
-    @wraps(view)
-    def inner_view(request, *a, **k):
-        report = view(request, *a, **k)
+    def _report(view):
 
-        ctx = {
-            "title": report.title,
-            "form": report.form,
-            "report": report,
-        }
+        @wraps(view)
+        def inner_view(request, *a, **k):
 
-        return render(request, "registrasion/report.html", ctx)
+            form = form_type(request.GET)
+            if form.is_valid() and form.has_changed():
+                report = view(request, form, *a, **k)
+            else:
+                report = None
 
-    return inner_view
+            ctx = {
+                "title": title,
+                "form": form,
+                "report": report,
+            }
+
+            return render(request, "registrasion/report.html", ctx)
+
+        return inner_view
+    return _report
 
 
-@report
-def items_sold(request):
+@report("Paid items", forms.ProductAndCategoryForm)
+def items_sold(request, form):
     ''' Summarises the items sold and discounts granted for a given set of
     products, or products from categories. '''
 
-    title = "Paid items"
-
-    form = forms.ProductAndCategoryForm(request.GET)
-
     data = None
     headings = None
 
-    if form.is_valid() and form.has_changed():
-        products = form.cleaned_data["product"]
-        categories = form.cleaned_data["category"]
+    products = form.cleaned_data["product"]
+    categories = form.cleaned_data["category"]
 
-        line_items = commerce.LineItem.objects.filter(
-            Q(product__in=products) | Q(product__category__in=categories),
-            invoice__status=commerce.Invoice.STATUS_PAID,
-        ).select_related("invoice")
+    line_items = commerce.LineItem.objects.filter(
+        Q(product__in=products) | Q(product__category__in=categories),
+        invoice__status=commerce.Invoice.STATUS_PAID,
+    ).select_related("invoice")
 
-        line_items = line_items.order_by(
-            # sqlite requires an order_by for .values() to work
-            "-price", "description",
-        ).values(
-            "price", "description",
-        ).annotate(
-            total_quantity=Sum("quantity"),
-        )
+    line_items = line_items.order_by(
+        # sqlite requires an order_by for .values() to work
+        "-price", "description",
+    ).values(
+        "price", "description",
+    ).annotate(
+        total_quantity=Sum("quantity"),
+    )
 
-        print line_items
+    print line_items
 
-        headings = ["Description", "Quantity", "Price", "Total"]
+    headings = ["Description", "Quantity", "Price", "Total"]
 
-        data = []
-        total_income = 0
-        for line in line_items:
-            cost = line["total_quantity"] * line["price"]
-            data.append([
-                line["description"], line["total_quantity"],
-                line["price"], cost,
-            ])
-            total_income += cost
-
+    data = []
+    total_income = 0
+    for line in line_items:
+        cost = line["total_quantity"] * line["price"]
         data.append([
-            "(TOTAL)", "--", "--", total_income,
+            line["description"], line["total_quantity"],
+            line["price"], cost,
         ])
+        total_income += cost
 
-    return Report(title, form, headings, data)
+    data.append([
+        "(TOTAL)", "--", "--", total_income,
+    ])
+
+    return Report("Paid items", headings, data)
 
 
-@report
-def inventory(request):
+@report("Inventory", forms.ProductAndCategoryForm)
+def inventory(request, form):
     ''' Summarises the inventory status of the given items, grouping by
     invoice status. '''
 
-    title = "Inventory"
+    products = form.cleaned_data["product"]
+    categories = form.cleaned_data["category"]
 
-    form = forms.ProductAndCategoryForm(request.GET)
+    items = commerce.ProductItem.objects.filter(
+        Q(product__in=products) | Q(product__category__in=categories),
+    ).select_related("cart", "product")
 
-    data = None
-    headings = None
+    # TODO annotate with whether the item is reserved or not.
 
-    if form.is_valid() and form.has_changed():
-        products = form.cleaned_data["product"]
-        categories = form.cleaned_data["category"]
+    items = items.annotate(is_reserved=Case(
+        When(cart__in=commerce.Cart.reserved_carts(), then=Value(1)),
+        default=Value(0),
+        output_field=models.BooleanField(),
+    ))
 
-        items = commerce.ProductItem.objects.filter(
-            Q(product__in=products) | Q(product__category__in=categories),
-        ).select_related("cart", "product")
+    items = items.order_by(
+        "cart__status",
+        "product__category__order",
+        "product__order",
+    ).values(
+        "product",
+        "product__category__name",
+        "product__name",
+        "cart__status",
+        "is_reserved",
+    ).annotate(
+        total_quantity=Sum("quantity"),
+    )
 
-        # TODO annotate with whether the item is reserved or not.
+    headings = ["Product", "Status", "Quantity"]
+    data = []
 
-        items = items.annotate(is_reserved=Case(
-            When(cart__in=commerce.Cart.reserved_carts(), then=Value(1)),
-            default=Value(0),
-            output_field=models.BooleanField(),
-        ))
-
-        items = items.order_by(
-            "cart__status",
-            "product__category__order",
-            "product__order",
-        ).values(
-            "product",
-            "product__category__name",
-            "product__name",
-            "cart__status",
-            "is_reserved",
-        ).annotate(
-            total_quantity=Sum("quantity"),
+    def status(reserved, status):
+        r = "Reserved" if reserved else "Unreserved"
+        # This is a bit weird -- can we simplify?
+        s = "".join(
+            "%s" % i[1] for i in commerce.Cart.STATUS_TYPES if i[0]==status
         )
+        return "%s - %s" % (r, s)
 
-        headings = ["Product", "Status", "Quantity"]
-        data = []
+    for item in items:
+        data.append([
+            "%s - %s" % (
+                item["product__category__name"], item["product__name"]
+            ),
+            status(item["is_reserved"], item["cart__status"]),
+            item["total_quantity"],
+        ])
 
-        def status(reserved, status):
-            r = "Reserved" if reserved else "Unreserved"
-            s = "".join(
-                "%s" % i[1]
-                for i in commerce.Cart.STATUS_TYPES if i[0]==status
-            )
-            return "%s - %s" % (r, s)
-
-        for item in items:
-            print commerce.Cart.STATUS_TYPES
-            data.append([
-                "%s - %s" % (
-                    item["product__category__name"], item["product__name"]
-                ),
-                status(item["is_reserved"], item["cart__status"]),
-                item["total_quantity"],
-            ])
-
-    return Report(title, form, headings, data)
+    return Report("Inventory", headings, data)

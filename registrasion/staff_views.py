@@ -1,9 +1,12 @@
 import forms
+import views
 
+from django.contrib.auth.decorators import user_passes_test
 from django.db import models
 from django.db.models import F, Q
 from django.db.models import Sum
 from django.db.models import Case, When, Value
+from django.http import Http404
 from django.shortcuts import render
 from functools import wraps
 
@@ -63,6 +66,7 @@ def report(title, form_type):
     def _report(view):
 
         @wraps(view)
+        @user_passes_test(views._staff_only)
         def inner_view(request, *a, **k):
 
             form = form_type(request.GET)

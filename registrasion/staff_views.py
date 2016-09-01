@@ -1,7 +1,10 @@
 import forms
 import views
 
+from collections import namedtuple
+
 from django.contrib.auth.decorators import user_passes_test
+from django.core.urlresolvers import reverse
 from django.db import models
 from django.db.models import F, Q
 from django.db.models import Sum
@@ -54,6 +57,11 @@ class Report(object):
         return self._data
 
 
+''' A list of report views objects that can be used to load a list of
+reports. '''
+_all_report_views = []
+
+
 def report(title, form_type):
     ''' Decorator that converts a report view function into something that
     displays a Report.
@@ -83,8 +91,39 @@ def report(title, form_type):
 
             return render(request, "registrasion/report.html", ctx)
 
+        # Add this report to the list of reports -- makes this reversable.
+        _all_report_views.append(inner_view)
+
+        # Return the callable
         return inner_view
     return _report
+
+
+@user_passes_test(views._staff_only)
+def reports_list(request):
+    ''' Lists all of the reports currently available. '''
+
+    reports = []
+
+    for report in _all_report_views:
+        reports.append({
+            "name" : report.__name__,
+            "url" : reverse(report),
+            "description" : report.__doc__,
+        })
+
+    reports.sort(key=lambda report: report["name"])
+
+    ctx = {
+        "reports" : reports,
+    }
+
+    print reports
+
+    return render(request, "registrasion/reports_list.html", ctx)
+
+
+# Report functions
 
 
 @report("Paid items", forms.ProductAndCategoryForm)

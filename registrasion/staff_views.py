@@ -16,87 +16,8 @@ from functools import wraps
 from models import commerce
 from models import inventory
 
-
-'''
-
-All reports must be viewable by staff only (permissions?)
-
-Reports can have:
-
-A form
- * Reports are all *gettable* - you can save a URL and get back to the same
- report
- * Fetching a report *cannot* break the underlying data.
-A table
- * Headings
- * Data lines
- * Formats are pluggable
-
-'''
-
-
-class Report(object):
-
-    def __init__(self, title, headings, data):
-        self._headings = headings
-        self._data = data
-
-    @property
-    def title(self):
-        ''' Returns the title for this report. '''
-        return self._title
-
-    @property
-    def headings(self):
-        ''' Returns the headings for the table. '''
-        return self._headings
-
-    @property
-    def data(self):
-        ''' Returns the data rows for the table. '''
-        return self._data
-
-
-''' A list of report views objects that can be used to load a list of
-reports. '''
-_all_report_views = []
-
-
-def report(title, form_type):
-    ''' Decorator that converts a report view function into something that
-    displays a Report.
-
-    Arguments:
-        form_type: A form class that can make this report display things.
-
-    '''
-
-    def _report(view):
-
-        @wraps(view)
-        @user_passes_test(views._staff_only)
-        def inner_view(request, *a, **k):
-
-            form = form_type(request.GET)
-            if form.is_valid() and form.has_changed():
-                report = view(request, form, *a, **k)
-            else:
-                report = None
-
-            ctx = {
-                "title": title,
-                "form": form,
-                "report": report,
-            }
-
-            return render(request, "registrasion/report.html", ctx)
-
-        # Add this report to the list of reports -- makes this reversable.
-        _all_report_views.append(inner_view)
-
-        # Return the callable
-        return inner_view
-    return _report
+from reporting.reports import Report
+from reporting.reports import report_view
 
 
 @user_passes_test(views._staff_only)
@@ -118,15 +39,13 @@ def reports_list(request):
         "reports" : reports,
     }
 
-    print reports
-
     return render(request, "registrasion/reports_list.html", ctx)
 
 
 # Report functions
 
 
-@report("Paid items", forms.ProductAndCategoryForm)
+@report_view("Paid items", forms.ProductAndCategoryForm)
 def items_sold(request, form):
     ''' Summarises the items sold and discounts granted for a given set of
     products, or products from categories. '''
@@ -172,7 +91,7 @@ def items_sold(request, form):
     return Report("Paid items", headings, data)
 
 
-@report("Inventory", forms.ProductAndCategoryForm)
+@report_view("Inventory", forms.ProductAndCategoryForm)
 def inventory(request, form):
     ''' Summarises the inventory status of the given items, grouping by
     invoice status. '''

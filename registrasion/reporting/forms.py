@@ -13,3 +13,10 @@ class ProductAndCategoryForm(forms.Form):
         queryset=inventory.Category.objects.all(),
         required=False,
     )
+
+
+class UserIdForm(forms.Form):
+    user = forms.IntegerField(
+        label="User ID",
+        required=False,
+    )

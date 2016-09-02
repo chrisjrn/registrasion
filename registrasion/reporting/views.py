@@ -4,11 +4,12 @@ from django.contrib.auth.decorators import user_passes_test
 from django.core.urlresolvers import reverse
 from django.db import models
 from django.db.models import F, Q
-from django.db.models import Sum
+from django.db.models import Count, Sum
 from django.db.models import Case, When, Value
 from django.shortcuts import render
 
 from registrasion.models import commerce
+from registrasion.models import people
 from registrasion import views
 
 from reports import get_all_reports
@@ -195,3 +196,70 @@ def credit_notes(request, form):
         ])
 
     return Report("Credit Notes", headings, data, link_view="credit_note")
+
+
+@report_view("Attendee", form_type=forms.UserIdForm)
+def attendee(request, form, attendee_id=None):
+    ''' Returns a list of all manifested attendees if no attendee is specified,
+    else displays the attendee manifest. '''
+
+    if attendee_id is None and not form.has_changed():
+        return attendee_list(request)
+
+    reports = []
+
+    # TODO: METADATA.
+
+
+    # Paid products
+    headings = ["Product", "Quantity"]
+    data = []
+    reports.append(Report("Paid Products", headings, data))
+
+    # Unpaid products
+    headings = ["Product", "Quantity"]
+    data = []
+    reports.append( Report("Unpaid Products", headings, data))
+
+    # Invoices
+    headings = ["Invoice ID", "Status", "Amount"]
+    data = []
+    reports.append( Report("Invoices", headings, data))
+
+    # Credit Notes
+    headings = ["Note ID", "Status", "Value"]
+    data = []
+    reports.append( Report("Credit Notes", headings, data))
+
+    return reports
+
+
+def attendee_list(request):
+    ''' Returns a list of all attendees. '''
+
+    attendees = people.Attendee.objects.all().select_related(
+        "attendeeprofilebase",
+    )
+    attendees = attendees.annotate(
+        has_registered=Count(
+            Q(user__invoice__status=commerce.Invoice.STATUS_PAID)
+        ),
+    )
+
+    headings = [
+        "User ID", "Email", "Has registered",
+    ]
+
+    data = []
+
+    for attendee in attendees:
+        data.append([
+            attendee.user.id,
+            attendee.user.email,
+            attendee.has_registered > 0,
+        ])
+
+    # Sort by whether they've registered, then ID.
+    data.sort(key=lambda attendee: (-attendee[2], attendee[0]))
+
+    return Report("Attendees", headings, data, link_view="attendee")

@@ -13,6 +13,7 @@ _all_report_views = []
 class Report(object):
 
     def __init__(self, title, headings, data, link_view=None):
+        self._title = title
         self._headings = headings
         self._data = data
         self._link_view = link_view
@@ -66,12 +67,15 @@ def report_view(title, form_type=None):
             else:
                 form = None
 
-            report = view(request, form, *a, **k)
+            reports = view(request, form, *a, **k)
+
+            if isinstance(reports, Report):
+                reports = [reports]
 
             ctx = {
                 "title": title,
                 "form": form,
-                "report": report,
+                "reports": reports,
             }
 
             return render(request, "registrasion/report.html", ctx)

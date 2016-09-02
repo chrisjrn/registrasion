@@ -199,4 +199,4 @@ def credit_notes(request, form):
             note.value,
         ])
 
-    return Report("Credit Notes", headings, data)
+    return Report("Credit Notes", headings, data, link_view="credit_note")

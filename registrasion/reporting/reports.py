@@ -23,9 +23,10 @@ _all_report_views = []
 
 class Report(object):
 
-    def __init__(self, title, headings, data):
+    def __init__(self, title, headings, data, link_view=None):
         self._headings = headings
         self._data = data
+        self._link_view = link_view
 
     @property
     def title(self):
@@ -41,6 +42,14 @@ class Report(object):
     def data(self):
         ''' Returns the data rows for the table. '''
         return self._data
+
+    @property
+    def link_view(self):
+        ''' Returns the URL name or the view callable that can be used to
+        view the row's detail. The left-most value is passed into `reverse`
+        as an argument. '''
+
+        return self._link_view
 
 
 def report_view(title, form_type=None):

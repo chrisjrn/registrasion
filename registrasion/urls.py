@@ -1,5 +1,5 @@
 import views
-import staff_views
+from reporting import views as reporting_views
 
 from django.conf.urls import include
 from django.conf.urls import url
@@ -37,10 +37,10 @@ public = [
 
 
 reports = [
-    url(r"^$", staff_views.reports_list, name="reports_list"),
-    url(r"^credit_notes/?$", staff_views.credit_notes, name="credit_notes"),
-    url(r"^inventory/?$", staff_views.inventory, name="inventory"),
-    url(r"^items_sold/?$", staff_views.items_sold, name="items_sold"),
+    url(r"^$", reporting_views.reports_list, name="reports_list"),
+    url(r"^credit_notes/?$", reporting_views.credit_notes, name="inventory"),
+    url(r"^inventory/?$", reporting_views.inventory, name="inventory"),
+    url(r"^items_sold/?$", reporting_views.items_sold, name="items_sold"),
 ]
 
 

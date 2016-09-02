@@ -1,6 +1,3 @@
-import forms
-import views
-
 from collections import namedtuple
 
 from django.contrib.auth.decorators import user_passes_test
@@ -13,12 +10,14 @@ from django.http import Http404
 from django.shortcuts import render
 from functools import wraps
 
-from models import commerce
-from models import inventory
+from registrasion import forms
+from registrasion.models import commerce
+from registrasion.models import inventory
+from registrasion import views
 
-from reporting.reports import get_all_reports
-from reporting.reports import Report
-from reporting.reports import report_view
+from reports import get_all_reports
+from reports import Report
+from reports import report_view
 
 
 @user_passes_test(views._staff_only)

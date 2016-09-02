@@ -16,6 +16,7 @@ from functools import wraps
 from models import commerce
 from models import inventory
 
+from reporting.reports import get_all_reports
 from reporting.reports import Report
 from reporting.reports import report_view
 
@@ -26,7 +27,7 @@ def reports_list(request):
 
     reports = []
 
-    for report in _all_report_views:
+    for report in get_all_reports():
         reports.append({
             "name" : report.__name__,
             "url" : reverse(report),

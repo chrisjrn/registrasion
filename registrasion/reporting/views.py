@@ -1,3 +1,5 @@
+import forms
+
 from django.contrib.auth.decorators import user_passes_test
 from django.core.urlresolvers import reverse
 from django.db import models
@@ -6,7 +8,6 @@ from django.db.models import Sum
 from django.db.models import Case, When, Value
 from django.shortcuts import render
 
-from registrasion import forms
 from registrasion.models import commerce
 from registrasion import views
 

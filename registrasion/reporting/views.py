@@ -1,18 +1,13 @@
-from collections import namedtuple
-
 from django.contrib.auth.decorators import user_passes_test
 from django.core.urlresolvers import reverse
 from django.db import models
 from django.db.models import F, Q
 from django.db.models import Sum
 from django.db.models import Case, When, Value
-from django.http import Http404
 from django.shortcuts import render
-from functools import wraps
 
 from registrasion import forms
 from registrasion.models import commerce
-from registrasion.models import inventory
 from registrasion import views
 
 from reports import get_all_reports
@@ -28,15 +23,15 @@ def reports_list(request):
 
     for report in get_all_reports():
         reports.append({
-            "name" : report.__name__,
-            "url" : reverse(report),
-            "description" : report.__doc__,
+            "name": report.__name__,
+            "url": reverse(report),
+            "description": report.__doc__,
         })
 
     reports.sort(key=lambda report: report["name"])
 
     ctx = {
-        "reports" : reports,
+        "reports": reports,
     }
 
     return render(request, "registrasion/reports_list.html", ctx)
@@ -91,8 +86,8 @@ def items_sold(request, form):
     return Report("Paid items", headings, data)
 
 
-@report_view("Inventory", form_type=forms.ProductAndCategoryForm)
-def inventory(request, form):
+@report_view("Product status", form_type=forms.ProductAndCategoryForm)
+def product_status(request, form):
     ''' Summarises the inventory status of the given items, grouping by
     invoice status. '''
 

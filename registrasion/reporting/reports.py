@@ -1,19 +1,8 @@
-from collections import namedtuple
-
 from django.contrib.auth.decorators import user_passes_test
-from django.core.urlresolvers import reverse
-from django.db import models
-from django.db.models import F, Q
-from django.db.models import Sum
-from django.db.models import Case, When, Value
-from django.http import Http404
 from django.shortcuts import render
 from functools import wraps
 
-from registrasion import forms
 from registrasion import views
-from registrasion.models import commerce
-from registrasion.models import inventory
 
 
 ''' A list of report views objects that can be used to load a list of

@@ -38,8 +38,12 @@ public = [
 
 reports = [
     url(r"^$", reporting_views.reports_list, name="reports_list"),
-    url(r"^credit_notes/?$", reporting_views.credit_notes, name="inventory"),
-    url(r"^inventory/?$", reporting_views.inventory, name="inventory"),
+    url(r"^credit_notes/?$", reporting_views.credit_notes, name="credit_notes"),
+    url(
+        r"^product_status/?$",
+        reporting_views.product_status,
+        name="product_status",
+    ),
     url(r"^items_sold/?$", reporting_views.items_sold, name="items_sold"),
 ]
 

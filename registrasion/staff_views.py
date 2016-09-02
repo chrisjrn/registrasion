@@ -173,3 +173,30 @@ def inventory(request, form):
         ])
 
     return Report("Inventory", headings, data)
+
+
+@report_view("Credit notes")
+def credit_notes(request, form):
+    ''' Shows all of the credit notes in the system. '''
+
+    notes = commerce.CreditNote.objects.all().select_related(
+        "creditnoterefund",
+        "creditnoteapplication",
+        "invoice",
+        "invoice__user__attendee__attendeeprofilebase",
+    )
+
+    headings = [
+        "id", "Owner", "Status", "Value",
+    ]
+
+    data = []
+    for note in notes:
+        data.append([
+            note.id,
+            note.invoice.user.attendee.attendeeprofilebase.invoice_recipient(),
+            note.status,
+            note.value,
+        ])
+
+    return Report("Credit Notes", headings, data)

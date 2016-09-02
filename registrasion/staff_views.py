@@ -46,7 +46,7 @@ def reports_list(request):
 # Report functions
 
 
-@report_view("Paid items", forms.ProductAndCategoryForm)
+@report_view("Paid items", form_type=forms.ProductAndCategoryForm)
 def items_sold(request, form):
     ''' Summarises the items sold and discounts granted for a given set of
     products, or products from categories. '''
@@ -92,7 +92,7 @@ def items_sold(request, form):
     return Report("Paid items", headings, data)
 
 
-@report_view("Inventory", forms.ProductAndCategoryForm)
+@report_view("Inventory", form_type=forms.ProductAndCategoryForm)
 def inventory(request, form):
     ''' Summarises the inventory status of the given items, grouping by
     invoice status. '''

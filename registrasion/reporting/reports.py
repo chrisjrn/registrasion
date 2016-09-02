@@ -43,16 +43,16 @@ class Report(object):
         return self._data
 
 
-def report_view(title, form_type):
+def report_view(title, form_type=None):
     ''' Decorator that converts a report view function into something that
     displays a Report.
 
     Arguments:
         title (str):
             The title of the report.
-        form_type (forms.Form or None):
-            A form class that can make this report display things. If None,
-            no form will be displayed.
+        form_type (Optional[forms.Form]):
+            A form class that can make this report display things. If not
+            supplied, no form will be displayed.
 
     '''
 

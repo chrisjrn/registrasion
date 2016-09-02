@@ -8,6 +8,7 @@ from django.db.models import Count, Sum
 from django.db.models import Case, When, Value
 from django.shortcuts import render
 
+from registrasion.controllers.item import ItemController
 from registrasion.models import commerce
 from registrasion.models import people
 from registrasion import views
@@ -215,15 +216,29 @@ def attendee(request, form, attendee_id=None):
 
     # TODO: METADATA.
 
-
+    ic = ItemController(attendee.user)
     # Paid products
     headings = ["Product", "Quantity"]
     data = []
+
+    for pq in ic.items_purchased():
+        data.append([
+            pq.product,
+            pq.quantity,
+        ])
+
     reports.append(Report("Paid Products", headings, data))
 
     # Unpaid products
     headings = ["Product", "Quantity"]
     data = []
+
+    for pq in ic.items_pending():
+        data.append([
+            pq.product,
+            pq.quantity,
+        ])
+
     reports.append( Report("Unpaid Products", headings, data))
 
     # Invoices

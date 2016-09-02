@@ -375,7 +375,7 @@ class BasicCartTests(RegistrationCartTestCase):
 
         with BatchController.batch(self.USER_1):
             # Memoise the cart
-            same_cart = TestingCartController.for_user(self.USER_1)
+            TestingCartController.for_user(self.USER_1)
             # Do nothing on exit
 
         rev_1 = self.reget(cart.cart).revision

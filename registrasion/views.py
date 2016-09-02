@@ -355,7 +355,10 @@ def product_category(request, category_id):
         if not products:
             messages.warning(
                 request,
-                "There are no products available from category: " + category.name,
+                (
+                    "There are no products available from category: " +
+                    category.name
+                ),
             )
             return redirect("dashboard")
 
@@ -456,7 +459,7 @@ def _set_quantities_from_products_form(products_form, current_cart):
         id__in=pks,
     ).select_related("category").order_by("id")
 
-    quantities.sort(key = lambda i: i[0])
+    quantities.sort(key=lambda i: i[0])
 
     # Match the product objects to their quantities
     product_quantities = [

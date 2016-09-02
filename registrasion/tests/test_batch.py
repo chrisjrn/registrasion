@@ -1,16 +1,8 @@
-import datetime
 import pytz
 
-from django.core.exceptions import ValidationError
-
-from controller_helpers import TestingCartController
 from test_cart import RegistrationCartTestCase
 
 from registrasion.controllers.batch import BatchController
-from registrasion.controllers.discount import DiscountController
-from registrasion.controllers.product import ProductController
-from registrasion.models import commerce
-from registrasion.models import conditions
 
 UTC = pytz.timezone('UTC')
 
@@ -124,6 +116,7 @@ class BatchTestCase(RegistrationCartTestCase):
     def test_batch_end_functionality_is_called(self):
         class Ender(object):
             end_count = 0
+
             def end_batch(self):
                 self.end_count += 1
 

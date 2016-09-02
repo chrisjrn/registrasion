@@ -2,6 +2,7 @@ from django.utils import timezone
 
 from registrasion.contrib import mail
 
+
 class SetTimeMixin(object):
     ''' Patches timezone.now() for the duration of a test case. Allows us to
     test time-based conditions (ceilings etc) relatively easily. '''

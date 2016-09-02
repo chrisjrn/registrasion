@@ -1,4 +1,3 @@
-import views
 from reporting import views as reporting_views
 
 from django.conf.urls import include
@@ -38,7 +37,11 @@ public = [
 
 reports = [
     url(r"^$", reporting_views.reports_list, name="reports_list"),
-    url(r"^credit_notes/?$", reporting_views.credit_notes, name="credit_notes"),
+    url(
+        r"^credit_notes/?$",
+        reporting_views.credit_notes,
+        name="credit_notes"
+    ),
     url(
         r"^product_status/?$",
         reporting_views.product_status,

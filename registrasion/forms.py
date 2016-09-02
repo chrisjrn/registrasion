@@ -2,7 +2,6 @@ from registrasion.models import commerce
 from registrasion.models import inventory
 
 from django import forms
-from django.core.exceptions import ValidationError
 
 
 class ApplyCreditNoteForm(forms.Form):
@@ -54,10 +53,11 @@ def ProductsForm(category, products):
     type. '''
 
     # Each Category.RENDER_TYPE value has a subclass here.
+    cat = inventory.Category
     RENDER_TYPES = {
-        inventory.Category.RENDER_TYPE_QUANTITY: _QuantityBoxProductsForm,
-        inventory.Category.RENDER_TYPE_RADIO: _RadioButtonProductsForm,
-        inventory.Category.RENDER_TYPE_ITEM_QUANTITY: _ItemQuantityProductsForm,
+        cat.RENDER_TYPE_QUANTITY: _QuantityBoxProductsForm,
+        cat.RENDER_TYPE_RADIO: _RadioButtonProductsForm,
+        cat.RENDER_TYPE_ITEM_QUANTITY: _ItemQuantityProductsForm,
     }
 
     # Produce a subclass of _ProductsForm which we can alter the base_fields on
@@ -211,13 +211,15 @@ class _RadioButtonProductsForm(_ProductsForm):
             )
 
     def add_product_error(self, product, error):
-        self.add_error(cls.FIELD, error)
+        self.add_error(self.FIELD, error)
+
 
 class _ItemQuantityProductsForm(_ProductsForm):
     ''' Products entry form that allows users to select a product type, and
      enter a quantity of that product. This version _only_ allows a single
-     product type to be purchased. This form is usually used in concert with the
-     _ItemQuantityProductsFormSet to allow selection of multiple products.'''
+     product type to be purchased. This form is usually used in concert with
+     the _ItemQuantityProductsFormSet to allow selection of multiple
+     products.'''
 
     CHOICE_FIELD = "choice"
     QUANTITY_FIELD = "quantity"

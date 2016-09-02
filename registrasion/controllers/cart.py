@@ -1,5 +1,10 @@
+from .batch import BatchController
+from .category import CategoryController
+from .discount import DiscountController
+from .flag import FlagController
+from .product import ProductController
+
 import collections
-import contextlib
 import datetime
 import functools
 import itertools
@@ -15,12 +20,6 @@ from registrasion.exceptions import CartValidationError
 from registrasion.models import commerce
 from registrasion.models import conditions
 from registrasion.models import inventory
-
-from.batch import BatchController
-from .category import CategoryController
-from .discount import DiscountController
-from .flag import FlagController
-from .product import ProductController
 
 
 def _modifies_cart(func):
@@ -94,11 +93,10 @@ class CartController(object):
         self.cart.time_last_updated = timezone.now()
         self.cart.reservation_duration = max(reservations)
 
-
     def end_batch(self):
         ''' Calls ``_end_batch`` if a modification has been performed in the
         previous batch. '''
-        if hasattr(self,'_modified_by_batch'):
+        if hasattr(self, '_modified_by_batch'):
             self._end_batch()
 
     def _end_batch(self):

@@ -9,6 +9,7 @@ from django.db.models import Value
 
 from .batch import BatchController
 
+
 class AllProducts(object):
     pass
 

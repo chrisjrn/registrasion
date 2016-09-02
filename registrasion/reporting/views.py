@@ -1,13 +1,16 @@
+import forms
+
 from django.contrib.auth.decorators import user_passes_test
 from django.core.urlresolvers import reverse
 from django.db import models
 from django.db.models import F, Q
-from django.db.models import Sum
+from django.db.models import Count, Sum
 from django.db.models import Case, When, Value
 from django.shortcuts import render
 
-from registrasion import forms
+from registrasion.controllers.item import ItemController
 from registrasion.models import commerce
+from registrasion.models import people
 from registrasion import views
 
 from reports import get_all_reports
@@ -194,3 +197,110 @@ def credit_notes(request, form):
         ])
 
     return Report("Credit Notes", headings, data, link_view="credit_note")
+
+
+@report_view("Attendee", form_type=forms.UserIdForm)
+def attendee(request, form, attendee_id=None):
+    ''' Returns a list of all manifested attendees if no attendee is specified,
+    else displays the attendee manifest. '''
+
+    if attendee_id is None and not form.has_changed():
+        return attendee_list(request)
+
+    if attendee_id is None:
+        attendee_id = form.user
+
+    attendee = people.Attendee.objects.get(id=attendee_id)
+
+    reports = []
+
+    # TODO: METADATA.
+
+    ic = ItemController(attendee.user)
+    # Paid products
+    headings = ["Product", "Quantity"]
+    data = []
+
+    for pq in ic.items_purchased():
+        data.append([
+            pq.product,
+            pq.quantity,
+        ])
+
+    reports.append(Report("Paid Products", headings, data))
+
+    # Unpaid products
+    headings = ["Product", "Quantity"]
+    data = []
+
+    for pq in ic.items_pending():
+        data.append([
+            pq.product,
+            pq.quantity,
+        ])
+
+    reports.append( Report("Unpaid Products", headings, data))
+
+    # Invoices
+    headings = ["Invoice ID", "Status", "Value"]
+    data = []
+
+    invoices = commerce.Invoice.objects.filter(
+        user=attendee.user,
+    )
+    for invoice in invoices:
+        data.append([
+            invoice.id, invoice.get_status_display(), invoice.value,
+        ])
+
+    reports.append(Report("Invoices", headings, data, link_view="invoice"))
+
+    # Credit Notes
+    headings = ["Note ID", "Status", "Value"]
+    data = []
+
+    credit_notes = commerce.CreditNote.objects.filter(
+        invoice__user=attendee.user,
+    )
+    for credit_note in credit_notes:
+        data.append([
+            credit_note.id, credit_note.status, credit_note.value,
+        ])
+
+    reports.append(
+        Report("Credit Notes", headings, data, link_view="credit_note")
+    )
+
+    return reports
+
+
+def attendee_list(request):
+    ''' Returns a list of all attendees. '''
+
+    attendees = people.Attendee.objects.all().select_related(
+        "attendeeprofilebase",
+    )
+
+    attendees = attendees.values("id", "user__email").annotate(
+        has_registered=Count(
+            Q(user__invoice__status=commerce.Invoice.STATUS_PAID)
+        ),
+    )
+
+    headings = [
+        "User ID", "Email", "Has registered",
+    ]
+
+    data = []
+
+    for attendee in attendees:
+        data.append([
+            attendee["id"],
+            attendee["user__email"],
+            attendee["has_registered"],
+        ])
+
+    # Sort by whether they've registered, then ID.
+    data.sort(key=lambda attendee: (-attendee[2], attendee[0]))
+
+    return Report("Attendees", headings, data, link_view="attendee")

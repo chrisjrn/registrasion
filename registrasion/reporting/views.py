@@ -207,8 +207,8 @@ def attendee(request, form, attendee_id=None):
     if attendee_id is None and not form.has_changed():
         return attendee_list(request)
 
-    if attendee_id is None:
-        attendee_id = form.user
+    if form.cleaned_data["user"] is not None:
+        attendee_id = form.cleaned_data["user"]
 
     attendee = people.Attendee.objects.get(id=attendee_id)
 

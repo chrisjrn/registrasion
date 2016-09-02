@@ -46,7 +46,7 @@ class Category(models.Model):
             from this Category that each attendee may claim. This extends
             across multiple Invoices.
 
-        display_order (int): An ascending order for displaying the Categories
+        order (int): An ascending order for displaying the Categories
             available. By convention, your Category for ticket types should
             have the lowest display order.
     '''
@@ -129,7 +129,7 @@ class Product(models.Model):
             pay for it. This reservation duration determines how long an item
             should be allowed to be reserved whilst being unpaid.
 
-        display_order (int): An ascending order for displaying the Products
+        order (int): An ascending order for displaying the Products
             within each Category.
 
     '''

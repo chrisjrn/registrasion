@@ -747,6 +747,7 @@ def credit_note(request, note_id, access_code=None):
 
     '''
 
+    note_id = int(note_id)
     current_note = CreditNoteController.for_id_or_404(note_id)
 
     apply_form = forms.ApplyCreditNoteForm(

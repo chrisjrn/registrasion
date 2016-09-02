@@ -240,7 +240,8 @@ def attendee_list(request):
     attendees = people.Attendee.objects.all().select_related(
         "attendeeprofilebase",
     )
-    attendees = attendees.annotate(
+
+    attendees = attendees.values("id", "user__email").annotate(
         has_registered=Count(
             Q(user__invoice__status=commerce.Invoice.STATUS_PAID)
         ),
@@ -254,9 +255,9 @@ def attendee_list(request):
 
     for attendee in attendees:
         data.append([
-            attendee.user.id,
-            attendee.user.email,
-            attendee.has_registered > 0,
+            attendee["id"],
+            attendee["user__email"],
+            attendee["has_registered"],
         ])
 
     # Sort by whether they've registered, then ID.

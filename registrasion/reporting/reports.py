@@ -50,8 +50,9 @@ def report_view(title, form_type):
     Arguments:
         title (str):
             The title of the report.
-        form_type:
-            A form class that can make this report display things.
+        form_type (forms.Form or None):
+            A form class that can make this report display things. If None,
+            no form will be displayed.
 
     '''
 
@@ -61,11 +62,13 @@ def report_view(title, form_type):
         @user_passes_test(views._staff_only)
         def inner_view(request, *a, **k):
 
-            form = form_type(request.GET)
-            if form.is_valid() and form.has_changed():
-                report = view(request, form, *a, **k)
+            if form_type is not None:
+                form = form_type(request.GET)
+                form.is_valid()
             else:
-                report = None
+                form = None
+
+            report = view(request, form, *a, **k)
 
             ctx = {
                 "title": title,
@@ -75,7 +78,7 @@ def report_view(title, form_type):
 
             return render(request, "registrasion/report.html", ctx)
 
-        # Add this report to the list of reports -- makes this reversable.
+        # Add this report to the list of reports.
         _all_report_views.append(inner_view)
 
         # Return the callable

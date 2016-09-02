@@ -206,6 +206,11 @@ def attendee(request, form, attendee_id=None):
     if attendee_id is None and not form.has_changed():
         return attendee_list(request)
 
+    if attendee_id is None:
+        attendee_id = form.user
+
+    attendee = people.Attendee.objects.get(id=attendee_id)
+
     reports = []
 
     # TODO: METADATA.
@@ -222,14 +227,34 @@ def attendee(request, form, attendee_id=None):
     reports.append( Report("Unpaid Products", headings, data))
 
     # Invoices
-    headings = ["Invoice ID", "Status", "Amount"]
+    headings = ["Invoice ID", "Status", "Value"]
     data = []
-    reports.append( Report("Invoices", headings, data))
+
+    invoices = commerce.Invoice.objects.filter(
+        user=attendee.user,
+    )
+    for invoice in invoices:
+        data.append([
+            invoice.id, invoice.get_status_display(), invoice.value,
+        ])
+
+    reports.append(Report("Invoices", headings, data, link_view="invoice"))
 
     # Credit Notes
     headings = ["Note ID", "Status", "Value"]
     data = []
-    reports.append( Report("Credit Notes", headings, data))
+
+    credit_notes = commerce.CreditNote.objects.filter(
+        invoice__user=attendee.user,
+    )
+    for credit_note in credit_notes:
+        data.append([
+            credit_note.id, credit_note.status, credit_note.value,
+        ])
+
+    reports.append(
+        Report("Credit Notes", headings, data, link_view="credit_note")
+    )
 
     return reports
 

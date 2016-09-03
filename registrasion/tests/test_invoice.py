@@ -562,6 +562,7 @@ class InvoiceTestCase(RegistrationCartTestCase):
         # Adding to cart will mean that the old invoice for this cart
         # will be invalidated. A new invoice should be generated.
         cart.add_to_cart(self.PROD_1, 1)
+        invoice = TestingInvoiceController.for_id(invoice.invoice.id)
         invoice2 = TestingInvoiceController.for_cart(cart.cart)
 
         invoice.invoice.refresh_from_db()

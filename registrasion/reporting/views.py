@@ -271,6 +271,23 @@ def attendee(request, form, attendee_id=None):
         Report("Credit Notes", headings, data, link_view="credit_note")
     )
 
+    # All payments
+    headings = ["To Invoice", "Payment ID", "Reference", "Amount"]
+    data = []
+
+    payments = commerce.PaymentBase.objects.filter(
+        invoice__user=attendee.user,
+    )
+    for payment in payments:
+        data.append([
+            payment.invoice.id, payment.id, payment.reference, payment.amount,
+        ])
+
+    reports.append(
+        Report("Payments", headings, data, link_view="invoice")
+    )
+
+
     return reports
 
 

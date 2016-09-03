@@ -1,3 +1,4 @@
+from registrasion.controllers.product import ProductController
 from registrasion.models import commerce
 from registrasion.models import inventory
 
@@ -347,3 +348,33 @@ class VoucherForm(forms.Form):
         help_text="If you have a voucher code, enter it here",
         required=False,
     )
+
+
+def staff_products_form_factory(user):
+    ''' Creates a StaffProductsForm that restricts the available products to
+    those that are available to a user. '''
+
+    products = inventory.Product.objects.all()
+    products = ProductController.available_products(user, products=products)
+
+    product_ids = [product.id for product in products]
+    product_set = inventory.Product.objects.filter(id__in=product_ids)
+
+    class StaffProductsForm(forms.Form):
+        ''' Form for allowing staff to add an item to a user's cart. '''
+
+        product = forms.ModelChoiceField(
+            widget=forms.Select,
+            queryset=product_set,
+        )
+
+        quantity = forms.IntegerField(
+            min_value=0,
+        )
+
+    return StaffProductsForm
+
+def staff_products_formset_factory(user):
+    ''' Creates a formset of StaffProductsForm for the given user. '''
+    form_type = staff_products_form_factory(user)
+    return forms.formset_factory(form_type)

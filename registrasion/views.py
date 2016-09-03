@@ -10,6 +10,7 @@ from registrasion.controllers.cart import CartController
 from registrasion.controllers.credit_note import CreditNoteController
 from registrasion.controllers.discount import DiscountController
 from registrasion.controllers.invoice import InvoiceController
+from registrasion.controllers.item import ItemController
 from registrasion.controllers.product import ProductController
 from registrasion.exceptions import CartValidationError
 
@@ -18,6 +19,7 @@ from collections import namedtuple
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import user_passes_test
+from django.contrib.auth.models import User
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError
@@ -504,7 +506,7 @@ def _handle_voucher(request, prefix):
 
 
 @login_required
-def checkout(request):
+def checkout(request, user_id=None):
     ''' Runs the checkout process for the current cart.
 
     If the query string contains ``fix_errors=true``, Registrasion will attempt
@@ -512,6 +514,10 @@ def checkout(request):
     cancelling expired discounts and vouchers, and removing any unavailable
     products.
 
+    Arguments:
+        user_id (castable to int):
+            If the requesting user is staff, then the user ID can be used to
+            run checkout for another user.
     Returns:
         render or redirect:
             If the invoice is generated successfully, or there's already a
@@ -525,7 +531,15 @@ def checkout(request):
 
     '''
 
-    current_cart = CartController.for_user(request.user)
+    if user_id is not None:
+        if request.user.is_staff:
+            user = User.objects.get(id=int(user_id))
+        else:
+            raise Http404()
+    else:
+        user = request.user
+
+    current_cart = CartController.for_user(user)
 
     if "fix_errors" in request.GET and request.GET["fix_errors"] == "true":
         current_cart.fix_simple_errors()
@@ -790,3 +804,66 @@ def credit_note(request, note_id, access_code=None):
     }
 
     return render(request, "registrasion/credit_note.html", data)
+
+
+@user_passes_test(_staff_only)
+def amend_registration(request, user_id):
+    ''' Allows staff to amend a user's current registration cart, and etc etc.
+    '''
+
+    user = User.objects.get(id=int(user_id))
+    current_cart = CartController.for_user(user)
+
+    items = commerce.ProductItem.objects.filter(
+        cart=current_cart.cart,
+    ).select_related("product")
+    initial = [{"product": i.product, "quantity": i.quantity} for i in items]
+
+    StaffProductsFormSet = forms.staff_products_formset_factory(user)
+    formset = StaffProductsFormSet(
+        request.POST or None,
+        initial=initial,
+        prefix="products",
+    )
+
+    voucher_form = forms.VoucherForm(
+        request.POST or None,
+        prefix="voucher",
+    )
+
+    if request.POST and formset.is_valid():
+
+        pq = [
+            (f.cleaned_data["product"], f.cleaned_data["quantity"])
+            for f in formset
+            if "product" in f.cleaned_data and
+            f.cleaned_data["product"] is not None
+        ]
+
+        try:
+            current_cart.set_quantities(pq)
+            return redirect(amend_registration, user_id)
+        except ValidationError as ve:
+            for ve_field in ve.error_list:
+                product, message = ve_field.message
+                for form in formset:
+                    if form.cleaned_data["product"] == product:
+                        form.add_error("quantity", message)
+
+    if request.POST and voucher_form.is_valid():
+        try:
+            current_cart.apply_voucher(voucher_form.cleaned_data["voucher"])
+            return redirect(amend_registration, user_id)
+        except ValidationError as ve:
+            voucher_form.add_error(None, ve)
+
+    ic = ItemController(user)
+    data = {
+        "user": user,
+        "paid": ic.items_purchased(),
+        "cancelled": ic.items_released(),
+        "form": formset,
+        "voucher_form": voucher_form,
+    }
+
+    return render(request, "registrasion/amend_registration.html", data)

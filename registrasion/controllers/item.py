@@ -30,7 +30,7 @@ class ItemController(object):
     def __init__(self, user):
         self.user = user
 
-    def items_purchased(self, category=None):
+    def _items(self, cart_status, category=None):
         ''' Aggregates the items that this user has purchased.
 
         Arguments:
@@ -45,7 +45,7 @@ class ItemController(object):
 
         in_cart = (
             Q(productitem__cart__user=self.user) &
-            Q(productitem__cart__status=commerce.Cart.STATUS_PAID)
+            Q(productitem__cart__status=cart_status)
         )
 
         quantities_in_cart = When(
@@ -72,6 +72,20 @@ class ItemController(object):
             out.append(ProductAndQuantity(prod, prod.quantity))
         return out
 
+    def items_purchased(self, category=None):
+        ''' Aggregates the items that this user has purchased.
+
+        Arguments:
+            category (Optional[models.inventory.Category]): the category
+                of items to restrict to.
+
+        Returns:
+            [ProductAndQuantity, ...]: A list of product-quantity pairs,
+                aggregating like products from across multiple invoices.
+
+        '''
+        return self._items(commerce.Cart.STATUS_PAID)
+
     def items_pending(self):
         ''' Gets all of the items that the user has reserved, but has not yet
         paid for.
@@ -82,14 +96,16 @@ class ItemController(object):
 
         '''
 
-        all_items = commerce.ProductItem.objects.filter(
-            cart__user=self.user,
-            cart__status=commerce.Cart.STATUS_ACTIVE,
-        ).select_related(
-            "product",
-            "product__category",
-        ).order_by(
-            "product__category__order",
-            "product__order",
-        )
-        return all_items
+        return self._items(commerce.Cart.STATUS_ACTIVE)
+
+    def items_released(self):
+        ''' Gets all of the items that the user previously paid for, but has
+        since refunded.
+
+        Returns:
+            [ProductAndQuantity, ...]: A list of product-quantity pairs for the
+                items that the user has not yet paid for.
+
+        '''
+
+        return self._items(commerce.Cart.STATUS_RELEASED)

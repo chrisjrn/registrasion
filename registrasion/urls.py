@@ -13,12 +13,15 @@ from .views import (
     invoice_access,
     edit_profile,
     guided_registration,
+    amend_registration,
 )
 
 
 public = [
+    url(r"^amend/([0-9]+)$", amend_registration, name="amend_registration"),
     url(r"^category/([0-9]+)$", product_category, name="product_category"),
     url(r"^checkout$", checkout, name="checkout"),
+    url(r"^checkout/([0-9]+)$", checkout, name="checkout"),
     url(r"^credit_note/([0-9]+)$", credit_note, name="credit_note"),
     url(r"^invoice/([0-9]+)$", invoice, name="invoice"),
     url(r"^invoice/([0-9]+)/([A-Z0-9]+)$", invoice, name="invoice"),

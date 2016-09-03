@@ -826,8 +826,12 @@ def amend_registration(request, user_id):
         prefix="products",
     )
 
+    voucher_form = forms.VoucherForm(
+        request.POST or None,
+        prefix="voucher",
+    )
+
     if request.POST and formset.is_valid():
-        print formset._errors
 
         pq = [
             (f.cleaned_data["product"], f.cleaned_data["quantity"])
@@ -846,12 +850,20 @@ def amend_registration(request, user_id):
                     if form.cleaned_data["product"] == product:
                         form.add_error("quantity", message)
 
+    if request.POST and voucher_form.is_valid():
+        try:
+            current_cart.apply_voucher(voucher_form.cleaned_data["voucher"])
+            return redirect(amend_registration, user_id)
+        except ValidationError as ve:
+            voucher_form.add_error(None, ve)
+
     ic = ItemController(user)
     data = {
         "user": user,
         "paid": ic.items_purchased(),
         "cancelled": ic.items_released(),
         "form": formset,
+        "voucher_form": voucher_form,
     }
 
     return render(request, "registrasion/amend_registration.html", data)

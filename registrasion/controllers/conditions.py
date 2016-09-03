@@ -172,11 +172,20 @@ class ProductConditionController(IsMetByFilter, ConditionController):
 
         in_user_carts = Q(enabling_products__productitem__cart__user=user)
         released = commerce.Cart.STATUS_RELEASED
+        paid = commerce.Cart.STATUS_PAID
+        active = commerce.Cart.STATUS_ACTIVE
         in_released_carts = Q(
             enabling_products__productitem__cart__status=released
         )
+        not_in_paid_or_active_carts = ~(
+            Q(enabling_products__productitem__cart__status=paid) |
+            Q(enabling_products__productitem__cart__status=active)
+        )
+
         queryset = queryset.filter(in_user_carts)
-        queryset = queryset.exclude(in_released_carts)
+        queryset = queryset.exclude(
+            in_released_carts & not_in_paid_or_active_carts
+        )
 
         return queryset
 

@@ -352,7 +352,7 @@ class FlagTestCases(RegistrationCartTestCase):
         items = commerce.ProductItem.objects.filter(cart=cart.cart)
         self.assertTrue([i for i in items if i.product == self.PROD_1])
 
-    def test_oops(self):
+    def test_product_stays_enabled_even_if_some_are_cancelled(self):
         ''' Flags should be enabled, even if *some* enabling products are cnx.
         Tests issue #68.
         '''
@@ -377,3 +377,8 @@ class FlagTestCases(RegistrationCartTestCase):
         # Even though cart1 has been cancelled, we have the item in cart2.
         # So we should be able to add PROD_1, which depends on PROD_2
         cart2.add_to_cart(self.PROD_1, 1)
+
+        cart2.set_quantity(self.PROD_2, 0)
+
+        with self.assertRaises(ValidationError):
+            cart2.add_to_cart(self.PROD_1, 1)

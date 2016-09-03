@@ -534,6 +534,44 @@ class InvoiceTestCase(RegistrationCartTestCase):
         with self.assertRaises(ValidationError):
             invoice = TestingInvoiceController.for_cart(cart.cart)
 
+    def test_invoice_with_credit_note_applied_is_refunded(self):
+        ''' Invoices with partial payments should void when cart is updated.
+
+        Test for issue #64 -- applying a credit note to an invoice
+        means that invoice cannot be voided, and new invoices cannot be
+        created. '''
+
+        cart = TestingCartController.for_user(self.USER_1)
+
+        cart.add_to_cart(self.PROD_1, 1)
+        invoice = TestingInvoiceController.for_cart(cart.cart)
+
+        # Now get a credit note
+        invoice.pay("Lol", invoice.invoice.value)
+        invoice.refund()
+        cn = self._credit_note_for_invoice(invoice.invoice)
+
+        # Create a cart of higher value than the credit note
+        cart = TestingCartController.for_user(self.USER_1)
+        cart.add_to_cart(self.PROD_1, 2)
+
+        # Create a current invoice, and apply partial payments
+        invoice = TestingInvoiceController.for_cart(cart.cart)
+        cn.apply_to_invoice(invoice.invoice)
+
+        # Adding to cart will mean that the old invoice for this cart
+        # will be invalidated. A new invoice should be generated.
+        cart.add_to_cart(self.PROD_1, 1)
+        invoice2 = TestingInvoiceController.for_cart(cart.cart)
+
+        invoice.invoice.refresh_from_db()
+        self.assertEquals(
+            commerce.invoice.STATUS_REFUNDED,
+            invoice.invoice.status,
+        )
+
+        self.assertEquals(cn.credit_note.value, invoice.total_payments())
+
     def test_sends_email_on_invoice_creation(self):
         invoice = self._invoice_containing_prod_1(1)
         self.assertEquals(1, len(self.emails))

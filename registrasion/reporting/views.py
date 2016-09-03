@@ -236,17 +236,17 @@ def credit_notes(request, form):
 
 
 @report_view("Attendee", form_type=forms.UserIdForm)
-def attendee(request, form, attendee_id=None):
+def attendee(request, form, user_id=None):
     ''' Returns a list of all manifested attendees if no attendee is specified,
     else displays the attendee manifest. '''
 
-    if attendee_id is None and not form.has_changed():
+    if user_id is None and not form.has_changed():
         return attendee_list(request)
 
     if form.cleaned_data["user"] is not None:
-        attendee_id = form.cleaned_data["user"]
+        user_id = form.cleaned_data["user"]
 
-    attendee = people.Attendee.objects.get(id=attendee_id)
+    attendee = people.Attendee.objects.get(user__id=user_id)
 
     reports = []
 
@@ -349,7 +349,7 @@ def attendee_list(request):
 
     for attendee in attendees:
         data.append([
-            attendee.id,
+            attendee.user.id,
             attendee.attendeeprofilebase.attendee_name(),
             attendee.user.email,
             attendee.has_registered > 0,

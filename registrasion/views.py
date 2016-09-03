@@ -10,6 +10,7 @@ from registrasion.controllers.cart import CartController
 from registrasion.controllers.credit_note import CreditNoteController
 from registrasion.controllers.discount import DiscountController
 from registrasion.controllers.invoice import InvoiceController
+from registrasion.controllers.item import ItemController
 from registrasion.controllers.product import ProductController
 from registrasion.exceptions import CartValidationError
 
@@ -804,17 +805,40 @@ def amend_registration(request, user_id):
     items = commerce.ProductItem.objects.filter(
         cart=current_cart.cart,
     ).select_related("product")
-
     initial = [{"product": i.product, "quantity": i.quantity} for i in items]
 
-    form = forms.StaffProductsFormSet(
+    formset = forms.StaffProductsFormSet(
         request.POST or None,
         initial=initial,
         prefix="products",
     )
 
+    if request.POST and formset.is_valid():
+        print formset._errors
+
+        pq = [
+            (f.cleaned_data["product"], f.cleaned_data["quantity"])
+            for f in formset
+            if "product" in f.cleaned_data and
+            f.cleaned_data["product"] is not None
+        ]
+
+        try:
+            current_cart.set_quantities(pq)
+            return redirect(amend_registration, user_id)
+        except ValidationError as ve:
+            for ve_field in ve.error_list:
+                product, message = ve_field.message
+                for form in formset:
+                    if form.cleaned_data["product"] == product:
+                        form.add_error("quantity", message)
+
+    ic = ItemController(user)
     data = {
-        "form": form,
+        "user": user,
+        "paid": ic.items_purchased(),
+        "cancelled": ic.items_released(),
+        "form": formset,
     }
 
     return render(request, "registrasion/amend_registration.html", data)

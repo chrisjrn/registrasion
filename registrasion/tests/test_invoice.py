@@ -564,19 +564,20 @@ class InvoiceTestCase(RegistrationCartTestCase):
         cart.add_to_cart(self.PROD_1, 1)
         invoice = TestingInvoiceController.for_id(invoice.invoice.id)
         invoice2 = TestingInvoiceController.for_cart(cart.cart)
+        cn2 = self._credit_note_for_invoice(invoice.invoice)
 
         invoice._refresh()
 
         # The first invoice should be refunded
         self.assertEquals(
-            commerce.invoice.STATUS_REFUNDED,
+            commerce.Invoice.STATUS_VOID,
             invoice.invoice.status,
         )
 
-        # The credit note should be equal to the payments value of first inv
+        # Both credit notes should be for the same amount
         self.assertEquals(
             cn.credit_note.value,
-            invoice.total_payments(),
+            cn2.credit_note.value,
         )
 
     def test_sends_email_on_invoice_creation(self):

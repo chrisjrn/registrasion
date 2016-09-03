@@ -332,28 +332,30 @@ def attendee_list(request):
 
     attendees = people.Attendee.objects.all().select_related(
         "attendeeprofilebase",
+        "user",
     )
 
-    attendees = attendees.values("id", "user__email").annotate(
+    attendees = attendees.annotate(
         has_registered=Count(
             Q(user__invoice__status=commerce.Invoice.STATUS_PAID)
         ),
     )
 
     headings = [
-        "User ID", "Email", "Has registered",
+        "User ID", "Name", "Email", "Has registered",
     ]
 
     data = []
 
     for attendee in attendees:
         data.append([
-            attendee["id"],
-            attendee["user__email"],
-            attendee["has_registered"],
+            attendee.id,
+            attendee.attendeeprofilebase.attendee_name(),
+            attendee.user.email,
+            attendee.has_registered > 0,
         ])
 
     # Sort by whether they've registered, then ID.
-    data.sort(key=lambda attendee: (-attendee[2], attendee[0]))
+    data.sort(key=lambda attendee: (-attendee[3], attendee[0]))
 
     return Report("Attendees", headings, data, link_view="attendee")

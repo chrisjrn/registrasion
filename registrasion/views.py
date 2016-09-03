@@ -18,6 +18,7 @@ from collections import namedtuple
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import user_passes_test
+from django.contrib.auth.models import User
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError
@@ -790,3 +791,30 @@ def credit_note(request, note_id, access_code=None):
     }
 
     return render(request, "registrasion/credit_note.html", data)
+
+
+@user_passes_test(_staff_only)
+def amend_registration(request, user_id):
+    ''' Allows staff to amend a user's current registration cart, and etc etc.
+    '''
+
+    user = User.objects.get(id=int(user_id))
+    current_cart = CartController.for_user(user)
+
+    items = commerce.ProductItem.objects.filter(
+        cart=current_cart.cart,
+    ).select_related("product")
+
+    initial = [{"product": i.product, "quantity": i.quantity} for i in items]
+
+    form = forms.StaffProductsFormSet(
+        request.POST or None,
+        initial=initial,
+        prefix="products",
+    )
+
+    data = {
+        "form": form,
+    }
+
+    return render(request, "registrasion/amend_registration.html", data)

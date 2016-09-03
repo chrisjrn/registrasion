@@ -347,3 +347,18 @@ class VoucherForm(forms.Form):
         help_text="If you have a voucher code, enter it here",
         required=False,
     )
+
+
+class StaffProductsForm(forms.Form):
+    ''' Form for allowing staff to add an item to a user's cart. '''
+
+    product = forms.ModelChoiceField(
+        widget=forms.Select,
+        queryset=inventory.Product.objects.all(),
+    )
+
+    quantity = forms.IntegerField(
+        min_value=0,
+    )
+
+StaffProductsFormSet = forms.formset_factory(StaffProductsForm)

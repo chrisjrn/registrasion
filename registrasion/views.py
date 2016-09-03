@@ -819,7 +819,8 @@ def amend_registration(request, user_id):
     ).select_related("product")
     initial = [{"product": i.product, "quantity": i.quantity} for i in items]
 
-    formset = forms.StaffProductsFormSet(
+    StaffProductsFormSet = forms.staff_products_formset_factory(user)
+    formset = StaffProductsFormSet(
         request.POST or None,
         initial=initial,
         prefix="products",

@@ -506,7 +506,7 @@ def _handle_voucher(request, prefix):
 
 
 @login_required
-def checkout(request):
+def checkout(request, user_id=None):
     ''' Runs the checkout process for the current cart.
 
     If the query string contains ``fix_errors=true``, Registrasion will attempt
@@ -514,6 +514,10 @@ def checkout(request):
     cancelling expired discounts and vouchers, and removing any unavailable
     products.
 
+    Arguments:
+        user_id (castable to int):
+            If the requesting user is staff, then the user ID can be used to
+            run checkout for another user.
     Returns:
         render or redirect:
             If the invoice is generated successfully, or there's already a
@@ -527,7 +531,15 @@ def checkout(request):
 
     '''
 
-    current_cart = CartController.for_user(request.user)
+    if user_id is not None:
+        if request.user.is_staff:
+            user = User.objects.get(id=int(user_id))
+        else:
+            raise Http404()
+    else:
+        user = request.user
+
+    current_cart = CartController.for_user(user)
 
     if "fix_errors" in request.GET and request.GET["fix_errors"] == "true":
         current_cart.fix_simple_errors()

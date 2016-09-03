@@ -43,16 +43,16 @@ class InvoiceController(ForId, object):
             cart_controller = CartController(cart)
             cart_controller.validate_cart()  # Raises ValidationError on fail.
 
-            cls.void_all_invoices(cart)
+            cls.update_old_invoices(cart)
             invoice = cls._generate(cart)
 
         return cls(invoice)
 
     @classmethod
-    def void_all_invoices(cls, cart):
+    def update_old_invoices(cls, cart):
         invoices = commerce.Invoice.objects.filter(cart=cart).all()
         for invoice in invoices:
-            cls(invoice).void()
+            cls(invoice).update_status()
 
     @classmethod
     def resolve_discount_value(cls, item):
@@ -299,7 +299,11 @@ class InvoiceController(ForId, object):
     def update_validity(self):
         ''' Voids this invoice if the cart it is attached to has updated. '''
         if not self._invoice_matches_cart():
-            self.void()
+            if self.total_payments() > 0:
+                # Free up the payments made to this invoice
+                self.refund()
+            else:
+                self.void()
 
     def void(self):
         ''' Voids the invoice if it is valid to do so. '''

@@ -89,6 +89,42 @@ def items_sold(request, form):
     return Report("Paid items", headings, data)
 
 
+@report_view("Reconcilitation")
+def reconciliation(request, form):
+    ''' Reconciles all sales in the system with the payments in the
+    system. '''
+
+    headings = ["Thing", "Total"]
+    data = []
+
+    sales = commerce.LineItem.objects.filter(
+        invoice__status=commerce.Invoice.STATUS_PAID,
+    ).values(
+        "price", "quantity"
+    ).aggregate(total=Sum(F("price") * F("quantity")))
+
+    data.append(["Paid items", sales["total"]])
+
+    payments = commerce.PaymentBase.objects.values(
+        "amount",
+    ).aggregate(total=Sum("amount"))
+
+    data.append(["Payments", payments["total"]])
+
+    ucn = commerce.CreditNote.unclaimed().values(
+        "amount"
+    ).aggregate(total=Sum("amount"))
+
+    data.append(["Unclaimed credit notes", 0 - ucn["total"]])
+
+    data.append([
+        "(Money not on invoices)",
+        sales["total"] - payments["total"] - ucn["total"],
+    ])
+
+    return Report("Sales and Payments", headings, data)
+
+
 @report_view("Product status", form_type=forms.ProductAndCategoryForm)
 def product_status(request, form):
     ''' Summarises the inventory status of the given items, grouping by

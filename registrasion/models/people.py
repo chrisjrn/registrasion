@@ -67,6 +67,13 @@ class AttendeeProfileBase(models.Model):
         '''
         return None
 
+    def attendee_name(self):
+        if type(self) == AttendeeProfileBase:
+            real = AttendeeProfileBase.objects.get_subclass(id=self.id)
+        else:
+            real = self
+        return getattr(real, real.name_field())
+
     def invoice_recipient(self):
         '''
 

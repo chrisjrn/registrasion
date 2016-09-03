@@ -89,6 +89,42 @@ def items_sold(request, form):
     return Report("Paid items", headings, data)
 
 
+@report_view("Reconcilitation")
+def reconciliation(request, form):
+    ''' Reconciles all sales in the system with the payments in the
+    system. '''
+
+    headings = ["Thing", "Total"]
+    data = []
+
+    sales = commerce.LineItem.objects.filter(
+        invoice__status=commerce.Invoice.STATUS_PAID,
+    ).values(
+        "price", "quantity"
+    ).aggregate(total=Sum(F("price") * F("quantity")))
+
+    data.append(["Paid items", sales["total"]])
+
+    payments = commerce.PaymentBase.objects.values(
+        "amount",
+    ).aggregate(total=Sum("amount"))
+
+    data.append(["Payments", payments["total"]])
+
+    ucn = commerce.CreditNote.unclaimed().values(
+        "amount"
+    ).aggregate(total=Sum("amount"))
+
+    data.append(["Unclaimed credit notes", 0 - ucn["total"]])
+
+    data.append([
+        "(Money not on invoices)",
+        sales["total"] - payments["total"] - ucn["total"],
+    ])
+
+    return Report("Sales and Payments", headings, data)
+
+
 @report_view("Product status", form_type=forms.ProductAndCategoryForm)
 def product_status(request, form):
     ''' Summarises the inventory status of the given items, grouping by
@@ -271,6 +307,23 @@ def attendee(request, form, attendee_id=None):
         Report("Credit Notes", headings, data, link_view="credit_note")
     )
 
+    # All payments
+    headings = ["To Invoice", "Payment ID", "Reference", "Amount"]
+    data = []
+
+    payments = commerce.PaymentBase.objects.filter(
+        invoice__user=attendee.user,
+    )
+    for payment in payments:
+        data.append([
+            payment.invoice.id, payment.id, payment.reference, payment.amount,
+        ])
+
+    reports.append(
+        Report("Payments", headings, data, link_view="invoice")
+    )
+
+
     return reports
 
 
@@ -279,28 +332,30 @@ def attendee_list(request):
 
     attendees = people.Attendee.objects.all().select_related(
         "attendeeprofilebase",
+        "user",
     )
 
-    attendees = attendees.values("id", "user__email").annotate(
+    attendees = attendees.annotate(
         has_registered=Count(
             Q(user__invoice__status=commerce.Invoice.STATUS_PAID)
         ),
     )
 
     headings = [
-        "User ID", "Email", "Has registered",
+        "User ID", "Name", "Email", "Has registered",
     ]
 
     data = []
 
     for attendee in attendees:
         data.append([
-            attendee["id"],
-            attendee["user__email"],
-            attendee["has_registered"],
+            attendee.id,
+            attendee.attendeeprofilebase.attendee_name(),
+            attendee.user.email,
+            attendee.has_registered > 0,
         ])
 
     # Sort by whether they've registered, then ID.
-    data.sort(key=lambda attendee: (-attendee[2], attendee[0]))
+    data.sort(key=lambda attendee: (-attendee[3], attendee[0]))
 
     return Report("Attendees", headings, data, link_view="attendee")

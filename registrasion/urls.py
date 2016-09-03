@@ -1,4 +1,4 @@
-from reporting import views as reporting_views
+from reporting import views as rv
 
 from django.conf.urls import include
 from django.conf.urls import url
@@ -36,20 +36,13 @@ public = [
 
 
 reports = [
-    url(r"^$", reporting_views.reports_list, name="reports_list"),
-    url(r"^attendee/?$", reporting_views.attendee, name="attendee"),
-    url(r"^attendee/([0-9]*)$", reporting_views.attendee, name="attendee"),
-    url(
-        r"^credit_notes/?$",
-        reporting_views.credit_notes,
-        name="credit_notes"
-    ),
-    url(
-        r"^product_status/?$",
-        reporting_views.product_status,
-        name="product_status",
-    ),
-    url(r"^items_sold/?$", reporting_views.items_sold, name="items_sold"),
+    url(r"^$", rv.reports_list, name="reports_list"),
+    url(r"^attendee/?$", rv.attendee, name="attendee"),
+    url(r"^attendee/([0-9]*)$", rv.attendee, name="attendee"),
+    url(r"^credit_notes/?$", rv.credit_notes, name="credit_notes"),
+    url(r"^items_sold/?$", rv.items_sold, name="items_sold"),
+    url(r"^product_status/?$", rv.product_status, name="product_status"),
+    url(r"^reconciliation/?$", rv.reconciliation, name="reconciliation"),
 ]
 
 

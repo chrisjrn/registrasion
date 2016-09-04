@@ -25,6 +25,8 @@ class ConditionController(object):
             conditions.CategoryFlag: CategoryConditionController,
             conditions.IncludedProductDiscount: ProductConditionController,
             conditions.ProductFlag: ProductConditionController,
+            conditions.SpeakerFlag: SpeakerConditionController,
+            conditions.SpeakerDiscount: SpeakerConditionController,
             conditions.TimeOrStockLimitDiscount:
                 TimeOrStockLimitDiscountController,
             conditions.TimeOrStockLimitFlag:
@@ -299,3 +301,25 @@ class VoucherConditionController(IsMetByFilter, ConditionController):
         a voucher that invokes that item's condition in one of their carts. '''
 
         return queryset.filter(voucher__cart__user=user)
+
+
+class SpeakerConditionController(IsMetByFilter, ConditionController):
+
+    @classmethod
+    def pre_filter(self, queryset, user):
+        ''' Returns all of the items from queryset which are enabled by a user
+        being a presenter or copresenter of a proposal. '''
+
+        u = user
+        # User is a presenter
+        user_is_presenter = Q(
+            is_presenter=True,
+            proposal_kind__proposalbase__presentation__speaker__user=u,
+        )
+        # User is a copresenter
+        user_is_copresenter = Q(
+            is_copresenter=True,
+            proposal_kind__proposalbase__presentation__additional_speakers__user=u,
+        )
+
+        return queryset.filter(user_is_presenter | user_is_copresenter)

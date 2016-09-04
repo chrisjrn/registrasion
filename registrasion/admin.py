@@ -12,6 +12,7 @@ class EffectsDisplayMixin(object):
     def effects(self, obj):
         return list(obj.effects())
 
+
 # Inventory admin
 
 
@@ -69,15 +70,26 @@ class TimeOrStockLimitDiscountAdmin(admin.ModelAdmin, EffectsDisplayMixin):
 
 
 @admin.register(conditions.IncludedProductDiscount)
-class IncludedProductDiscountAdmin(admin.ModelAdmin):
+class IncludedProductDiscountAdmin(admin.ModelAdmin, EffectsDisplayMixin):
 
     def enablers(self, obj):
         return list(obj.enabling_products.all())
 
-    def effects(self, obj):
-        return list(obj.effects())
-
     list_display = ("description", "enablers", "effects")
+
+    inlines = [
+        DiscountForProductInline,
+        DiscountForCategoryInline,
+    ]
+
+@admin.register(conditions.SpeakerDiscount)
+class SpeakerDiscountAdmin(admin.ModelAdmin, EffectsDisplayMixin):
+
+    fields = ("description", "is_presenter", "is_copresenter", "proposal_kind")
+
+    list_display = ("description", "is_presenter", "is_copresenter", "effects")
+
+    ordering = ("-is_presenter", "-is_copresenter")
 
     inlines = [
         DiscountForProductInline,
@@ -172,18 +184,13 @@ class CategoryFlagAdmin(
     ordering = ("enabling_category",)
 
 
-# Enabling conditions
-@admin.register(conditions.TimeOrStockLimitFlag)
-class TimeOrStockLimitFlagAdmin(
-        nested_admin.NestedAdmin,
-        EffectsDisplayMixin):
-    model = conditions.TimeOrStockLimitFlag
+@admin.register(conditions.SpeakerFlag)
+class SpeakerFlagAdmin(nested_admin.NestedAdmin, EffectsDisplayMixin):
 
-    list_display = (
-        "description",
-        "start_time",
-        "end_time",
-        "limit",
-        "effects",
-    )
-    ordering = ("start_time", "end_time", "limit")
+    model = conditions.SpeakerFlag
+    fields = ("description", "is_presenter", "is_copresenter", "proposal_kind",
+              "products", "categories")
+
+    list_display = ("description", "is_presenter", "is_copresenter", "effects")
+
+    ordering = ("-is_presenter", "-is_copresenter")

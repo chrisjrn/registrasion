@@ -8,8 +8,102 @@ from django.utils.encoding import python_2_unicode_compatible
 from django.utils.translation import ugettext_lazy as _
 from model_utils.managers import InheritanceManager
 
+from symposion import proposals
 
-# Product Modifiers
+
+# Condition Types
+
+class TimeOrStockLimitCondition(models.Model):
+    ''' Attributes for a condition that is limited by timespan or a count of
+    purchased or reserved items.
+
+    Attributes:
+        start_time (Optional[datetime]): When the condition should start being
+            true.
+
+        end_time (Optional[datetime]): When the condition should stop being
+            true.
+
+        limit (Optional[int]): How many items may fall under the condition
+            the condition until it stops being false -- for all users.
+    '''
+
+    class Meta:
+        abstract = True
+
+    start_time = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name=_("Start time"),
+        help_text=_("When the condition should start being true"),
+    )
+    end_time = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name=_("End time"),
+        help_text=_("When the condition should stop being true."),
+    )
+    limit = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name=_("Limit"),
+        help_text=_(
+            "How many times this condition may be applied for all users."
+        ),
+    )
+
+
+class VoucherCondition(models.Model):
+    ''' A condition is met when a voucher code is in the current cart. '''
+
+    class Meta:
+        abstract = True
+
+    voucher = models.OneToOneField(
+        inventory.Voucher,
+        on_delete=models.CASCADE,
+        verbose_name=_("Voucher"),
+        db_index=True,
+    )
+
+
+class IncludedProductCondition(models.Model):
+    class Meta:
+        abstract = True
+
+    enabling_products = models.ManyToManyField(
+        inventory.Product,
+        verbose_name=_("Including product"),
+        help_text=_("If one of these products are purchased, this condition "
+                    "is met."),
+    )
+
+
+class SpeakerCondition(models.Model):
+    ''' Conditions that are met if a user is a presenter, or copresenter,
+    of a specific of presentation. '''
+
+    class Meta:
+        abstract = True
+
+    is_presenter = models.BooleanField(
+        blank=True,
+        help_text=_("This condition is met if the user is the primary "
+                    "presenter of a presentation."),
+    )
+    is_copresenter = models.BooleanField(
+        blank=True,
+        help_text=_("This condition is met if the user is a copresenter of a "
+                    "presentation."),
+    )
+    proposal_kind = models.ManyToManyField(
+        proposals.models.ProposalKind,
+        help_text=_("The types of proposals that these users may be "
+                    "presenters of."),
+    )
+
+
+# Discounts
 
 @python_2_unicode_compatible
 class DiscountBase(models.Model):
@@ -154,7 +248,7 @@ class DiscountForCategory(models.Model):
     quantity = models.PositiveIntegerField()
 
 
-class TimeOrStockLimitDiscount(DiscountBase):
+class TimeOrStockLimitDiscount(TimeOrStockLimitCondition, DiscountBase):
     ''' Discounts that are generally available, but are limited by timespan or
     usage count. This is for e.g. Early Bird discounts.
 
@@ -175,27 +269,8 @@ class TimeOrStockLimitDiscount(DiscountBase):
         verbose_name = _("discount (time/stock limit)")
         verbose_name_plural = _("discounts (time/stock limit)")
 
-    start_time = models.DateTimeField(
-        null=True,
-        blank=True,
-        verbose_name=_("Start time"),
-        help_text=_("This discount will only be available after this time."),
-    )
-    end_time = models.DateTimeField(
-        null=True,
-        blank=True,
-        verbose_name=_("End time"),
-        help_text=_("This discount will only be available before this time."),
-    )
-    limit = models.PositiveIntegerField(
-        null=True,
-        blank=True,
-        verbose_name=_("Limit"),
-        help_text=_("This discount may only be applied this many times."),
-    )
 
-
-class VoucherDiscount(DiscountBase):
+class VoucherDiscount(VoucherCondition, DiscountBase):
     ''' Discounts that are enabled when a voucher code is in the current
     cart. These are normally configured in the Admin page at the same time as
     creating a Voucher object.
@@ -210,15 +285,8 @@ class VoucherDiscount(DiscountBase):
         verbose_name = _("discount (enabled by voucher)")
         verbose_name_plural = _("discounts (enabled by voucher)")
 
-    voucher = models.OneToOneField(
-        inventory.Voucher,
-        on_delete=models.CASCADE,
-        verbose_name=_("Voucher"),
-        db_index=True,
-    )
 
-
-class IncludedProductDiscount(DiscountBase):
+class IncludedProductDiscount(IncludedProductCondition, DiscountBase):
     ''' Discounts that are enabled because another product has been purchased.
     e.g. A conference ticket includes a free t-shirt.
 
@@ -233,12 +301,28 @@ class IncludedProductDiscount(DiscountBase):
         verbose_name = _("discount (product inclusions)")
         verbose_name_plural = _("discounts (product inclusions)")
 
-    enabling_products = models.ManyToManyField(
-        inventory.Product,
-        verbose_name=_("Including product"),
-        help_text=_("If one of these products are purchased, the discounts "
-                    "below will be enabled."),
-    )
+
+class SpeakerDiscount(SpeakerCondition, DiscountBase):
+    ''' Discounts that are enabled because the user is a presenter or
+    co-presenter of a kind of presentation.
+
+    Attributes:
+        is_presenter (bool): The condition should be met if the user is a
+            presenter of a presentation.
+
+        is_copresenter (bool): The condition should be met if the user is a
+            copresenter of a presentation.
+
+        proposal_kind ([symposion.proposals.models.ProposalKind, ...]): The
+            kinds of proposals that the user may be a presenter or
+            copresenter of for this condition to be met.
+
+    '''
+
+    class Meta:
+        app_label = "registrasion"
+        verbose_name = _("discount (speaker)")
+        verbose_name_plural = _("discounts (speaker)")
 
 
 class RoleDiscount(object):
@@ -330,7 +414,7 @@ class FlagBase(models.Model):
     )
 
 
-class TimeOrStockLimitFlag(FlagBase):
+class TimeOrStockLimitFlag(TimeOrStockLimitCondition, FlagBase):
     ''' Product groupings that can be used to enable a product during a
     specific date range, or when fewer than a limit of products have been
     sold.
@@ -352,28 +436,9 @@ class TimeOrStockLimitFlag(FlagBase):
         verbose_name = _("flag (time/stock limit)")
         verbose_name_plural = _("flags (time/stock limit)")
 
-    start_time = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text=_("Products included in this condition will only be "
-                    "available after this time."),
-    )
-    end_time = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text=_("Products included in this condition will only be "
-                    "available before this time."),
-    )
-    limit = models.PositiveIntegerField(
-        null=True,
-        blank=True,
-        help_text=_("The number of items under this grouping that can be "
-                    "purchased."),
-    )
-
 
 @python_2_unicode_compatible
-class ProductFlag(FlagBase):
+class ProductFlag(IncludedProductCondition, FlagBase):
     ''' The condition is met because a specific product is purchased.
 
     Attributes:
@@ -388,12 +453,6 @@ class ProductFlag(FlagBase):
 
     def __str__(self):
         return "Enabled by products: " + str(self.enabling_products.all())
-
-    enabling_products = models.ManyToManyField(
-        inventory.Product,
-        help_text=_("If one of these products are purchased, this condition "
-                    "is met."),
-    )
 
 
 @python_2_unicode_compatible
@@ -422,7 +481,7 @@ class CategoryFlag(FlagBase):
 
 
 @python_2_unicode_compatible
-class VoucherFlag(FlagBase):
+class VoucherFlag(VoucherCondition, FlagBase):
     ''' The condition is met because a Voucher is present. This is for e.g.
     enabling sponsor tickets. '''
 
@@ -434,7 +493,28 @@ class VoucherFlag(FlagBase):
     def __str__(self):
         return "Enabled by voucher: %s" % self.voucher
 
-    voucher = models.OneToOneField(inventory.Voucher)
+
+class SpeakerFlag(SpeakerCondition, FlagBase):
+    ''' Conditions that are enabled because the user is a presenter or
+    co-presenter of a kind of presentation.
+
+    Attributes:
+        is_presenter (bool): The condition should be met if the user is a
+            presenter of a presentation.
+
+        is_copresenter (bool): The condition should be met if the user is a
+            copresenter of a presentation.
+
+        proposal_kind ([symposion.proposals.models.ProposalKind, ...]): The
+            kinds of proposals that the user may be a presenter or
+            copresenter of for this condition to be met.
+
+    '''
+
+    class Meta:
+        app_label = "registrasion"
+        verbose_name = _("flag (speaker)")
+        verbose_name_plural = _("flags (speaker)")
 
 
 # @python_2_unicode_compatible

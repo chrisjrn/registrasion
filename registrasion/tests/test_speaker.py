@@ -12,6 +12,7 @@ from registrasion.controllers.product import ProductController
 from symposion.conference import models as conference_models
 from symposion.proposals import models as proposal_models
 from symposion.speakers import models as speaker_models
+from symposion.reviews.models import promote_proposal
 
 from test_cart import RegistrationCartTestCase
 
@@ -97,6 +98,32 @@ class SpeakerTestCase(RegistrationCartTestCase):
         cls.PROPOSAL_1 = proposal_1
         cls.PROPOSAL_2 = proposal_2
 
+    @classmethod
+    def _create_flag_for_primary_speaker(cls):
+        ''' Adds flag -- PROD_1 is not available unless user is a primary
+        presenter of a KIND_1 '''
+        flag = conditions.SpeakerFlag.objects.create(
+            description="User must be presenter",
+            condition=conditions.FlagBase.ENABLE_IF_TRUE,
+            is_presenter=True,
+            is_copresenter=False,
+        )
+        flag.proposal_kind.add(cls.KIND_1)
+        flag.products.add(cls.PROD_1)
+
+    @classmethod
+    def _create_flag_for_additional_speaker(cls):
+        ''' Adds flag -- PROD_1 is not available unless user is a primary
+        presenter of a KIND_2 '''
+        flag = conditions.SpeakerFlag.objects.create(
+            description="User must be copresenter",
+            condition=conditions.FlagBase.ENABLE_IF_TRUE,
+            is_presenter=False,
+            is_copresenter=True,
+        )
+        flag.proposal_kind.add(cls.KIND_1)
+        flag.products.add(cls.PROD_1)
+
     def test_create_proposals(self):
         self._create_proposals()
 
@@ -106,10 +133,66 @@ class SpeakerTestCase(RegistrationCartTestCase):
         self.assertIsNotNone(self.PROPOSAL_2)
 
     def test_primary_speaker_enables_item(self):
-        raise NotImplementedError()
+        self._create_proposals()
+        self._create_flag_for_primary_speaker()
+
+        # USER_1 cannot see PROD_1 until proposal is promoted.
+        available = ProductController.available_products(
+            self.USER_1,
+            products=[self.PROD_1],
+        )
+        self.assertNotIn(self.PROD_1, available)
+
+        # promote proposal_1 so that USER_1 becomes a speaker
+        promote_proposal(self.PROPOSAL_1)
+
+        # USER_1 can see PROD_1
+        available_1 = ProductController.available_products(
+            self.USER_1,
+            products=[self.PROD_1],
+        )
+        self.assertIn(self.PROD_1, available_1)
+        # USER_2 can *NOT* see PROD_1 because they're a copresenter
+        available_2 = ProductController.available_products(
+            self.USER_2,
+            products=[self.PROD_1],
+        )
+        self.assertNotIn(self.PROD_1, available_2)
 
     def test_additional_speaker_enables_item(self):
-        raise NotImplementedError()
+        self._create_proposals()
+        self._create_flag_for_additional_speaker()
+
+        # USER_2 cannot see PROD_1 until proposal is promoted.
+        available = ProductController.available_products(
+            self.USER_2,
+            products=[self.PROD_1],
+        )
+        self.assertNotIn(self.PROD_1, available)
+
+        # promote proposal_1 so that USER_2 becomes an additional speaker
+        promote_proposal(self.PROPOSAL_1)
+
+        # USER_2 can see PROD_1
+        available_2 = ProductController.available_products(
+            self.USER_2,
+            products=[self.PROD_1],
+        )
+        self.assertIn(self.PROD_1, available_2)
+        # USER_1 can *NOT* see PROD_1 because they're a presenter
+        available_1 = ProductController.available_products(
+            self.USER_1,
+            products=[self.PROD_1],
+        )
+        self.assertNotIn(self.PROD_1, available_1)
 
     def test_speaker_on_different_proposal_kind_does_not_enable_item(self):
-        raise NotImplementedError()
+        self._create_proposals()
+        self._create_flag_for_primary_speaker()
+
+        # USER_1 cannot see PROD_1 until proposal is promoted.
+
+        # promote proposal_2 so that USER_1 becomes a speaker, but of
+        # KIND_2, which is not covered by this condition
+
+        # USER_2 cannot see PROD_1

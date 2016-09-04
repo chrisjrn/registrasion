@@ -310,4 +310,6 @@ class SpeakerConditionController(IsMetByFilter, ConditionController):
         ''' Returns all of the items from queryset which are enabled by a user
         being a presenter or copresenter of a proposal. '''
 
-        return queryset
+        # User is a presenter
+
+        return queryset.filter(proposal_kind__section__presentations__speaker__user=user)

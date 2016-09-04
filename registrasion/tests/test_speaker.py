@@ -104,3 +104,12 @@ class SpeakerTestCase(RegistrationCartTestCase):
         self.assertIsNotNone(self.KIND_2)
         self.assertIsNotNone(self.PROPOSAL_1)
         self.assertIsNotNone(self.PROPOSAL_2)
+
+    def test_primary_speaker_enables_item(self):
+        raise NotImplementedError()
+
+    def test_additional_speaker_enables_item(self):
+        raise NotImplementedError()
+
+    def test_speaker_on_different_proposal_kind_does_not_enable_item(self):
+        raise NotImplementedError()

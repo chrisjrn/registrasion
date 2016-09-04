@@ -8,6 +8,8 @@ from django.utils.encoding import python_2_unicode_compatible
 from django.utils.translation import ugettext_lazy as _
 from model_utils.managers import InheritanceManager
 
+from symposion import proposals
+
 
 # Condition Types
 
@@ -74,6 +76,30 @@ class IncludedProductCondition(models.Model):
         verbose_name=_("Including product"),
         help_text=_("If one of these products are purchased, this condition "
                     "is met."),
+    )
+
+
+class SpeakerCondition(models.Model):
+    ''' Conditions that are met if a user is a presenter, or copresenter,
+    of a specific of presentation. '''
+
+    class Meta:
+        abstract = True
+
+    is_presenter = models.BooleanField(
+        blank=True,
+        help_text=_("This condition is met if the user is the primary "
+                    "presenter of a presentation."),
+    )
+    is_copresenter = models.BooleanField(
+        blank=True,
+        help_text=_("This condition is met if the user is a copresenter of a "
+                    "presentation."),
+    )
+    proposal_kind = models.ManyToManyField(
+        proposals.models.ProposalKind,
+        help_text=_("The types of proposals that these users may be "
+                    "presenters of."),
     )
 
 
@@ -276,6 +302,29 @@ class IncludedProductDiscount(IncludedProductCondition, DiscountBase):
         verbose_name_plural = _("discounts (product inclusions)")
 
 
+class SpeakerDiscount(SpeakerCondition, DiscountBase):
+    ''' Discounts that are enabled because the user is a presenter or
+    co-presenter of a kind of presentation.
+
+    Attributes:
+        is_presenter (bool): The condition should be met if the user is a
+            presenter of a presentation.
+
+        is_copresenter (bool): The condition should be met if the user is a
+            copresenter of a presentation.
+
+        proposal_kind ([symposion.proposals.models.ProposalKind, ...]): The
+            kinds of proposals that the user may be a presenter or
+            copresenter of for this condition to be met.
+
+    '''
+
+    class Meta:
+        app_label = "registrasion"
+        verbose_name = _("discount (speaker)")
+        verbose_name_plural = _("discounts (speaker)")
+
+
 class RoleDiscount(object):
     ''' Discounts that are enabled because the active user has a specific
     role. This is for e.g. volunteers who can get a discount ticket. '''
@@ -443,6 +492,29 @@ class VoucherFlag(VoucherCondition, FlagBase):
 
     def __str__(self):
         return "Enabled by voucher: %s" % self.voucher
+
+
+class SpeakerFlag(SpeakerCondition, FlagBase):
+    ''' Conditions that are enabled because the user is a presenter or
+    co-presenter of a kind of presentation.
+
+    Attributes:
+        is_presenter (bool): The condition should be met if the user is a
+            presenter of a presentation.
+
+        is_copresenter (bool): The condition should be met if the user is a
+            copresenter of a presentation.
+
+        proposal_kind ([symposion.proposals.models.ProposalKind, ...]): The
+            kinds of proposals that the user may be a presenter or
+            copresenter of for this condition to be met.
+
+    '''
+
+    class Meta:
+        app_label = "registrasion"
+        verbose_name = _("flag (speaker)")
+        verbose_name_plural = _("flags (speaker)")
 
 
 # @python_2_unicode_compatible

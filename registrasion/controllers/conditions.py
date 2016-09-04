@@ -311,16 +311,15 @@ class SpeakerConditionController(IsMetByFilter, ConditionController):
         being a presenter or copresenter of a proposal. '''
 
         u = user
-
         # User is a presenter
         user_is_presenter = Q(
             is_presenter=True,
-            proposal_kind__section__presentations__speaker__user=u,
+            proposal_kind__proposalbase__presentation__speaker__user=u,
         )
         # User is a copresenter
         user_is_copresenter = Q(
             is_copresenter=True,
-            proposal_kind__section__presentations__additional_speakers__user=u,
+            proposal_kind__proposalbase__presentation__additional_speakers__user=u,
         )
 
         return queryset.filter(user_is_presenter | user_is_copresenter)

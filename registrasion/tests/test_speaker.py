@@ -191,8 +191,19 @@ class SpeakerTestCase(RegistrationCartTestCase):
         self._create_flag_for_primary_speaker()
 
         # USER_1 cannot see PROD_1 until proposal is promoted.
+        available = ProductController.available_products(
+            self.USER_1,
+            products=[self.PROD_1],
+        )
+        self.assertNotIn(self.PROD_1, available)
 
         # promote proposal_2 so that USER_1 becomes a speaker, but of
         # KIND_2, which is not covered by this condition
+        promote_proposal(self.PROPOSAL_2)
 
-        # USER_2 cannot see PROD_1
+        # USER_1 cannot see PROD_1
+        available_1 = ProductController.available_products(
+            self.USER_1,
+            products=[self.PROD_1],
+        )
+        self.assertNotIn(self.PROD_1, available_1)

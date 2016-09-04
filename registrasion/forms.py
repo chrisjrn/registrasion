@@ -208,7 +208,6 @@ class _RadioButtonProductsForm(_ProductsForm):
             yield (
                 choice_value,
                 1 if ours == choice_value else 0,
-                self.FIELD,
             )
 
     def add_product_error(self, product, error):

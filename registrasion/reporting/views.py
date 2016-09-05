@@ -128,7 +128,7 @@ def reconciliation(request, form):
 @report_view("Product status", form_type=forms.ProductAndCategoryForm)
 def product_status(request, form):
     ''' Summarises the inventory status of the given items, grouping by
-    invoice status. '''
+    invoice and cart status. '''
 
     products = form.cleaned_data["product"]
     categories = form.cleaned_data["category"]

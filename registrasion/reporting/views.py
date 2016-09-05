@@ -139,8 +139,8 @@ def product_status(request, form):
 
     items = items.annotate(
         is_reserved=Case(
-            When(cart__in=commerce.Cart.reserved_carts(), then=Value(1)),
-            default=Value(0),
+            When(cart__in=commerce.Cart.reserved_carts(), then=Value(True)),
+            default=Value(False),
             output_field=models.BooleanField(),
         ),
     )

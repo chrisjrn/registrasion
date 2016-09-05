@@ -71,11 +71,10 @@ class Category(models.Model):
     ]
 
     name = models.CharField(
-        max_length=65,
+        max_length=255,
         verbose_name=_("Name"),
     )
-    description = models.CharField(
-        max_length=255,
+    description = models.TextField(
         verbose_name=_("Description"),
     )
     limit_per_user = models.PositiveIntegerField(
@@ -143,11 +142,10 @@ class Product(models.Model):
         return "%s - %s" % (self.category.name, self.name)
 
     name = models.CharField(
-        max_length=65,
+        max_length=255,
         verbose_name=_("Name"),
     )
-    description = models.CharField(
-        max_length=255,
+    description = models.TextField(
         verbose_name=_("Description"),
         null=True,
         blank=True,

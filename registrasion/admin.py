@@ -97,6 +97,19 @@ class SpeakerDiscountAdmin(admin.ModelAdmin, EffectsDisplayMixin):
     ]
 
 
+@admin.register(conditions.GroupMemberDiscount)
+class GroupMemberDiscountAdmin(admin.ModelAdmin, EffectsDisplayMixin):
+
+    fields = ("description", "group")
+
+    list_display = ("description", "effects")
+
+    inlines = [
+        DiscountForProductInline,
+        DiscountForCategoryInline,
+    ]
+
+
 # Vouchers
 
 class VoucherDiscountInline(nested_admin.NestedStackedInline):
@@ -194,3 +207,11 @@ class SpeakerFlagAdmin(nested_admin.NestedAdmin, EffectsDisplayMixin):
     list_display = ("description", "is_presenter", "is_copresenter", "effects")
 
     ordering = ("-is_presenter", "-is_copresenter")
+
+
+@admin.register(conditions.GroupMemberFlag)
+class GroupMemberFlagAdmin(admin.ModelAdmin, EffectsDisplayMixin):
+
+    fields = ("description", "group")
+
+    list_display = ("description", "effects")

@@ -340,6 +340,14 @@ class _ItemQuantityProductsFormSet(_HasProductsFields, forms.BaseFormSet):
         for form in self.forms:
             form.add_product_error(product, error)
 
+    @property
+    def errors(self):
+        _errors = super(_ItemQuantityProductsFormSet, self).errors
+        if False not in [not form.errors for form in self.forms]:
+            return []
+        else:
+            return _errors
+
 
 class VoucherForm(forms.Form):
     voucher = forms.CharField(

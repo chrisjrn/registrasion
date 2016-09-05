@@ -330,8 +330,10 @@ class SpeakerConditionController(IsMetByFilter, ConditionController):
 class GroupMemberConditionController(IsMetByFilter, ConditionController):
 
     @classmethod
-    def pre_filter(self, queryset, user):
-        ''' Returns all of the items from queryset which are enabled by a user
-        being member of a Django Auth Group. '''
+    def pre_filter(self, conditions, user):
+        ''' Returns all of the items from conditions which are enabled by a
+        user being member of a Django Auth Group. '''
 
-        return queryset
+        return conditions.filter(
+            group=user.groups.all(),
+        )

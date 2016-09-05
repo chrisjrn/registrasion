@@ -2,6 +2,7 @@ import itertools
 
 from . import inventory
 
+from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.encoding import python_2_unicode_compatible
@@ -81,7 +82,7 @@ class IncludedProductCondition(models.Model):
 
 class SpeakerCondition(models.Model):
     ''' Conditions that are met if a user is a presenter, or copresenter,
-    of a specific of presentation. '''
+    of a specific kind of presentation. '''
 
     class Meta:
         abstract = True
@@ -100,6 +101,20 @@ class SpeakerCondition(models.Model):
         proposals.models.ProposalKind,
         help_text=_("The types of proposals that these users may be "
                     "presenters of."),
+    )
+
+
+class GroupMemberCondition(models.Model):
+    ''' Conditions that are met if a user is a member (not declined or
+    rejected) of a specific django auth group. '''
+
+    class Meta:
+        abstract = True
+
+    group = models.ManyToManyField(
+        Group,
+        help_text=_("The groups a user needs to be a member of for this"
+                    "condition to be met."),
     )
 
 
@@ -325,12 +340,23 @@ class SpeakerDiscount(SpeakerCondition, DiscountBase):
         verbose_name_plural = _("discounts (speaker)")
 
 
-class RoleDiscount(object):
-    ''' Discounts that are enabled because the active user has a specific
-    role. This is for e.g. volunteers who can get a discount ticket. '''
-    # TODO: implement RoleDiscount
-    pass
+class GroupMemberDiscount(GroupMemberCondition, DiscountBase):
+    ''' Discounts that are enabled because the user is a member of a specific
+    django auth Group.
 
+    Attributes:
+        group ([Group, ...]): The condition should be met if the user is a
+            member of one of these groups.
+
+    '''
+
+    class Meta:
+        app_label = "registrasion"
+        verbose_name = _("discount (group member)")
+        verbose_name_plural = _("discounts (group member)")
+
+
+# Flags
 
 @python_2_unicode_compatible
 class FlagBase(models.Model):
@@ -517,9 +543,17 @@ class SpeakerFlag(SpeakerCondition, FlagBase):
         verbose_name_plural = _("flags (speaker)")
 
 
-# @python_2_unicode_compatible
-class RoleFlag(object):
-    ''' The condition is met because the active user has a particular Role.
-    This is for e.g. enabling Team tickets. '''
-    # TODO: implement RoleFlag
-    pass
+class GroupMemberFlag(GroupMemberCondition, FlagBase):
+    ''' Flag whose conditions are metbecause the user is a member of a specific
+    django auth Group.
+
+    Attributes:
+        group ([Group, ...]): The condition should be met if the user is a
+            member of one of these groups.
+
+    '''
+
+    class Meta:
+        app_label = "registrasion"
+        verbose_name = _("flag (group member)")
+        verbose_name_plural = _("flags (group member)")

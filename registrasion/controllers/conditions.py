@@ -23,6 +23,8 @@ class ConditionController(object):
     def _controllers():
         return {
             conditions.CategoryFlag: CategoryConditionController,
+            conditions.GroupMemberDiscount: GroupMemberConditionController,
+            conditions.GroupMemberFlag: GroupMemberConditionController,
             conditions.IncludedProductDiscount: ProductConditionController,
             conditions.ProductFlag: ProductConditionController,
             conditions.SpeakerFlag: SpeakerConditionController,
@@ -319,7 +321,19 @@ class SpeakerConditionController(IsMetByFilter, ConditionController):
         # User is a copresenter
         user_is_copresenter = Q(
             is_copresenter=True,
-            proposal_kind__proposalbase__presentation__additional_speakers__user=u,
+            proposal_kind__proposalbase__presentation__additional_speakers__user=u,  # NOQA
         )
 
         return queryset.filter(user_is_presenter | user_is_copresenter)
+
+
+class GroupMemberConditionController(IsMetByFilter, ConditionController):
+
+    @classmethod
+    def pre_filter(self, conditions, user):
+        ''' Returns all of the items from conditions which are enabled by a
+        user being member of a Django Auth Group. '''
+
+        return conditions.filter(
+            group=user.groups.all(),
+        )

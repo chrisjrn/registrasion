@@ -227,23 +227,11 @@ def credit_notes(request, form):
         "invoice__user__attendee__attendeeprofilebase",
     )
 
-    headings = [
-        "id", "Owner", "Status", "Value",
-    ]
-
-    data = []
-    for note in notes:
-        data.append([
-            note.id,
-            note.invoice.user.attendee.attendeeprofilebase.invoice_recipient(),
-            note.status,
-            note.value,
-        ])
-
-    return ListReport(
+    return QuerysetReport(
         "Credit Notes",
-        headings,
-        data,
+        ["id", "invoice__user__attendee__attendeeprofilebase__invoice_recipient", "status", "value"],  # NOQA
+        notes,
+        headings=["id", "Owner", "Status", "Value"],
         link_view=views.credit_note,
     )
 

@@ -47,13 +47,17 @@ class Report(object):
 
         if content_type == "text/html":
             return Report._html_link(address, text)
+        else:
+            return text
 
     @staticmethod
     def _html_link(address, text):
         return '<a href="%s">%s</a>' % (address, text)
 
 
-class ReportTemplateWrapper(object):
+class _ReportTemplateWrapper(object):
+    ''' Used internally to pass `Report` objects to templates. They effectively
+    are used to specify the content_type for a report. '''
 
     def __init__(self, content_type, report):
         self.content_type = content_type
@@ -93,14 +97,40 @@ class OldReport(Report):
             if index > 0 or not self._link_view:
                 return text
             else:
-                address = reverse(self._link_view, args=[text])
+                address = self.get_link(text)
                 return self._linked_text(content_type, address, text)
 
         for row in self._data:
             yield [cell_text(i, cell) for i, cell in enumerate(row)]
 
-    def _get_link(self, argument):
-        return reverse(self._link_view, argument)
+    def get_link(self, argument):
+        return reverse(self._link_view, args=[argument])
+
+
+class Links(Report):
+
+    def __init__(self, title, links):
+        '''
+        Arguments:
+            links ([tuple, ...]): a list of 2-tuples:
+                (url, link_text)
+
+        '''
+        self._title = title
+        self._links = links
+
+    def title(self):
+        return self._title
+
+    def headings(self):
+        return []
+
+    def rows(self, content_type):
+        print self._links
+        for url, link_text in self._links:
+            yield [
+                self._linked_text(content_type, url, link_text)
+            ]
 
 def report_view(title, form_type=None):
     ''' Decorator that converts a report view function into something that
@@ -133,7 +163,7 @@ def report_view(title, form_type=None):
                 reports = [reports]
 
             reports = [
-                ReportTemplateWrapper("text/html", report)
+                _ReportTemplateWrapper("text/html", report)
                 for report in reports
             ]
 

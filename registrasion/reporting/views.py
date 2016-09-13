@@ -18,6 +18,10 @@ from reports import Report
 from reports import report_view
 
 
+def CURRENCY():
+    return models.DecimalField(decimal_places=2)
+
+
 @user_passes_test(views._staff_only)
 def reports_list(request):
     ''' Lists all of the reports currently available. '''
@@ -101,7 +105,9 @@ def reconciliation(request, form):
         invoice__status=commerce.Invoice.STATUS_PAID,
     ).values(
         "price", "quantity"
-    ).aggregate(total=Sum(F("price") * F("quantity")))
+    ).aggregate(
+        total=Sum(F("price") * F("quantity"), output_field=CURRENCY()),
+    )
 
     data.append(["Paid items", sales["total"]])
 

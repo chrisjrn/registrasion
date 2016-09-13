@@ -14,7 +14,9 @@ from registrasion.models import people
 from registrasion import views
 
 from reports import get_all_reports
-from reports import Report
+from reports import Links
+from reports import ListReport
+from reports import QuerysetReport
 from reports import report_view
 
 
@@ -90,7 +92,7 @@ def items_sold(request, form):
         "(TOTAL)", "--", "--", total_income,
     ])
 
-    return Report("Paid items", headings, data)
+    return ListReport("Paid items", headings, data)
 
 
 @report_view("Reconcilitation")
@@ -128,7 +130,7 @@ def reconciliation(request, form):
         sales["total"] - payments["total"] - ucn["total"],
     ])
 
-    return Report("Sales and Payments", headings, data)
+    return ListReport("Sales and Payments", headings, data)
 
 
 @report_view("Product status", form_type=forms.ProductAndCategoryForm)
@@ -211,7 +213,7 @@ def product_status(request, form):
             item["total_refunded"],
         ])
 
-    return Report("Inventory", headings, data)
+    return ListReport("Inventory", headings, data)
 
 
 @report_view("Credit notes")
@@ -225,20 +227,13 @@ def credit_notes(request, form):
         "invoice__user__attendee__attendeeprofilebase",
     )
 
-    headings = [
-        "id", "Owner", "Status", "Value",
-    ]
-
-    data = []
-    for note in notes:
-        data.append([
-            note.id,
-            note.invoice.user.attendee.attendeeprofilebase.invoice_recipient(),
-            note.status,
-            note.value,
-        ])
-
-    return Report("Credit Notes", headings, data, link_view="credit_note")
+    return QuerysetReport(
+        "Credit Notes",
+        ["id", "invoice__user__attendee__attendeeprofilebase__invoice_recipient", "status", "value"],  # NOQA
+        notes,
+        headings=["id", "Owner", "Status", "Value"],
+        link_view=views.credit_note,
+    )
 
 
 @report_view("Attendee", form_type=forms.UserIdForm)
@@ -253,82 +248,63 @@ def attendee(request, form, user_id=None):
         user_id = form.cleaned_data["user"]
 
     attendee = people.Attendee.objects.get(user__id=user_id)
+    name = attendee.attendeeprofilebase.attendee_name()
 
     reports = []
 
-    # TODO: METADATA.
+    links = []
+    links.append((
+        reverse(views.amend_registration, args=[user_id]),
+        "Amend current cart",
+    ))
+    reports.append(Links("Actions for " + name, links))
 
+    # Paid and pending  products
     ic = ItemController(attendee.user)
-    # Paid products
-    headings = ["Product", "Quantity"]
-    data = []
-
-    for pq in ic.items_purchased():
-        data.append([
-            pq.product,
-            pq.quantity,
-        ])
-
-    reports.append(Report("Paid Products", headings, data))
-
-    # Unpaid products
-    headings = ["Product", "Quantity"]
-    data = []
-
-    for pq in ic.items_pending():
-        data.append([
-            pq.product,
-            pq.quantity,
-        ])
-
-    reports.append( Report("Unpaid Products", headings, data))
+    reports.append(ListReport(
+        "Paid Products",
+        ["Product", "Quantity"],
+        [(pq.product, pq.quantity) for pq in ic.items_purchased()],
+    ))
+    reports.append(ListReport(
+        "Unpaid Products",
+        ["Product", "Quantity"],
+        [(pq.product, pq.quantity) for pq in ic.items_pending()],
+    ))
 
     # Invoices
-    headings = ["Invoice ID", "Status", "Value"]
-    data = []
-
     invoices = commerce.Invoice.objects.filter(
         user=attendee.user,
     )
-    for invoice in invoices:
-        data.append([
-            invoice.id, invoice.get_status_display(), invoice.value,
-        ])
-
-    reports.append(Report("Invoices", headings, data, link_view="invoice"))
+    reports.append(QuerysetReport(
+        "Invoices",
+        ["id", "get_status_display", "value"],
+        invoices,
+        headings=["Invoice ID", "Status", "Value"],
+        link_view=views.invoice,
+    ))
 
     # Credit Notes
-    headings = ["Note ID", "Status", "Value"]
-    data = []
-
     credit_notes = commerce.CreditNote.objects.filter(
         invoice__user=attendee.user,
     )
-    for credit_note in credit_notes:
-        data.append([
-            credit_note.id, credit_note.status, credit_note.value,
-        ])
-
-    reports.append(
-        Report("Credit Notes", headings, data, link_view="credit_note")
-    )
+    reports.append(QuerysetReport(
+        "Credit Notes",
+        ["id", "status", "value"],
+        credit_notes,
+        link_view=views.credit_note,
+    ))
 
     # All payments
-    headings = ["To Invoice", "Payment ID", "Reference", "Amount"]
-    data = []
-
     payments = commerce.PaymentBase.objects.filter(
         invoice__user=attendee.user,
     )
-    for payment in payments:
-        data.append([
-            payment.invoice.id, payment.id, payment.reference, payment.amount,
-        ])
-
-    reports.append(
-        Report("Payments", headings, data, link_view="invoice")
-    )
-
+    reports.append(QuerysetReport(
+        "Payments",
+        ["invoice__id", "id", "reference", "amount"],
+        payments,
+        link_view=views.invoice,
+    ))
 
     return reports
 
@@ -353,15 +329,20 @@ def attendee_list(request):
 
     data = []
 
-    for attendee in attendees:
+    for a in attendees:
         data.append([
-            attendee.user.id,
-            attendee.attendeeprofilebase.attendee_name(),
-            attendee.user.email,
-            attendee.has_registered > 0,
+            a.user.id,
+            a.attendeeprofilebase.attendee_name(),
+            a.user.email,
+            a.has_registered > 0,
         ])
 
     # Sort by whether they've registered, then ID.
-    data.sort(key=lambda attendee: (-attendee[3], attendee[0]))
+    data.sort(key=lambda a: (-a[3], a[0]))
 
-    return Report("Attendees", headings, data, link_view="attendee")
+    class Report(ListReport):
+
+        def get_link(self, argument):
+            return reverse(self._link_view) + "?user=%d" % int(argument)
+
+    return Report("Attendees", headings, data, link_view=attendee)

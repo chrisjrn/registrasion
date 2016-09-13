@@ -271,39 +271,27 @@ def attendee(request, form, user_id=None):
     ))
     reports.append(Links("Actions for " + name, links))
 
+    # Paid and pending  products
     ic = ItemController(attendee.user)
-    # Paid products
-    headings = ["Product", "Quantity"]
-    data = []
-
-    for pq in ic.items_purchased():
-        data.append([
-            pq.product,
-            pq.quantity,
-        ])
-
-    reports.append(ListReport("Paid Products", headings, data))
-
-    # Unpaid products
-    headings = ["Product", "Quantity"]
-    data = []
-
-    for pq in ic.items_pending():
-        data.append([
-            pq.product,
-            pq.quantity,
-        ])
-
-    reports.append(ListReport("Unpaid Products", headings, data))
+    reports.append(ListReport(
+        "Paid Products",
+        ["Product", "Quantity"],
+        [(pq.product, pq.quantity) for pq in ic.items_purchased()],
+    ))
+    reports.append(ListReport(
+        "Unpaid Products",
+        ["Product", "Quantity"],
+        [(pq.product, pq.quantity) for pq in ic.items_pending()],
+    ))
 
     # Invoices
+    # TODO make this a querysetreport
     headings = ["Invoice ID", "Status", "Value"]
     data = []
 
     invoices = commerce.Invoice.objects.filter(
         user=attendee.user,
     )
-    # TODO make this a querysetreport
     for invoice in invoices:
         data.append([
             invoice.id, invoice.get_status_display(), invoice.value,

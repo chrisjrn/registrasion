@@ -120,7 +120,9 @@ class QuerysetReport(BasicReport):
 
     def __init__(self, title, attributes, queryset, headings=None,
                  link_view=None):
-        super(QuerysetReport, self).__init__(title, headings, link_view=link_view)
+        super(QuerysetReport, self).__init__(
+            title, headings, link_view=link_view
+        )
         self._attributes = attributes
         self._queryset = queryset
 
@@ -177,6 +179,7 @@ class Links(Report):
             yield [
                 self._linked_text(content_type, url, link_text)
             ]
+
 
 def report_view(title, form_type=None):
     ''' Decorator that converts a report view function into something that

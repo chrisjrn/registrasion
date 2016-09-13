@@ -205,12 +205,11 @@ class CartController(object):
             to_add = sum(i[1] for i in by_cat[category])
 
             if to_add > limit:
-                errors.append((
-                    category,
-                    "You may only have %d items in category: %s" % (
-                        limit, category.name,
-                    )
-                ))
+                message = "You may only have %d items in category: %s" % (
+                    limit, category.name,
+                )
+                for product, quantity in by_cat[category]:
+                    errors.append((product, message))
 
         # Test the flag conditions
         errs = FlagController.test_flags(

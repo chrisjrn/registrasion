@@ -73,13 +73,12 @@ class _ReportTemplateWrapper(object):
         return self.report.rows(self.content_type)
 
 
-class OldReport(Report):
+class BasicReport(Report):
 
-    def __init__(self, title, headings, data, link_view=None):
-        super(OldReport, self).__init__()
+    def __init__(self, title, headings, link_view=None):
+        super(BasicReport, self).__init__()
         self._title = title
         self._headings = headings
-        self._data = data
         self._link_view = link_view
 
     def title(self):
@@ -90,21 +89,52 @@ class OldReport(Report):
         ''' Returns the headings for the table. '''
         return self._headings
 
-    def rows(self, content_type):
-        ''' Returns the data rows for the table. '''
-
-        def cell_text(index, text):
-            if index > 0 or not self._link_view:
-                return text
-            else:
-                address = self.get_link(text)
-                return self._linked_text(content_type, address, text)
-
-        for row in self._data:
-            yield [cell_text(i, cell) for i, cell in enumerate(row)]
+    def cell_text(self, content_type, index, text):
+        if index > 0 or not self._link_view:
+            return text
+        else:
+            address = self.get_link(text)
+            return self._linked_text(content_type, address, text)
 
     def get_link(self, argument):
         return reverse(self._link_view, args=[argument])
+
+
+class ListReport(BasicReport):
+
+    def __init__(self, title, headings, data, link_view=None):
+        super(ListReport, self).__init__(title, headings, link_view=link_view)
+        self._data = data
+
+    def rows(self, content_type):
+        ''' Returns the data rows for the table. '''
+
+        for row in self._data:
+            yield [
+                self.cell_text(content_type, i, cell)
+                for i, cell in enumerate(row)
+            ]
+
+
+class QuerysetReport(BasicReport):
+
+    def __init__(self, title, headings, attributes, queryset, link_view=None):
+        super(QuerysetReport, self).__init__(title, headings, link_view=link_view)
+        self._attributes = attributes
+        self._queryset = queryset
+
+    def rows(self, content_type):
+
+        def rgetattr(item, attr):
+            for i in attr.split("__"):
+                item = getattr(item, i)
+            return item
+
+        for row in self._queryset:
+            yield [
+                self.cell_text(content_type, i, rgetattr(row, attribute))
+                for i, attribute in enumerate(self._attributes)
+            ]
 
 
 class Links(Report):

@@ -14,7 +14,9 @@ from registrasion.models import people
 from registrasion import views
 
 from reports import get_all_reports
-from reports import OldReport
+from reports import Links
+from reports import ListReport
+from reports import QuerysetReport
 from reports import report_view
 
 
@@ -90,7 +92,7 @@ def items_sold(request, form):
         "(TOTAL)", "--", "--", total_income,
     ])
 
-    return OldReport("Paid items", headings, data)
+    return ListReport("Paid items", headings, data)
 
 
 @report_view("Reconcilitation")
@@ -128,7 +130,7 @@ def reconciliation(request, form):
         sales["total"] - payments["total"] - ucn["total"],
     ])
 
-    return OldReport("Sales and Payments", headings, data)
+    return ListReport("Sales and Payments", headings, data)
 
 
 @report_view("Product status", form_type=forms.ProductAndCategoryForm)
@@ -211,7 +213,7 @@ def product_status(request, form):
             item["total_refunded"],
         ])
 
-    return OldReport("Inventory", headings, data)
+    return ListReport("Inventory", headings, data)
 
 
 @report_view("Credit notes")
@@ -238,7 +240,7 @@ def credit_notes(request, form):
             note.value,
         ])
 
-    return OldReport(
+    return ListReport(
         "Credit Notes",
         headings,
         data,
@@ -258,10 +260,16 @@ def attendee(request, form, user_id=None):
         user_id = form.cleaned_data["user"]
 
     attendee = people.Attendee.objects.get(user__id=user_id)
+    name = attendee.attendeeprofilebase.attendee_name()
 
     reports = []
 
-    # TODO: METADATA.
+    links = []
+    links.append((
+        reverse(views.amend_registration, args=[user_id]),
+        "Amend current cart",
+    ))
+    reports.append(Links("Actions for " + name, links))
 
     ic = ItemController(attendee.user)
     # Paid products
@@ -274,7 +282,7 @@ def attendee(request, form, user_id=None):
             pq.quantity,
         ])
 
-    reports.append(OldReport("Paid Products", headings, data))
+    reports.append(ListReport("Paid Products", headings, data))
 
     # Unpaid products
     headings = ["Product", "Quantity"]
@@ -286,7 +294,7 @@ def attendee(request, form, user_id=None):
             pq.quantity,
         ])
 
-    reports.append( OldReport("Unpaid Products", headings, data))
+    reports.append(ListReport("Unpaid Products", headings, data))
 
     # Invoices
     headings = ["Invoice ID", "Status", "Value"]
@@ -301,7 +309,7 @@ def attendee(request, form, user_id=None):
         ])
 
     reports.append(
-        OldReport("Invoices", headings, data, link_view=views.invoice)
+        ListReport("Invoices", headings, data, link_view=views.invoice)
     )
 
     # Credit Notes
@@ -317,7 +325,7 @@ def attendee(request, form, user_id=None):
         ])
 
     reports.append(
-        OldReport("Credit Notes", headings, data, link_view=views.credit_note)
+        ListReport("Credit Notes", headings, data, link_view=views.credit_note)
     )
 
     # All payments
@@ -327,14 +335,14 @@ def attendee(request, form, user_id=None):
     payments = commerce.PaymentBase.objects.filter(
         invoice__user=attendee.user,
     )
-    for payment in payments:
-        data.append([
-            payment.invoice.id, payment.id, payment.reference, payment.amount,
-        ])
 
-    reports.append(
-        OldReport("Payments", headings, data, link_view=views.invoice)
-    )
+    reports.append(QuerysetReport(
+        "Payments",
+        headings,
+        ["invoice__id", "id", "reference", "amount"],
+        payments,
+        link_view=views.invoice,
+    ))
 
 
     return reports
@@ -371,4 +379,9 @@ def attendee_list(request):
     # Sort by whether they've registered, then ID.
     data.sort(key=lambda a: (-a[3], a[0]))
 
-    return OldReport("Attendees", headings, data, link_view=attendee)
+    class Report(ListReport):
+
+        def get_link(self, argument):
+            return reverse(self._link_view) + "?user=%d" % int(argument)
+
+    return Report("Attendees", headings, data, link_view=attendee)

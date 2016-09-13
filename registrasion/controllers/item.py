@@ -84,7 +84,7 @@ class ItemController(object):
                 aggregating like products from across multiple invoices.
 
         '''
-        return self._items(commerce.Cart.STATUS_PAID)
+        return self._items(commerce.Cart.STATUS_PAID, category=category)
 
     def items_pending(self):
         ''' Gets all of the items that the user has reserved, but has not yet

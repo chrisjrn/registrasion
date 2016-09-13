@@ -238,7 +238,12 @@ def credit_notes(request, form):
             note.value,
         ])
 
-    return OldReport("Credit Notes", headings, data, link_view="credit_note")
+    return OldReport(
+        "Credit Notes",
+        headings,
+        data,
+        link_view=views.credit_note,
+    )
 
 
 @report_view("Attendee", form_type=forms.UserIdForm)
@@ -295,7 +300,9 @@ def attendee(request, form, user_id=None):
             invoice.id, invoice.get_status_display(), invoice.value,
         ])
 
-    reports.append(OldReport("Invoices", headings, data, link_view="invoice"))
+    reports.append(
+        OldReport("Invoices", headings, data, link_view=views.invoice)
+    )
 
     # Credit Notes
     headings = ["Note ID", "Status", "Value"]
@@ -310,7 +317,7 @@ def attendee(request, form, user_id=None):
         ])
 
     reports.append(
-        OldReport("Credit Notes", headings, data, link_view="credit_note")
+        OldReport("Credit Notes", headings, data, link_view=views.credit_note)
     )
 
     # All payments
@@ -326,7 +333,7 @@ def attendee(request, form, user_id=None):
         ])
 
     reports.append(
-        OldReport("Payments", headings, data, link_view="invoice")
+        OldReport("Payments", headings, data, link_view=views.invoice)
     )
 
 
@@ -353,15 +360,15 @@ def attendee_list(request):
 
     data = []
 
-    for attendee in attendees:
+    for a in attendees:
         data.append([
-            attendee.user.id,
-            attendee.attendeeprofilebase.attendee_name(),
-            attendee.user.email,
-            attendee.has_registered > 0,
+            a.user.id,
+            a.attendeeprofilebase.attendee_name(),
+            a.user.email,
+            a.has_registered > 0,
         ])
 
     # Sort by whether they've registered, then ID.
-    data.sort(key=lambda attendee: (-attendee[3], attendee[0]))
+    data.sort(key=lambda a: (-a[3], a[0]))
 
-    return OldReport("Attendees", headings, data, link_view="attendee")
+    return OldReport("Attendees", headings, data, link_view=attendee)

@@ -14,7 +14,7 @@ from registrasion.models import people
 from registrasion import views
 
 from reports import get_all_reports
-from reports import Report
+from reports import OldReport
 from reports import report_view
 
 
@@ -90,7 +90,7 @@ def items_sold(request, form):
         "(TOTAL)", "--", "--", total_income,
     ])
 
-    return Report("Paid items", headings, data)
+    return OldReport("Paid items", headings, data)
 
 
 @report_view("Reconcilitation")
@@ -128,7 +128,7 @@ def reconciliation(request, form):
         sales["total"] - payments["total"] - ucn["total"],
     ])
 
-    return Report("Sales and Payments", headings, data)
+    return OldReport("Sales and Payments", headings, data)
 
 
 @report_view("Product status", form_type=forms.ProductAndCategoryForm)
@@ -211,7 +211,7 @@ def product_status(request, form):
             item["total_refunded"],
         ])
 
-    return Report("Inventory", headings, data)
+    return OldReport("Inventory", headings, data)
 
 
 @report_view("Credit notes")
@@ -238,7 +238,7 @@ def credit_notes(request, form):
             note.value,
         ])
 
-    return Report("Credit Notes", headings, data, link_view="credit_note")
+    return OldReport("Credit Notes", headings, data, link_view="credit_note")
 
 
 @report_view("Attendee", form_type=forms.UserIdForm)
@@ -269,7 +269,7 @@ def attendee(request, form, user_id=None):
             pq.quantity,
         ])
 
-    reports.append(Report("Paid Products", headings, data))
+    reports.append(OldReport("Paid Products", headings, data))
 
     # Unpaid products
     headings = ["Product", "Quantity"]
@@ -281,7 +281,7 @@ def attendee(request, form, user_id=None):
             pq.quantity,
         ])
 
-    reports.append( Report("Unpaid Products", headings, data))
+    reports.append( OldReport("Unpaid Products", headings, data))
 
     # Invoices
     headings = ["Invoice ID", "Status", "Value"]
@@ -295,7 +295,7 @@ def attendee(request, form, user_id=None):
             invoice.id, invoice.get_status_display(), invoice.value,
         ])
 
-    reports.append(Report("Invoices", headings, data, link_view="invoice"))
+    reports.append(OldReport("Invoices", headings, data, link_view="invoice"))
 
     # Credit Notes
     headings = ["Note ID", "Status", "Value"]
@@ -310,7 +310,7 @@ def attendee(request, form, user_id=None):
         ])
 
     reports.append(
-        Report("Credit Notes", headings, data, link_view="credit_note")
+        OldReport("Credit Notes", headings, data, link_view="credit_note")
     )
 
     # All payments
@@ -326,7 +326,7 @@ def attendee(request, form, user_id=None):
         ])
 
     reports.append(
-        Report("Payments", headings, data, link_view="invoice")
+        OldReport("Payments", headings, data, link_view="invoice")
     )
 
 
@@ -364,4 +364,4 @@ def attendee_list(request):
     # Sort by whether they've registered, then ID.
     data.sort(key=lambda attendee: (-attendee[3], attendee[0]))
 
-    return Report("Attendees", headings, data, link_view="attendee")
+    return OldReport("Attendees", headings, data, link_view="attendee")

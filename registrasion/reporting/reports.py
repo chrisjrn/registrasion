@@ -1,5 +1,6 @@
 from django.contrib.auth.decorators import user_passes_test
 from django.shortcuts import render
+from django.core.urlresolvers import reverse
 from functools import wraps
 
 from registrasion import views
@@ -12,35 +13,94 @@ _all_report_views = []
 
 class Report(object):
 
+    def __init__(self):
+        pass
+
+    def title():
+        raise NotImplementedError
+
+    def headings():
+        ''' Returns the headings for the report. '''
+        raise NotImplementedError
+
+    def rows(content_type):
+        '''
+
+        Arguments:
+            content_type (str): The content-type for the output format of this
+            report.
+
+        Returns:
+            An iterator, which yields each row of the data. Each row should
+            be an iterable containing the cells, rendered appropriately for
+            content_type.
+        '''
+        raise NotImplementedError
+
+    def _linked_text(self, content_type, address, text):
+        '''
+
+        Returns:
+            an HTML linked version of text, if the content_type for this report
+            is HTMLish, otherwise, the text.
+        '''
+
+        if content_type == "text/html":
+            return Report._html_link(address, text)
+
+    @staticmethod
+    def _html_link(address, text):
+        return '<a href="%s">%s</a>' % (address, text)
+
+
+class ReportTemplateWrapper(object):
+
+    def __init__(self, content_type, report):
+        self.content_type = content_type
+        self.report = report
+
+    def title(self):
+        return self.report.title()
+
+    def headings(self):
+        return self.report.headings()
+
+    def rows(self):
+        return self.report.rows(self.content_type)
+
+
+class OldReport(Report):
+
     def __init__(self, title, headings, data, link_view=None):
+        super(OldReport, self).__init__()
         self._title = title
         self._headings = headings
         self._data = data
         self._link_view = link_view
 
-    @property
     def title(self):
         ''' Returns the title for this report. '''
         return self._title
 
-    @property
     def headings(self):
         ''' Returns the headings for the table. '''
         return self._headings
 
-    @property
-    def data(self):
+    def rows(self, content_type):
         ''' Returns the data rows for the table. '''
-        return self._data
 
-    @property
-    def link_view(self):
-        ''' Returns the URL name or the view callable that can be used to
-        view the row's detail. The left-most value is passed into `reverse`
-        as an argument. '''
+        def cell_text(index, text):
+            if index > 0 or not self._link_view:
+                return text
+            else:
+                address = reverse(self._link_view, args=[text])
+                return self._linked_text(content_type, address, text)
 
-        return self._link_view
+        for row in self._data:
+            yield [cell_text(i, cell) for i, cell in enumerate(row)]
 
+    def _get_link(self, argument):
+        return reverse(self._link_view, argument)
 
 def report_view(title, form_type=None):
     ''' Decorator that converts a report view function into something that
@@ -71,6 +131,11 @@ def report_view(title, form_type=None):
 
             if isinstance(reports, Report):
                 reports = [reports]
+
+            reports = [
+                ReportTemplateWrapper("text/html", report)
+                for report in reports
+            ]
 
             ctx = {
                 "title": title,

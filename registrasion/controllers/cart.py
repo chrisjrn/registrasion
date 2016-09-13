@@ -205,7 +205,8 @@ class CartController(object):
             to_add = sum(i[1] for i in by_cat[category])
 
             if to_add > limit:
-                message = "You may only have %d items in category: %s" % (
+                message_base = "You may only add %d items from category: %s"
+                message = message_base % (
                     limit, category.name,
                 )
                 for product, quantity in by_cat[category]:

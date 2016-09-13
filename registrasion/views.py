@@ -851,10 +851,13 @@ def amend_registration(request, user_id):
             for ve_field in ve.error_list:
                 product, message = ve_field.message
                 for form in formset:
+                    if "product" not in form.cleaned_data:
+                        # This is the empty form.
+                        continue
                     if form.cleaned_data["product"] == product:
                         form.add_error("quantity", message)
 
-    if request.POST and voucher_form.is_valid():
+    if request.POST and voucher_form.has_changed() and voucher_form.is_valid():
         try:
             current_cart.apply_voucher(voucher_form.cleaned_data["voucher"])
             return redirect(amend_registration, user_id)

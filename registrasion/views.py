@@ -826,6 +826,10 @@ def amend_registration(request, user_id):
         prefix="products",
     )
 
+    for item, form in zip(items, formset):
+        queryset = inventory.Product.objects.filter(id=item.product.id)
+        form.fields["product"].queryset = queryset
+
     voucher_form = forms.VoucherForm(
         request.POST or None,
         prefix="voucher",

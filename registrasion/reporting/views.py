@@ -285,21 +285,16 @@ def attendee(request, form, user_id=None):
     ))
 
     # Invoices
-    # TODO make this a querysetreport
-    headings = ["Invoice ID", "Status", "Value"]
-    data = []
-
     invoices = commerce.Invoice.objects.filter(
         user=attendee.user,
     )
-    for invoice in invoices:
-        data.append([
-            invoice.id, invoice.get_status_display(), invoice.value,
-        ])
-
-    reports.append(
-        ListReport("Invoices", headings, data, link_view=views.invoice)
-    )
+    reports.append(QuerysetReport(
+        "Invoices",
+        ["Invoice ID", "Status", "Value"],
+        ["id", "get_status_display", "value"],
+        invoices,
+        link_view=views.invoice,
+    ))
 
     # Credit Notes
     credit_notes = commerce.CreditNote.objects.filter(
@@ -324,7 +319,6 @@ def attendee(request, form, user_id=None):
         payments,
         link_view=views.invoice,
     ))
-
 
     return reports
 

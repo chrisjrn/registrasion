@@ -128,6 +128,13 @@ class QuerysetReport(BasicReport):
         def rgetattr(item, attr):
             for i in attr.split("__"):
                 item = getattr(item, i)
+
+            if callable(item):
+                try:
+                    return item()
+                except TypeError:
+                    pass
+
             return item
 
         for row in self._queryset:

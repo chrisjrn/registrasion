@@ -290,9 +290,9 @@ def attendee(request, form, user_id=None):
     )
     reports.append(QuerysetReport(
         "Invoices",
-        ["Invoice ID", "Status", "Value"],
         ["id", "get_status_display", "value"],
         invoices,
+        headings=["Invoice ID", "Status", "Value"],
         link_view=views.invoice,
     ))
 
@@ -302,7 +302,6 @@ def attendee(request, form, user_id=None):
     )
     reports.append(QuerysetReport(
         "Credit Notes",
-        ["Note ID", "Status", "Value"],
         ["id", "status", "value"],
         credit_notes,
         link_view=views.credit_note,
@@ -314,7 +313,6 @@ def attendee(request, form, user_id=None):
     )
     reports.append(QuerysetReport(
         "Payments",
-        ["To Invoice", "Payment ID", "Reference", "Amount"],
         ["invoice__id", "id", "reference", "amount"],
         payments,
         link_view=views.invoice,

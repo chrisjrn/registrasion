@@ -118,10 +118,19 @@ class ListReport(BasicReport):
 
 class QuerysetReport(BasicReport):
 
-    def __init__(self, title, headings, attributes, queryset, link_view=None):
+    def __init__(self, title, attributes, queryset, headings=None,
+                 link_view=None):
         super(QuerysetReport, self).__init__(title, headings, link_view=link_view)
         self._attributes = attributes
         self._queryset = queryset
+
+    def headings(self):
+        if self._headings is not None:
+            return self._headings
+
+        return [
+            " ".join(i.split("_")).capitalize() for i in self._attributes
+        ]
 
     def rows(self, content_type):
 

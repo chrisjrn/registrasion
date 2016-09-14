@@ -79,26 +79,7 @@ class InvoiceController(ForId, object):
 
         cart.refresh_from_db()
 
-        issued = timezone.now()
-        reservation_limit = cart.reservation_duration + cart.time_last_updated
-        # Never generate a due time that is before the issue time
-        due = max(issued, reservation_limit)
-
-        # Get the invoice recipient
-        profile = people.AttendeeProfileBase.objects.get_subclass(
-            id=cart.user.attendee.attendeeprofilebase.id,
-        )
-        recipient = profile.invoice_recipient()
-        invoice = commerce.Invoice.objects.create(
-            user=cart.user,
-            cart=cart,
-            cart_revision=cart.revision,
-            status=commerce.Invoice.STATUS_UNPAID,
-            value=Decimal(),
-            issue_time=issued,
-            due_time=due,
-            recipient=recipient,
-        )
+        # Generate the line items from the cart.
 
         product_items = commerce.ProductItem.objects.filter(cart=cart)
         product_items = product_items.select_related(
@@ -129,34 +110,56 @@ class InvoiceController(ForId, object):
             description = discount.description
             return "%s (%s)" % (description, format_product(product))
 
-        invoice_value = Decimal()
         for item in product_items:
             product = item.product
             line_item = commerce.LineItem(
-                invoice=invoice,
                 description=format_product(product),
                 quantity=item.quantity,
                 price=product.price,
                 product=product,
             )
             line_items.append(line_item)
-            invoice_value += line_item.quantity * line_item.price
         for item in discount_items:
             line_item = commerce.LineItem(
-                invoice=invoice,
                 description=format_discount(item.discount, item.product),
                 quantity=item.quantity,
                 price=cls.resolve_discount_value(item) * -1,
                 product=item.product,
             )
             line_items.append(line_item)
-            invoice_value += line_item.quantity * line_item.price
+
+        # Generate the invoice
+
+        user = cart.user
+        reservation_limit = cart.reservation_duration + cart.time_last_updated
+        # Never generate a due time that is before the issue time
+        issued = timezone.now()
+        due = max(issued, reservation_limit)
+
+        # Get the invoice recipient
+        profile = people.AttendeeProfileBase.objects.get_subclass(
+            id=user.attendee.attendeeprofilebase.id,
+        )
+        recipient = profile.invoice_recipient()
+
+        invoice_value = sum(item.quantity * item.price for item in line_items)
+
+        invoice = commerce.Invoice.objects.create(
+            user=user,
+            cart=cart,
+            cart_revision=cart.revision,
+            status=commerce.Invoice.STATUS_UNPAID,
+            value=invoice_value,
+            issue_time=issued,
+            due_time=due,
+            recipient=recipient,
+        )
+
+        # Associate the line items with the invoice
+        for line_item in line_items:
+            line_item.invoice = invoice
 
         commerce.LineItem.objects.bulk_create(line_items)
-
-        invoice.value = invoice_value
-
-        invoice.save()
 
         cls.email_on_invoice_creation(invoice)
 

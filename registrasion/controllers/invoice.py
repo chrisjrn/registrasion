@@ -74,6 +74,38 @@ class InvoiceController(ForId, object):
 
     @classmethod
     @transaction.atomic
+    def manual_invoice(cls, user, due_delta, description_price_pairs):
+        ''' Generates an invoice for arbitrary items, not held in a user's
+        cart.
+
+        Arguments:
+            user (User): The user the invoice is being generated for.
+            due_delta (datetime.timedelta): The length until the invoice is
+                due.
+            description_price_pairs ([(str, long or Decimal), ...]): A list of
+                pairs. Each pair consists of the description for each line item
+                and the price for that line item. The price will be cast to
+                Decimal.
+
+        Returns:
+            an Invoice.
+        '''
+
+        line_items = []
+        for description, price in description_price_pairs:
+            line_item = commerce.LineItem(
+                description=description,
+                quantity=1,
+                price=Decimal(price),
+                product=None,
+            )
+            line_items.append(line_item)
+
+        min_due_time = timezone.now() + due_delta
+        return cls._generate(user, None, min_due_time, line_items)
+
+    @classmethod
+    @transaction.atomic
     def _generate_from_cart(cls, cart):
         ''' Generates an invoice for the given cart. '''
 
@@ -129,7 +161,6 @@ class InvoiceController(ForId, object):
 
         # Generate the invoice
 
-        user = cart.user
         min_due_time = cart.reservation_duration + cart.time_last_updated
 
         return cls._generate(cart.user, cart, min_due_time, line_items)

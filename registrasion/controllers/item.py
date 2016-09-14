@@ -57,8 +57,6 @@ class ItemController(object):
         in_cart = Q(productitem__cart__user=self.user)
         in_cart = in_cart & reduce(operator.__or__, status_query)
 
-        print in_cart
-
         quantities_in_cart = When(
             in_cart,
             then="productitem__quantity",

@@ -4,16 +4,17 @@ from django.conf.urls import include
 from django.conf.urls import url
 
 from .views import (
-    product_category,
+    amend_registration,
     checkout,
     credit_note,
-    invoice,
-    manual_payment,
-    refund,
-    invoice_access,
     edit_profile,
     guided_registration,
-    amend_registration,
+    invoice,
+    invoice_access,
+    manual_payment,
+    product_category,
+    refund,
+    review,
 )
 
 
@@ -33,6 +34,7 @@ public = [
         name="invoice_access"),
     url(r"^profile$", edit_profile, name="attendee_edit"),
     url(r"^register$", guided_registration, name="guided_registration"),
+    url(r"^review$", review, name="review"),
     url(r"^register/([0-9]+)$", guided_registration,
         name="guided_registration"),
 ]

@@ -580,6 +580,32 @@ class InvoiceTestCase(RegistrationCartTestCase):
             cn2.credit_note.value,
         )
 
+    def test_can_generate_manual_invoice(self):
+
+        description_price_pairs = [
+            ("Item 1", 15),
+            ("Item 2", 30),
+        ]
+
+        due_delta = datetime.timedelta(hours=24)
+
+        _invoice = TestingInvoiceController.manual_invoice(
+            self.USER_1, due_delta, description_price_pairs
+        )
+        inv = TestingInvoiceController(_invoice)
+
+        self.assertEquals(
+            inv.invoice.value,
+            sum(i[1] for i in description_price_pairs)
+        )
+
+        self.assertEquals(
+            len(inv.invoice.lineitem_set.all()),
+            len(description_price_pairs)
+        )
+
+        inv.pay("Demo payment", inv.invoice.value)
+
     def test_sends_email_on_invoice_creation(self):
         invoice = self._invoice_containing_prod_1(1)
         self.assertEquals(1, len(self.emails))

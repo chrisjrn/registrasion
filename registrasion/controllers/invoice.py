@@ -184,7 +184,7 @@ class InvoiceController(ForId, object):
         invoice = commerce.Invoice.objects.create(
             user=user,
             cart=cart,
-            cart_revision=cart.revision,
+            cart_revision=cart.revision if cart else None,
             status=commerce.Invoice.STATUS_UNPAID,
             value=invoice_value,
             issue_time=issued,

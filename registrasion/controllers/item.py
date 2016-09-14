@@ -1,8 +1,11 @@
 ''' NEEDS TESTS '''
 
+import operator
+
 from registrasion.models import commerce
 from registrasion.models import inventory
 
+from collections import Iterable
 from collections import namedtuple
 from django.db.models import Case
 from django.db.models import Q
@@ -34,6 +37,7 @@ class ItemController(object):
         ''' Aggregates the items that this user has purchased.
 
         Arguments:
+            cart_status (int or Iterable(int)): etc
             category (Optional[models.inventory.Category]): the category
                 of items to restrict to.
 
@@ -43,10 +47,17 @@ class ItemController(object):
 
         '''
 
-        in_cart = (
-            Q(productitem__cart__user=self.user) &
-            Q(productitem__cart__status=cart_status)
+        if not isinstance(cart_status, Iterable):
+            cart_status = [cart_status]
+
+        status_query = (
+            Q(productitem__cart__status=status) for status in cart_status
         )
+
+        in_cart = Q(productitem__cart__user=self.user)
+        in_cart = in_cart & reduce(operator.__or__, status_query)
+
+        print in_cart
 
         quantities_in_cart = When(
             in_cart,
@@ -71,6 +82,11 @@ class ItemController(object):
         for prod in products:
             out.append(ProductAndQuantity(prod, prod.quantity))
         return out
+
+    def items_pending_or_purchased(self):
+        ''' Returns the items that this user has purchased or has pending. '''
+        status = [commerce.Cart.STATUS_PAID, commerce.Cart.STATUS_ACTIVE]
+        return self._items(status)
 
     def items_purchased(self, category=None):
         ''' Aggregates the items that this user has purchased.

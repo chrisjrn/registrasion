@@ -21,6 +21,21 @@ def available_categories(context):
 
 
 @register.assignment_tag(takes_context=True)
+def missing_categories(context):
+    ''' Adds the categories that the user does not currently have. '''
+    user = context.request.user
+    categories_available = set(CategoryController.available_categories(user))
+    items = ItemController(user).items_pending_or_purchased()
+
+    categories_held = set()
+
+    for product, quantity in items:
+        categories_held.add(product.category)
+
+    return categories_available - categories_held
+
+
+@register.assignment_tag(takes_context=True)
 def available_credit(context):
     ''' Calculates the sum of unclaimed credit from this user's credit notes.
 

@@ -44,7 +44,7 @@ class InvoiceController(ForId, object):
             cart_controller.validate_cart()  # Raises ValidationError on fail.
 
             cls.update_old_invoices(cart)
-            invoice = cls._generate(cart)
+            invoice = cls._generate_from_cart(cart)
 
         return cls(invoice)
 
@@ -74,7 +74,7 @@ class InvoiceController(ForId, object):
 
     @classmethod
     @transaction.atomic
-    def _generate(cls, cart):
+    def _generate_from_cart(cls, cart):
         ''' Generates an invoice for the given cart. '''
 
         cart.refresh_from_db()
@@ -86,13 +86,12 @@ class InvoiceController(ForId, object):
             "product",
             "product__category",
         )
-
-        if len(product_items) == 0:
-            raise ValidationError("Your cart is empty.")
-
         product_items = product_items.order_by(
             "product__category__order", "product__order"
         )
+
+        if len(product_items) == 0:
+            raise ValidationError("Your cart is empty.")
 
         discount_items = commerce.DiscountItem.objects.filter(cart=cart)
         discount_items = discount_items.select_related(
@@ -101,14 +100,14 @@ class InvoiceController(ForId, object):
             "product__category",
         )
 
-        line_items = []
-
         def format_product(product):
             return "%s - %s" % (product.category.name, product.name)
 
         def format_discount(discount, product):
             description = discount.description
             return "%s (%s)" % (description, format_product(product))
+
+        line_items = []
 
         for item in product_items:
             product = item.product
@@ -131,10 +130,17 @@ class InvoiceController(ForId, object):
         # Generate the invoice
 
         user = cart.user
-        reservation_limit = cart.reservation_duration + cart.time_last_updated
+        min_due_time = cart.reservation_duration + cart.time_last_updated
+
+        return cls._generate(cart.user, cart, min_due_time, line_items)
+
+    @classmethod
+    @transaction.atomic
+    def _generate(cls, user, cart, min_due_time, line_items):
+
         # Never generate a due time that is before the issue time
         issued = timezone.now()
-        due = max(issued, reservation_limit)
+        due = max(issued, min_due_time)
 
         # Get the invoice recipient
         profile = people.AttendeeProfileBase.objects.get_subclass(

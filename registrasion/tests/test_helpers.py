@@ -1,3 +1,9 @@
+from registrasion.models import commerce
+
+from controller_helpers import TestingCartController
+from controller_helpers import TestingCreditNoteController
+from controller_helpers import TestingInvoiceController
+
 class TestHelperMixin(object):
 
     def _invoice_containing_prod_1(self, qty=1):

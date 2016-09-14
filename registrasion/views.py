@@ -98,11 +98,7 @@ def guided_registration(request):
     attendee = people.Attendee.get_instance(request.user)
 
     if attendee.completed_registration:
-        return render(
-            request,
-            "registrasion/guided_registration_complete.html",
-            {},
-        )
+        return redirect(review)
 
     # Step 1: Fill in a badge and collect a voucher code
     try:
@@ -232,6 +228,17 @@ def guided_registration(request):
         "total_steps": 3,
     }
     return render(request, "registrasion/guided_registration.html", data)
+
+
+@login_required
+def review(request):
+    ''' View for the review page. '''
+
+    return render(
+        request,
+        "registrasion/guided_registration_complete.html",
+        {},
+    )
 
 
 @login_required
@@ -370,11 +377,12 @@ def product_category(request, category_id):
     if request.POST and not voucher_handled and not products_form.errors:
         # Only return to the dashboard if we didn't add a voucher code
         # and if there's no errors in the products form
-        messages.success(
-            request,
-            "Your reservations have been updated.",
-        )
-        return redirect("dashboard")
+        if products_form.has_changed():
+            messages.success(
+                request,
+                "Your reservations have been updated.",
+            )
+        return redirect(review)
 
     data = {
         "category": category,

@@ -44,7 +44,7 @@ class InvoiceController(ForId, object):
             cart_controller.validate_cart()  # Raises ValidationError on fail.
 
             cls.update_old_invoices(cart)
-            invoice = cls._generate(cart)
+            invoice = cls._generate_from_cart(cart)
 
         return cls(invoice)
 
@@ -74,44 +74,56 @@ class InvoiceController(ForId, object):
 
     @classmethod
     @transaction.atomic
-    def _generate(cls, cart):
+    def manual_invoice(cls, user, due_delta, description_price_pairs):
+        ''' Generates an invoice for arbitrary items, not held in a user's
+        cart.
+
+        Arguments:
+            user (User): The user the invoice is being generated for.
+            due_delta (datetime.timedelta): The length until the invoice is
+                due.
+            description_price_pairs ([(str, long or Decimal), ...]): A list of
+                pairs. Each pair consists of the description for each line item
+                and the price for that line item. The price will be cast to
+                Decimal.
+
+        Returns:
+            an Invoice.
+        '''
+
+        line_items = []
+        for description, price in description_price_pairs:
+            line_item = commerce.LineItem(
+                description=description,
+                quantity=1,
+                price=Decimal(price),
+                product=None,
+            )
+            line_items.append(line_item)
+
+        min_due_time = timezone.now() + due_delta
+        return cls._generate(user, None, min_due_time, line_items)
+
+    @classmethod
+    @transaction.atomic
+    def _generate_from_cart(cls, cart):
         ''' Generates an invoice for the given cart. '''
 
         cart.refresh_from_db()
 
-        issued = timezone.now()
-        reservation_limit = cart.reservation_duration + cart.time_last_updated
-        # Never generate a due time that is before the issue time
-        due = max(issued, reservation_limit)
-
-        # Get the invoice recipient
-        profile = people.AttendeeProfileBase.objects.get_subclass(
-            id=cart.user.attendee.attendeeprofilebase.id,
-        )
-        recipient = profile.invoice_recipient()
-        invoice = commerce.Invoice.objects.create(
-            user=cart.user,
-            cart=cart,
-            cart_revision=cart.revision,
-            status=commerce.Invoice.STATUS_UNPAID,
-            value=Decimal(),
-            issue_time=issued,
-            due_time=due,
-            recipient=recipient,
-        )
+        # Generate the line items from the cart.
 
         product_items = commerce.ProductItem.objects.filter(cart=cart)
         product_items = product_items.select_related(
             "product",
             "product__category",
         )
-
-        if len(product_items) == 0:
-            raise ValidationError("Your cart is empty.")
-
         product_items = product_items.order_by(
             "product__category__order", "product__order"
         )
+
+        if len(product_items) == 0:
+            raise ValidationError("Your cart is empty.")
 
         discount_items = commerce.DiscountItem.objects.filter(cart=cart)
         discount_items = discount_items.select_related(
@@ -120,8 +132,6 @@ class InvoiceController(ForId, object):
             "product__category",
         )
 
-        line_items = []
-
         def format_product(product):
             return "%s - %s" % (product.category.name, product.name)
 
@@ -129,34 +139,64 @@ class InvoiceController(ForId, object):
             description = discount.description
             return "%s (%s)" % (description, format_product(product))
 
-        invoice_value = Decimal()
+        line_items = []
+
         for item in product_items:
             product = item.product
             line_item = commerce.LineItem(
-                invoice=invoice,
                 description=format_product(product),
                 quantity=item.quantity,
                 price=product.price,
                 product=product,
             )
             line_items.append(line_item)
-            invoice_value += line_item.quantity * line_item.price
         for item in discount_items:
             line_item = commerce.LineItem(
-                invoice=invoice,
                 description=format_discount(item.discount, item.product),
                 quantity=item.quantity,
                 price=cls.resolve_discount_value(item) * -1,
                 product=item.product,
             )
             line_items.append(line_item)
-            invoice_value += line_item.quantity * line_item.price
+
+        # Generate the invoice
+
+        min_due_time = cart.reservation_duration + cart.time_last_updated
+
+        return cls._generate(cart.user, cart, min_due_time, line_items)
+
+    @classmethod
+    @transaction.atomic
+    def _generate(cls, user, cart, min_due_time, line_items):
+
+        # Never generate a due time that is before the issue time
+        issued = timezone.now()
+        due = max(issued, min_due_time)
+
+        # Get the invoice recipient
+        profile = people.AttendeeProfileBase.objects.get_subclass(
+            id=user.attendee.attendeeprofilebase.id,
+        )
+        recipient = profile.invoice_recipient()
+
+        invoice_value = sum(item.quantity * item.price for item in line_items)
+
+        invoice = commerce.Invoice.objects.create(
+            user=user,
+            cart=cart,
+            cart_revision=cart.revision if cart else None,
+            status=commerce.Invoice.STATUS_UNPAID,
+            value=invoice_value,
+            issue_time=issued,
+            due_time=due,
+            recipient=recipient,
+        )
+
+        # Associate the line items with the invoice
+        for line_item in line_items:
+            line_item.invoice = invoice
 
         commerce.LineItem.objects.bulk_create(line_items)
-
-        invoice.value = invoice_value
-
-        invoice.save()
 
         cls.email_on_invoice_creation(invoice)
 

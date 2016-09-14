@@ -236,7 +236,7 @@ def review(request):
 
     return render(
         request,
-        "registrasion/guided_registration_complete.html",
+        "registrasion/review.html",
         {},
     )
 

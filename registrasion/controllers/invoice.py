@@ -198,9 +198,34 @@ class InvoiceController(ForId, object):
 
         commerce.LineItem.objects.bulk_create(line_items)
 
+        cls._apply_credit_notes(invoice)
         cls.email_on_invoice_creation(invoice)
 
         return invoice
+
+    @classmethod
+    def _apply_credit_notes(cls, invoice):
+        ''' Applies the user's credit notes to the given invoice on creation.
+        '''
+
+        # We only automatically apply credit notes if this is the *only*
+        # unpaid invoice for this user.
+        invoices = commerce.Invoice.objects.filter(
+            user=invoice.user,
+            status=commerce.Invoice.STATUS_UNPAID,
+        )
+        if invoices.count() > 1:
+            return
+
+        notes = commerce.CreditNote.objects.filter(invoice__user=invoice.user)
+        for note in notes:
+            try:
+                CreditNoteController(note).apply_to_invoice(invoice)
+            except ValidationError:
+                # ValidationError will get raised once we're overpaying.
+                break
+
+        invoice.refresh_from_db()
 
     def can_view(self, user=None, access_code=None):
         ''' Returns true if the accessing user is allowed to view this invoice,

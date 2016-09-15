@@ -95,6 +95,12 @@ class CreditNoteTestCase(TestHelperMixin, RegistrationCartTestCase):
         self.assertEqual(to_pay, credit_notes[0].value)
 
     def test_apply_credit_note_pays_invoice(self):
+
+        # Create a manual invoice (stops credit notes from being auto-applied)
+        self._manual_invoice(1)
+
+        # Begin the test
+
         invoice = self._invoice_containing_prod_1(1)
 
         to_pay = invoice.invoice.value
@@ -122,10 +128,11 @@ class CreditNoteTestCase(TestHelperMixin, RegistrationCartTestCase):
         self.assertEquals(0, commerce.CreditNote.unclaimed().count())
 
     def test_apply_credit_note_generates_new_credit_note_if_overpaying(self):
+
+        # Create and refund an invoice, generating a credit note.
         invoice = self._invoice_containing_prod_1(2)
 
-        to_pay = invoice.invoice.value
-        invoice.pay("Reference", to_pay)
+        invoice.pay("Reference", invoice.invoice.value)
         self.assertTrue(invoice.invoice.is_paid)
 
         invoice.refund()
@@ -135,13 +142,9 @@ class CreditNoteTestCase(TestHelperMixin, RegistrationCartTestCase):
 
         self.assertEquals(1, commerce.CreditNote.unclaimed().count())
 
-        # Create a new cart (of half value of inv 1) and get invoice
-        cart = TestingCartController.for_user(self.USER_1)
-        cart.add_to_cart(self.PROD_1, 1)
-
-        invoice2 = TestingInvoiceController.for_cart(self.reget(cart.cart))
-
-        cn.apply_to_invoice(invoice2.invoice)
+        # Create a new invoice for a cart of half value of inv 1
+        invoice2 = self._invoice_containing_prod_1(1)
+        # Credit note is automatically applied by generating the new invoice
         self.assertTrue(invoice2.invoice.is_paid)
 
         # We generated a new credit note, and spent the old one,
@@ -160,6 +163,12 @@ class CreditNoteTestCase(TestHelperMixin, RegistrationCartTestCase):
         )
 
     def test_cannot_apply_credit_note_on_invalid_invoices(self):
+
+        # Disable auto-application of invoices.
+        self._manual_invoice(1)
+
+        # And now start the actual test.
+
         invoice = self._invoice_containing_prod_1(1)
 
         to_pay = invoice.invoice.value
@@ -237,7 +246,9 @@ class CreditNoteTestCase(TestHelperMixin, RegistrationCartTestCase):
         cart.add_to_cart(self.PROD_1, 1)
 
         invoice_2 = TestingInvoiceController.for_cart(self.reget(cart.cart))
-        cn.apply_to_invoice(invoice_2.invoice)
+        with self.assertRaises(ValidationError):
+            # Creating `invoice_2` will automatically apply `cn`.
+            cn.apply_to_invoice(invoice_2.invoice)
 
         self.assertEquals(0, commerce.CreditNote.unclaimed().count())
 
@@ -301,9 +312,9 @@ class CreditNoteTestCase(TestHelperMixin, RegistrationCartTestCase):
         cart = TestingCartController.for_user(self.USER_1)
         cart.add_to_cart(self.PROD_1, 2)
 
-        # Create a current invoice, and apply partial payments
+        # Create a current invoice
+        # This will automatically apply `cn` to the invoice
         invoice = TestingInvoiceController.for_cart(cart.cart)
-        cn.apply_to_invoice(invoice.invoice)
 
         # Adding to cart will mean that the old invoice for this cart
         # will be invalidated. A new invoice should be generated.

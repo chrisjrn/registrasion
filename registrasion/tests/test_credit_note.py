@@ -440,3 +440,28 @@ class CreditNoteTestCase(TestHelperMixin, RegistrationCartTestCase):
             # Generate invoice that should be automatically paid
             invoice2 = self._manual_invoice(1)
             self.assertTrue(invoice2.invoice.is_paid)
+
+    def test_cancellation_fee_is_applied(self):
+
+        invoice1 = self._manual_invoice(1)
+        invoice1.pay("Pay", invoice1.invoice.value)
+        invoice1.refund()
+
+        percentage = 15
+
+        cn = self._credit_note_for_invoice(invoice1.invoice)
+        canc = cn.cancellation_fee(15)
+
+        # Cancellation fee exceeds the amount for the invoice.
+        self.assertTrue(canc.invoice.is_paid)
+
+        # Cancellation fee is equal to 15% of credit note's value
+        self.assertEqual(
+            canc.invoice.value,
+            cn.credit_note.value * percentage / 100
+        )
+
+    def test_cancellation_fee_is_applied_when_another_invoice_is_unpaid(self):
+
+        extra_invoice = self._manual_invoice(23)
+        self.test_cancellation_fee_is_applied()

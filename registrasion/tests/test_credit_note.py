@@ -288,10 +288,7 @@ class CreditNoteTestCase(TestHelperMixin, RegistrationCartTestCase):
         means that invoice cannot be voided, and new invoices cannot be
         created. '''
 
-        cart = TestingCartController.for_user(self.USER_1)
-
-        cart.add_to_cart(self.PROD_1, 1)
-        invoice = TestingInvoiceController.for_cart(cart.cart)
+        invoice = self._invoice_containing_prod_1(1)
 
         # Now get a credit note
         invoice.pay("Lol", invoice.invoice.value)
@@ -326,3 +323,35 @@ class CreditNoteTestCase(TestHelperMixin, RegistrationCartTestCase):
             cn.credit_note.value,
             cn2.credit_note.value,
         )
+
+    def test_creating_invoice_automatically_applies_credit_note(self):
+        ''' Single credit note is automatically applied to new invoices. '''
+
+        invoice = self._invoice_containing_prod_1(1)
+        invoice.pay("boop", invoice.invoice.value)
+        invoice.refund()
+
+        # Generate a new invoice to the same value as first invoice
+        # Should be paid, because we're applying credit notes automatically
+        invoice2 = self._invoice_containing_prod_1(1)
+        self.assertTrue(invoice2.invoice.is_paid)
+
+    def test_mutiple_credit_notes_are_applied_when_generating_invoice_1(self):
+        ''' Tests (1) that multiple credit notes are applied to new invoice.
+
+        Sum of credit note values will be *LESS* than the new invoice.
+        '''
+
+        raise NotImplementedError()
+
+    def test_mutiple_credit_notes_are_applied_when_generating_invoice_2(self):
+        ''' Tests (2) that multiple credit notes are applied to new invoice.
+
+        Sum of credit note values will be *GREATER* than the new invoice.
+        '''
+
+        raise NotImplementedError()
+
+    def test_credit_notes_are_not_applied_if_user_has_multiple_invoices(self):
+
+        raise NotImplementedError()

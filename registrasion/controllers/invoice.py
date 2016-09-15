@@ -217,7 +217,9 @@ class InvoiceController(ForId, object):
         if invoices.count() > 1:
             return
 
-        notes = commerce.CreditNote.objects.filter(invoice__user=invoice.user)
+        notes = commerce.CreditNote.unclaimed().filter(
+            invoice__user=invoice.user
+        )
         for note in notes:
             try:
                 CreditNoteController(note).apply_to_invoice(invoice)

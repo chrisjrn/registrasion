@@ -334,6 +334,4 @@ class GroupMemberConditionController(IsMetByFilter, ConditionController):
         ''' Returns all of the items from conditions which are enabled by a
         user being member of a Django Auth Group. '''
 
-        return conditions.filter(
-            group=user.groups.all(),
-        )
+        return conditions.filter(group__in=user.groups.all())

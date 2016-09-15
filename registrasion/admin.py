@@ -215,3 +215,15 @@ class GroupMemberFlagAdmin(admin.ModelAdmin, EffectsDisplayMixin):
     fields = ("description", "group")
 
     list_display = ("description", "effects")
+
+
+@admin.register(conditions.TimeOrStockLimitFlag)
+class TimeOrStockLimitFlagAdmin(admin.ModelAdmin, EffectsDisplayMixin):
+    list_display = (
+        "description",
+        "start_time",
+        "end_time",
+        "limit",
+        "effects",
+    )
+    ordering = ("start_time", "end_time", "limit")

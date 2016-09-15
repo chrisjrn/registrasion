@@ -132,6 +132,7 @@ class CartController(object):
 
         product_quantities = list(product_quantities)
 
+
         # n.b need to add have the existing items first so that the new
         # items override the old ones.
         all_product_quantities = dict(itertools.chain(
@@ -140,7 +141,16 @@ class CartController(object):
         )).items()
 
         # Validate that the limits we're adding are OK
-        self._test_limits(all_product_quantities)
+        products = set(product for product, q in product_quantities)
+        try:
+            self._test_limits(all_product_quantities)
+        except CartValidationError as ve:
+            # Only raise errors for products that we're explicitly
+            # Manipulating here.
+            for ve_field in ve.error_list:
+                product, message = ve_field.message
+                if product in products:
+                    raise ve
 
         new_items = []
         products = []

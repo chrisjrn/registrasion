@@ -382,3 +382,15 @@ class FlagTestCases(RegistrationCartTestCase):
 
         with self.assertRaises(ValidationError):
             cart2.add_to_cart(self.PROD_1, 1)
+
+    def test_flag_failures_only_break_affected_products(self):
+        ''' If a flag fails, it should only affect its own products. '''
+
+        self.add_product_flag()
+        cart1 = TestingCartController.for_user(self.USER_1)
+        cart1.add_to_cart(self.PROD_2, 1)
+        cart1.add_to_cart(self.PROD_1, 1)
+        cart1.set_quantity(self.PROD_2, 0)
+
+        # The following should not fail, as PROD_3 is not affected by flag.
+        cart1.add_to_cart(self.PROD_3, 1)

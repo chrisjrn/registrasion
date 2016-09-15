@@ -243,6 +243,29 @@ class DiscountTestCase(RegistrationCartTestCase):
             # The discount is applied.
             self.assertEqual(1, len(discount_items))
 
+    def test_discount_applies_to_most_expensive_item(self):
+        self.add_discount_prod_1_includes_cat_2(quantity=1)
+
+        cart = TestingCartController.for_user(self.USER_1)
+        cart.add_to_cart(self.PROD_1, 1)  # Enable the discount
+
+        import itertools
+        prods = (self.PROD_3, self.PROD_4)
+        for first, second in itertools.permutations(prods, 2):
+
+            cart.set_quantity(first, 1)
+            cart.set_quantity(second, 1)
+
+            # There should only be one discount
+            discount_items = list(cart.cart.discountitem_set.all())
+            self.assertEqual(1, len(discount_items))
+
+            # It should always apply to PROD_3, as it costs more.
+            self.assertEqual(discount_items[0].product, self.PROD_3)
+
+            cart.set_quantity(first, 0)
+            cart.set_quantity(second, 0)
+
     # Tests for the DiscountController.available_discounts enumerator
     def test_enumerate_no_discounts_for_no_input(self):
         discounts = DiscountController.available_discounts(

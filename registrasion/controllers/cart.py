@@ -399,9 +399,11 @@ class CartController(object):
         # Delete the existing entries.
         commerce.DiscountItem.objects.filter(cart=self.cart).delete()
 
+        # Order the products such that the most expensive ones are
+        # processed first.
         product_items = self.cart.productitem_set.all().select_related(
             "product", "product__category", "product__price"
-        )
+        ).order_by("-product__price")
 
         products = [i.product for i in product_items]
         discounts = DiscountController.available_discounts(
@@ -411,8 +413,7 @@ class CartController(object):
         )
 
         # The highest-value discounts will apply to the highest-value
-        # products first.
-        product_items = reversed(product_items)
+        # products first, because of the order_by clause
         for item in product_items:
             self._add_discount(item.product, item.quantity, discounts)
 

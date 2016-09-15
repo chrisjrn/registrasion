@@ -1,3 +1,5 @@
+import datetime
+
 from django.db import transaction
 
 from registrasion.models import commerce
@@ -53,3 +55,27 @@ class CreditNoteController(ForId, object):
         inv.update_status()
 
     # TODO: Add administration fee generator.
+    @transaction.atomic
+    def cancellation_fee(self, percentage):
+        ''' Generates an invoice with a cancellation fee, and applies
+        credit to the invoice.
+
+        percentage (Decimal): The percentage of the credit note to turn into
+        a cancellation fee. Must be 0 <= percentage <= 100.
+        '''
+
+        from invoice import InvoiceController  # Circular imports bleh.
+
+        assert(percentage >= 0 and percentage <= 100)
+
+        cancellation_fee = self.credit_note.value * percentage / 100
+        due = datetime.timedelta(days=1)
+        item = [("Cancellation fee", cancellation_fee)]
+        invoice = InvoiceController.manual_invoice(
+            self.credit_note.invoice.user, due, item
+        )
+
+        if not invoice.is_paid:
+            self.apply_to_invoice(invoice)
+
+        return InvoiceController(invoice)

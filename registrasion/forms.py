@@ -3,6 +3,7 @@ from registrasion.models import commerce
 from registrasion.models import inventory
 
 from django import forms
+from django.core.exceptions import ValidationError
 
 
 class ApplyCreditNoteForm(forms.Form):
@@ -30,6 +31,14 @@ class ApplyCreditNoteForm(forms.Form):
         required=True,
     )
 
+
+class CancellationFeeForm(forms.Form):
+
+    percentage = forms.DecimalField(
+        required=True,
+        min_value=0,
+        max_value=100,
+    )
 
 class ManualCreditNoteRefundForm(forms.ModelForm):
 

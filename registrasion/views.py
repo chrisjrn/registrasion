@@ -765,6 +765,9 @@ def credit_note(request, note_id, access_code=None):
                                          # to an invoice.
                     "refund_form": form, # A form for applying a *manual*
                                          # refund of the credit note.
+                    "cancellation_fee_form" : form, # A form for generating an
+                                                    # invoice with a
+                                                    # cancellation fee
                 }
 
     '''
@@ -781,6 +784,11 @@ def credit_note(request, note_id, access_code=None):
     refund_form = forms.ManualCreditNoteRefundForm(
         request.POST or None,
         prefix="refund_note"
+    )
+
+    cancellation_fee_form = forms.CancellationFeeForm(
+        request.POST or None,
+        prefix="cancellation_fee"
     )
 
     if request.POST and apply_form.is_valid():
@@ -805,10 +813,20 @@ def credit_note(request, note_id, access_code=None):
             prefix="refund_note",
         )
 
+    elif request.POST and cancellation_fee_form.is_valid():
+        percentage = cancellation_fee_form.cleaned_data["percentage"]
+        invoice = current_note.cancellation_fee(percentage)
+        messages.success(
+            request,
+            "Generated cancellation fee for credit note %d." % note_id,
+        )
+        return redirect("invoice", invoice.invoice.id)
+
     data = {
         "credit_note": current_note.credit_note,
         "apply_form": apply_form,
         "refund_form": refund_form,
+        "cancellation_fee_form": cancellation_fee_form,
     }
 
     return render(request, "registrasion/credit_note.html", data)

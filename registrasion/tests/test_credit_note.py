@@ -428,3 +428,15 @@ class CreditNoteTestCase(TestHelperMixin, RegistrationCartTestCase):
         # The credit notes are not automatically applied.
         self.assertEqual(0, invoice.total_payments())
         self.assertTrue(invoice.invoice.is_unpaid)
+
+    def test_credit_notes_are_applied_even_if_some_notes_are_claimed(self):
+
+        for i in xrange(10):
+            # Generate credit note
+            invoice1 = self._manual_invoice(1)
+            invoice1.pay("Pay", invoice1.invoice.value)
+            invoice1.refund()
+
+            # Generate invoice that should be automatically paid
+            invoice2 = self._manual_invoice(1)
+            self.assertTrue(invoice2.invoice.is_paid)

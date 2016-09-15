@@ -16,6 +16,8 @@ from test_cart import RegistrationCartTestCase
 
 UTC = pytz.timezone('UTC')
 
+HOURS = datetime.timedelta(hours=1)
+
 
 class CreditNoteTestCase(TestHelperMixin, RegistrationCartTestCase):
 
@@ -337,17 +339,13 @@ class CreditNoteTestCase(TestHelperMixin, RegistrationCartTestCase):
         self.assertTrue(invoice2.invoice.is_paid)
 
     def _generate_multiple_credit_notes(self):
-        items = [("Item 1", 5), ("Item 2", 6)]
-        due = datetime.timedelta(hours=1)
-        inv1 = TestingInvoiceController.manual_invoice(self.USER_1, due, items)
-        inv2 = TestingInvoiceController.manual_invoice(self.USER_1, due, items)
-        invoice1 = TestingInvoiceController(inv1)
-        invoice1.pay("Pay", inv1.value)
+        invoice1 = self._manual_invoice(11)
+        invoice2 = self._manual_invoice(11)
+        invoice1.pay("Pay", invoice1.invoice.value)
         invoice1.refund()
-        invoice2 = TestingInvoiceController(inv2)
-        invoice2.pay("Pay", inv2.value)
+        invoice2.pay("Pay", invoice2.invoice.value)
         invoice2.refund()
-        return inv1.value + inv2.value
+        return invoice1.invoice.value + invoice2.invoice.value
 
     def test_mutiple_credit_notes_are_applied_when_generating_invoice_1(self):
         ''' Tests (1) that multiple credit notes are applied to new invoice.
@@ -356,10 +354,7 @@ class CreditNoteTestCase(TestHelperMixin, RegistrationCartTestCase):
         '''
 
         notes_value = self._generate_multiple_credit_notes()
-        item = [("Item", notes_value + 1)]
-        due = datetime.timedelta(hours=1)
-        inv = TestingInvoiceController.manual_invoice(self.USER_1, due, item)
-        invoice = TestingInvoiceController(inv)
+        invoice = self._manual_invoice(notes_value + 1)
 
         self.assertEqual(notes_value, invoice.total_payments())
         self.assertTrue(invoice.invoice.is_unpaid)
@@ -375,10 +370,8 @@ class CreditNoteTestCase(TestHelperMixin, RegistrationCartTestCase):
         '''
 
         notes_value = self._generate_multiple_credit_notes()
-        item = [("Item", notes_value - 1)]
-        due = datetime.timedelta(hours=1)
-        inv = TestingInvoiceController.manual_invoice(self.USER_1, due, item)
-        invoice = TestingInvoiceController(inv)
+        invoice = self._manual_invoice(notes_value - 1)
+
 
         self.assertEqual(notes_value - 1, invoice.total_payments())
         self.assertTrue(invoice.invoice.is_paid)
@@ -402,10 +395,7 @@ class CreditNoteTestCase(TestHelperMixin, RegistrationCartTestCase):
 
         # Create a manual invoice whose value is smaller than any of the
         # credit notes we created
-        item = [("Item", 1)]
-        due = datetime.timedelta(hours=1)
-        inv = TestingInvoiceController.manual_invoice(self.USER_1, due, item)
-
+        invoice = self._manual_invoice(1)
         notes_new = commerce.CreditNote.unclaimed().filter(
             invoice__user=self.USER_1
         )
@@ -421,10 +411,7 @@ class CreditNoteTestCase(TestHelperMixin, RegistrationCartTestCase):
         # Create some credit notes.
         self._generate_multiple_credit_notes()
 
-        item = [("Item", notes_value)]
-        due = datetime.timedelta(hours=1)
-        inv = TestingInvoiceController.manual_invoice(self.USER_1, due, item)
-        invoice = TestingInvoiceController(inv)
+        invoice = self._manual_invoice(2)
 
         # Because there's already an invoice open for this user
         # The credit notes are not automatically applied.

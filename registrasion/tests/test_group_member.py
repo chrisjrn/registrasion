@@ -19,21 +19,24 @@ class GroupMemberTestCase(RegistrationCartTestCase):
 
     @classmethod
     def _create_group_and_flag(cls):
-        ''' Creates cls.GROUP, and restricts cls.PROD_1 only to users who are
-        members of the group. '''
+        ''' Creates cls.GROUP_1, and restricts cls.PROD_1 only to users who are
+        members of the group. Likewise GROUP_2 and PROD_2 '''
 
-        group = Group.objects.create(
-            name="TEST GROUP",
-        )
+        groups = []
+        products = [cls.PROD_1, cls.PROD_2]
+        for i, product in enumerate(products):
+            group = Group.objects.create(name="TEST GROUP" + str(i))
+            flag = conditions.GroupMemberFlag.objects.create(
+                description="Group member flag " + str(i),
+                condition=conditions.FlagBase.ENABLE_IF_TRUE,
+            )
+            flag.group.add(group)
+            flag.products.add(product)
 
-        flag = conditions.GroupMemberFlag.objects.create(
-            description="Group member flag",
-            condition=conditions.FlagBase.ENABLE_IF_TRUE,
-        )
-        flag.group.add(group)
-        flag.products.add(cls.PROD_1)
+            groups.append(group)
 
-        cls.GROUP = group
+        cls.GROUP_1 = groups[0]
+        cls.GROUP_2 = groups[1]
 
     def test_product_not_enabled_until_user_joins_group(self):
         ''' Tests that GroupMemberFlag disables a product for a user until
@@ -41,25 +44,30 @@ class GroupMemberTestCase(RegistrationCartTestCase):
 
         self._create_group_and_flag()
 
-        # USER_1 cannot see PROD_1 until they're in GROUP.
-        available = ProductController.available_products(
-            self.USER_1,
-            products=[self.PROD_1],
-        )
-        self.assertNotIn(self.PROD_1, available)
+        groups = [self.GROUP_1, self.GROUP_2]
+        products = [self.PROD_1, self.PROD_2]
 
-        self.USER_1.groups.add(self.GROUP)
+        for group, product in zip(groups, products):
 
-        # USER_1 cannot see PROD_1 until they're in GROUP.
-        available = ProductController.available_products(
-            self.USER_1,
-            products=[self.PROD_1],
-        )
-        self.assertIn(self.PROD_1, available)
+            # USER_1 cannot see PROD_1 until they're in GROUP.
+            available = ProductController.available_products(
+                self.USER_1,
+                products=[product],
+            )
+            self.assertNotIn(product, available)
 
-        # USER_2 is still locked out
-        available = ProductController.available_products(
-            self.USER_2,
-            products=[self.PROD_1],
-        )
-        self.assertNotIn(self.PROD_1, available)
+            self.USER_1.groups.add(group)
+
+            # USER_1 cannot see PROD_1 until they're in GROUP.
+            available = ProductController.available_products(
+                self.USER_1,
+                products=[product],
+            )
+            self.assertIn(product, available)
+
+            # USER_2 is still locked out
+            available = ProductController.available_products(
+                self.USER_2,
+                products=[product],
+            )
+            self.assertNotIn(product, available)

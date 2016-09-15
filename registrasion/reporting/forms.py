@@ -21,3 +21,17 @@ class UserIdForm(forms.Form):
         label="User ID",
         required=False,
     )
+
+
+def model_fields_form_factory(model):
+
+    CHOICES = [(i, i) for i in model._meta.get_all_field_names()]
+    
+    class ModelFieldsForm(forms.Form):
+
+        options = forms.MultipleChoiceField(
+            required=False,
+            choices=CHOICES,
+        )
+
+    return ModelFieldsForm

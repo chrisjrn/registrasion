@@ -210,6 +210,8 @@ def report_view(title, form_type=None):
 
             if isinstance(reports, Report):
                 reports = [reports]
+            elif isinstance(reports, type(None)):
+                reports = []
 
             reports = [
                 _ReportTemplateWrapper("text/html", report)

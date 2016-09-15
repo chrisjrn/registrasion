@@ -74,24 +74,3 @@ def items_purchased(context, category=None):
     return ItemController(context.request.user).items_purchased(
         category=category
     )
-
-
-@register.filter
-def multiply(value, arg):
-    ''' Multiplies value by arg.
-
-    This is useful when displaying invoices, as it lets you multiply the
-    quantity by the unit value.
-
-    Arguments:
-
-        value (number)
-
-        arg (number)
-
-    Returns:
-        number: value * arg
-
-    '''
-
-    return value * arg

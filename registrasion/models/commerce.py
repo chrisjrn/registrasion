@@ -4,7 +4,7 @@ from . import inventory
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.db import models
-from django.db.models import F, Q
+from django.db.models import F, Q, Sum
 from django.utils import timezone
 from django.utils.encoding import python_2_unicode_compatible
 from django.utils.translation import ugettext_lazy as _
@@ -175,6 +175,17 @@ class Invoice(models.Model):
     def is_refunded(self):
         return self.status == self.STATUS_REFUNDED
 
+    def total_payments(self):
+        ''' Returns the total amount paid towards this invoice. '''
+
+        payments = PaymentBase.objects.filter(invoice=self)
+        total_paid = payments.aggregate(Sum("amount"))["amount__sum"] or 0
+        return total_paid
+
+    def balance_due(self):
+        ''' Returns the total balance remaining towards this invoice. '''
+        return self.value - self.total_payments()
+
     # Invoice Number
     user = models.ForeignKey(User)
     cart = models.ForeignKey(Cart, null=True)
@@ -223,6 +234,11 @@ class LineItem(models.Model):
     def __str__(self):
         return "Line: %s * %d @ %s" % (
             self.description, self.quantity, self.price)
+
+    @property
+    def total_price(self):
+        ''' price * quantity '''
+        return self.price * self.quantity
 
     invoice = models.ForeignKey(Invoice)
     description = models.CharField(max_length=255)

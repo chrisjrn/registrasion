@@ -29,7 +29,9 @@ class CreditNoteTestCase(TestHelperMixin, RegistrationCartTestCase):
         invoice.pay("Reference", to_pay)
 
         # The total paid should be equal to the value of the invoice only
-        self.assertEqual(invoice.invoice.value, invoice.total_payments())
+        self.assertEqual(
+            invoice.invoice.value, invoice.invoice.total_payments()
+        )
         self.assertTrue(invoice.invoice.is_paid)
 
         # There should be a credit note generated out of the invoice.
@@ -46,7 +48,9 @@ class CreditNoteTestCase(TestHelperMixin, RegistrationCartTestCase):
         invoice.pay("Reference", invoice.invoice.value)
 
         # The total paid should be equal to the value of the invoice only
-        self.assertEqual(invoice.invoice.value, invoice.total_payments())
+        self.assertEqual(
+            invoice.invoice.value, invoice.invoice.total_payments()
+        )
         self.assertTrue(invoice.invoice.is_paid)
 
         # There should be no credit notes
@@ -64,7 +68,7 @@ class CreditNoteTestCase(TestHelperMixin, RegistrationCartTestCase):
         invoice.refund()
 
         # The total paid should be zero
-        self.assertEqual(0, invoice.total_payments())
+        self.assertEqual(0, invoice.invoice.total_payments())
         self.assertTrue(invoice.invoice.is_void)
 
         # There should be a credit note generated out of the invoice.
@@ -84,7 +88,7 @@ class CreditNoteTestCase(TestHelperMixin, RegistrationCartTestCase):
         invoice.refund()
 
         # The total paid should be zero
-        self.assertEqual(0, invoice.total_payments())
+        self.assertEqual(0, invoice.invoice.total_payments())
         self.assertTrue(invoice.invoice.is_refunded)
 
         # There should be a credit note generated out of the invoice.
@@ -367,7 +371,7 @@ class CreditNoteTestCase(TestHelperMixin, RegistrationCartTestCase):
         notes_value = self._generate_multiple_credit_notes()
         invoice = self._manual_invoice(notes_value + 1)
 
-        self.assertEqual(notes_value, invoice.total_payments())
+        self.assertEqual(notes_value, invoice.invoice.total_payments())
         self.assertTrue(invoice.invoice.is_unpaid)
 
         user_unclaimed = commerce.CreditNote.unclaimed()
@@ -384,7 +388,7 @@ class CreditNoteTestCase(TestHelperMixin, RegistrationCartTestCase):
         invoice = self._manual_invoice(notes_value - 1)
 
 
-        self.assertEqual(notes_value - 1, invoice.total_payments())
+        self.assertEqual(notes_value - 1, invoice.invoice.total_payments())
         self.assertTrue(invoice.invoice.is_paid)
 
         user_unclaimed = commerce.CreditNote.unclaimed().filter(
@@ -426,7 +430,7 @@ class CreditNoteTestCase(TestHelperMixin, RegistrationCartTestCase):
 
         # Because there's already an invoice open for this user
         # The credit notes are not automatically applied.
-        self.assertEqual(0, invoice.total_payments())
+        self.assertEqual(0, invoice.invoice.total_payments())
         self.assertTrue(invoice.invoice.is_unpaid)
 
     def test_credit_notes_are_applied_even_if_some_notes_are_claimed(self):

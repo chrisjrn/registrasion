@@ -97,6 +97,17 @@ class InvoiceTestCase(TestHelperMixin, RegistrationCartTestCase):
         new_cart = TestingCartController.for_user(self.USER_1)
         self.assertNotEqual(invoice.invoice.cart, new_cart.cart)
 
+    def test_total_payments_balance_due(self):
+        invoice = self._invoice_containing_prod_1(2)
+        for i in xrange(0, invoice.invoice.value):
+            self.assertTrue(
+                i + 1, invoice.invoice.total_payments()
+            )
+            self.assertTrue(
+                invoice.invoice.value - i, invoice.invoice.balance_due()
+            )
+            invoice.pay("Pay 1", 1)
+
     def test_invoice_includes_discounts(self):
         voucher = inventory.Voucher.objects.create(
             recipient="Voucher recipient",

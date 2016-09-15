@@ -269,19 +269,12 @@ class InvoiceController(ForId, object):
 
         CartController(self.invoice.cart).validate_cart()
 
-    def total_payments(self):
-        ''' Returns the total amount paid towards this invoice. '''
-
-        payments = commerce.PaymentBase.objects.filter(invoice=self.invoice)
-        total_paid = payments.aggregate(Sum("amount"))["amount__sum"] or 0
-        return total_paid
-
     def update_status(self):
         ''' Updates the status of this invoice based upon the total
         payments.'''
 
         old_status = self.invoice.status
-        total_paid = self.total_payments()
+        total_paid = self.invoice.total_payments()
         num_payments = commerce.PaymentBase.objects.filter(
             invoice=self.invoice,
         ).count()
@@ -366,7 +359,7 @@ class InvoiceController(ForId, object):
     def update_validity(self):
         ''' Voids this invoice if the cart it is attached to has updated. '''
         if not self._invoice_matches_cart():
-            if self.total_payments() > 0:
+            if self.invoice.total_payments() > 0:
                 # Free up the payments made to this invoice
                 self.refund()
             else:
@@ -374,7 +367,7 @@ class InvoiceController(ForId, object):
 
     def void(self):
         ''' Voids the invoice if it is valid to do so. '''
-        if self.total_payments() > 0:
+        if self.invoice.total_payments() > 0:
             raise ValidationError("Invoices with payments must be refunded.")
         elif self.invoice.is_refunded:
             raise ValidationError("Refunded invoices may not be voided.")
@@ -394,7 +387,7 @@ class InvoiceController(ForId, object):
             raise ValidationError("Void invoices cannot be refunded")
 
         # Raises a credit note fot the value of the invoice.
-        amount = self.total_payments()
+        amount = self.invoice.total_payments()
 
         if amount == 0:
             self.void()

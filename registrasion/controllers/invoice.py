@@ -208,11 +208,16 @@ class InvoiceController(ForId, object):
         ''' Applies the user's credit notes to the given invoice on creation.
         '''
 
-        notes = commerce.CreditNote.objects.filter(invoice__user=invoice.user)
-
-        if len(notes) == 0:
+        # We only automatically apply credit notes if this is the *only*
+        # unpaid invoice for this user.
+        invoices = commerce.Invoice.objects.filter(
+            user=invoice.user,
+            status=commerce.Invoice.STATUS_UNPAID,
+        )
+        if invoices.count() > 1:
             return
 
+        notes = commerce.CreditNote.objects.filter(invoice__user=invoice.user)
         for note in notes:
             try:
                 CreditNoteController(note).apply_to_invoice(invoice)

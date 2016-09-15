@@ -336,13 +336,37 @@ class CreditNoteTestCase(TestHelperMixin, RegistrationCartTestCase):
         invoice2 = self._invoice_containing_prod_1(1)
         self.assertTrue(invoice2.invoice.is_paid)
 
+    def _generate_multiple_credit_notes(self):
+        items = [("Item 1", 5), ("Item 2", 6)]
+        due = datetime.timedelta(hours=1)
+        inv1 = TestingInvoiceController.manual_invoice(self.USER_1, due, items)
+        inv2 = TestingInvoiceController.manual_invoice(self.USER_1, due, items)
+        invoice1 = TestingInvoiceController(inv1)
+        invoice1.pay("Pay", inv1.value)
+        invoice1.refund()
+        invoice2 = TestingInvoiceController(inv2)
+        invoice2.pay("Pay", inv2.value)
+        invoice2.refund()
+        return inv1.value + inv2.value
+
     def test_mutiple_credit_notes_are_applied_when_generating_invoice_1(self):
         ''' Tests (1) that multiple credit notes are applied to new invoice.
 
         Sum of credit note values will be *LESS* than the new invoice.
         '''
 
-        raise NotImplementedError()
+        notes_value = self._generate_multiple_credit_notes()
+        item = [("Item", notes_value + 1)]
+        due = datetime.timedelta(hours=1)
+        inv = TestingInvoiceController.manual_invoice(self.USER_1, due, item)
+        invoice = TestingInvoiceController(inv)
+
+        self.assertEqual(notes_value, invoice.total_payments())
+        self.assertTrue(invoice.invoice.is_unpaid)
+
+        user_unclaimed = commerce.CreditNote.unclaimed()
+        user_unclaimed = user_unclaimed.filter(invoice__user=self.USER_1)
+        self.assertEqual(0, user_unclaimed.count())
 
     def test_mutiple_credit_notes_are_applied_when_generating_invoice_2(self):
         ''' Tests (2) that multiple credit notes are applied to new invoice.
@@ -350,8 +374,59 @@ class CreditNoteTestCase(TestHelperMixin, RegistrationCartTestCase):
         Sum of credit note values will be *GREATER* than the new invoice.
         '''
 
-        raise NotImplementedError()
+        notes_value = self._generate_multiple_credit_notes()
+        item = [("Item", notes_value - 1)]
+        due = datetime.timedelta(hours=1)
+        inv = TestingInvoiceController.manual_invoice(self.USER_1, due, item)
+        invoice = TestingInvoiceController(inv)
+
+        self.assertEqual(notes_value - 1, invoice.total_payments())
+        self.assertTrue(invoice.invoice.is_paid)
+
+        user_unclaimed = commerce.CreditNote.unclaimed().filter(
+            invoice__user=self.USER_1
+        )
+        self.assertEqual(1, user_unclaimed.count())
+
+        excess = self._credit_note_for_invoice(invoice.invoice)
+        self.assertEqual(excess.credit_note.value, 1)
+
+    def test_credit_notes_are_left_over_if_not_all_are_needed(self):
+        ''' Tests that excess credit notes are untouched if they're not needed
+        '''
+
+        notes_value = self._generate_multiple_credit_notes()
+        notes_old = commerce.CreditNote.unclaimed().filter(
+            invoice__user=self.USER_1
+        )
+
+        # Create a manual invoice whose value is smaller than any of the
+        # credit notes we created
+        item = [("Item", 1)]
+        due = datetime.timedelta(hours=1)
+        inv = TestingInvoiceController.manual_invoice(self.USER_1, due, item)
+
+        notes_new = commerce.CreditNote.unclaimed().filter(
+            invoice__user=self.USER_1
+        )
+
+        # Item is True if the note was't consumed when generating invoice.
+        note_was_unused = [(i in notes_old) for i in notes_new]
+        self.assertIn(True, note_was_unused)
 
     def test_credit_notes_are_not_applied_if_user_has_multiple_invoices(self):
 
-        raise NotImplementedError()
+        # Have an invoice pending with no credit notes; no payment will be made
+        invoice1 = self._invoice_containing_prod_1(1)
+        # Create some credit notes.
+        self._generate_multiple_credit_notes()
+
+        item = [("Item", notes_value)]
+        due = datetime.timedelta(hours=1)
+        inv = TestingInvoiceController.manual_invoice(self.USER_1, due, item)
+        invoice = TestingInvoiceController(inv)
+
+        # Because there's already an invoice open for this user
+        # The credit notes are not automatically applied.
+        self.assertEqual(0, invoice.total_payments())
+        self.assertTrue(invoice.invoice.is_unpaid)

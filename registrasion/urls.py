@@ -46,6 +46,11 @@ reports = [
     url(r"^attendee/([0-9]*)$", rv.attendee, name="attendee"),
     url(r"^credit_notes/?$", rv.credit_notes, name="credit_notes"),
     url(r"^items_sold/?$", rv.items_sold, name="items_sold"),
+    url(
+        r"^paid_invoices_by_date/?$",
+        rv.paid_invoices_by_date,
+        name="paid_invoices_by_date"
+    ),
     url(r"^product_status/?$", rv.product_status, name="product_status"),
     url(r"^reconciliation/?$", rv.reconciliation, name="reconciliation"),
 ]

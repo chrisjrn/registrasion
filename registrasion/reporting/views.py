@@ -1,10 +1,13 @@
 import forms
 
+import collections
+import datetime
+
 from django.contrib.auth.decorators import user_passes_test
 from django.core.urlresolvers import reverse
 from django.db import models
 from django.db.models import F, Q
-from django.db.models import Count, Sum
+from django.db.models import Count, Max, Sum
 from django.db.models import Case, When, Value
 from django.shortcuts import render
 
@@ -264,6 +267,44 @@ def product_status(request, form):
 
     return ListReport("Inventory", headings, data)
 
+
+@report_view("Paid invoices by date", form_type=forms.ProductAndCategoryForm)
+def paid_invoices_by_date(request, form):
+    ''' Shows the number of paid invoices containing given products or
+    categories per day. '''
+
+    products = form.cleaned_data["product"]
+    categories = form.cleaned_data["category"]
+
+    invoices = commerce.Invoice.objects.filter(
+        Q(lineitem__product__in=products) | Q(lineitem__product__category__in=categories),
+        status=commerce.Invoice.STATUS_PAID,
+    )
+
+    payments = commerce.PaymentBase.objects.all()
+    payments = payments.filter(
+        invoice__in=invoices,
+    )
+    payments = payments.order_by("invoice")
+    invoice_max_time = payments.values("invoice").annotate(max_time=Max("time"))
+
+    by_date = collections.defaultdict(int)
+
+    for line in invoice_max_time:
+        time = line["max_time"]
+        date = datetime.datetime(
+            year=time.year, month=time.month, day=time.day
+        )
+        by_date[date] += 1
+
+    data = [(date, count) for date, count in sorted(by_date.items())]
+    data = [(date.strftime("%Y-%m-%d"), count) for date, count in data]
+
+    return ListReport(
+        "Paid Invoices By Date",
+        ["date", "count"],
+        data,
+    )
 
 @report_view("Credit notes")
 def credit_notes(request, form):

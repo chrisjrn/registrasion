@@ -99,7 +99,7 @@ def items_sold():
         "(TOTAL)", "--", "--", total_income,
     ])
 
-    return ListReport("Paid items", headings, data)
+    return ListReport("Items sold", headings, data)
 
 
 def sales_payment_summary():
@@ -147,7 +147,7 @@ def sales_payment_summary():
     data.append(["Credit notes refunded", refunded_credit_notes])
     data.append(["Unclaimed credit notes", unclaimed_credit_notes])
     data.append([
-        "Credit notes - claimed credit notes - unclaimed credit notes",
+        "Credit notes - (claimed credit notes + unclaimed credit notes)",
         all_credit_notes - claimed_credit_notes -
             refunded_credit_notes - unclaimed_credit_notes,
     ])

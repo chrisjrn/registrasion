@@ -48,20 +48,27 @@ def reports_list(request):
 
 # Report functions
 
+@report_view("Reconcilitation")
+def reconciliation(request, form):
+    ''' Shows the summary of sales, and the full history of payments and
+    refunds into the system. '''
 
-@report_view("Paid items", form_type=forms.ProductAndCategoryForm)
-def items_sold(request, form):
+    return [
+        sales_payment_summary(),
+        items_sold(),
+        payments(),
+        credit_note_refunds(),
+    ]
+
+
+def items_sold():
     ''' Summarises the items sold and discounts granted for a given set of
     products, or products from categories. '''
 
     data = None
     headings = None
 
-    products = form.cleaned_data["product"]
-    categories = form.cleaned_data["category"]
-
     line_items = commerce.LineItem.objects.filter(
-        Q(product__in=products) | Q(product__category__in=categories),
         invoice__status=commerce.Invoice.STATUS_PAID,
     ).select_related("invoice")
 
@@ -95,14 +102,20 @@ def items_sold(request, form):
     return ListReport("Paid items", headings, data)
 
 
-@report_view("Reconcilitation")
-def reconciliation(request, form):
-    ''' Reconciles all sales in the system with the payments in the
-    system. '''
+def sales_payment_summary():
+    ''' Summarises paid items and payments. '''
 
-    headings = ["Thing", "Total"]
+    def value_or_zero(aggregate, key):
+        return aggregate[key] or 0
+
+    def sum_amount(payment_set):
+        a = payment_set.values("amount").aggregate(total=Sum("amount"))
+        return value_or_zero(a, "total")
+
+    headings = ["Category", "Total"]
     data = []
 
+    # Summarise all sales made (= income.)
     sales = commerce.LineItem.objects.filter(
         invoice__status=commerce.Invoice.STATUS_PAID,
     ).values(
@@ -110,27 +123,59 @@ def reconciliation(request, form):
     ).aggregate(
         total=Sum(F("price") * F("quantity"), output_field=CURRENCY()),
     )
+    sales = value_or_zero(sales, "total")
 
-    data.append(["Paid items", sales["total"]])
+    all_payments = sum_amount(commerce.PaymentBase.objects.all())
 
-    payments = commerce.PaymentBase.objects.values(
-        "amount",
-    ).aggregate(total=Sum("amount"))
+    # Manual payments
+    # Credit notes generated (total)
+    # Payments made by credit note
+    # Claimed credit notes
 
-    data.append(["Payments", payments["total"]])
+    all_credit_notes = 0 - sum_amount(commerce.CreditNote.objects.all())
+    unclaimed_credit_notes = 0 - sum_amount(commerce.CreditNote.unclaimed())
+    claimed_credit_notes = sum_amount(
+        commerce.CreditNoteApplication.objects.all()
+    )
+    refunded_credit_notes = 0 - sum_amount(commerce.CreditNote.refunded())
 
-    ucn = commerce.CreditNote.unclaimed().values(
-        "amount"
-    ).aggregate(total=Sum("amount"))
-
-    data.append(["Unclaimed credit notes", 0 - ucn["total"]])
-
+    data.append(["Items on paid invoices", sales])
+    data.append(["All payments", all_payments])
+    data.append(["Sales - Payments ", sales - all_payments])
+    data.append(["All credit notes", all_credit_notes])
+    data.append(["Credit notes paid on invoices", claimed_credit_notes])
+    data.append(["Credit notes refunded", refunded_credit_notes])
+    data.append(["Unclaimed credit notes", unclaimed_credit_notes])
     data.append([
-        "(Money not on invoices)",
-        sales["total"] - payments["total"] - ucn["total"],
+        "Credit notes - claimed credit notes - unclaimed credit notes",
+        all_credit_notes - claimed_credit_notes -
+            refunded_credit_notes - unclaimed_credit_notes,
     ])
 
-    return ListReport("Sales and Payments", headings, data)
+    return ListReport("Sales and Payments Summary", headings, data)
+
+
+def payments():
+    ''' Shows the history of payments into the system '''
+
+    payments = commerce.PaymentBase.objects.all()
+    return QuerysetReport(
+        "Payments",
+        ["invoice__id", "id", "reference", "amount"],
+        payments,
+        link_view=views.invoice,
+    )
+
+
+def credit_note_refunds():
+    ''' Shows all of the credit notes that have been generated. '''
+    notes_refunded = commerce.CreditNote.refunded()
+    return QuerysetReport(
+        "Credit note refunds",
+        ["id", "creditnoterefund__reference", "amount"],
+        notes_refunded,
+        link_view=views.credit_note,
+    )
 
 
 @report_view("Product status", form_type=forms.ProductAndCategoryForm)

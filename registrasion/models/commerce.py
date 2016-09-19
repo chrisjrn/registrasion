@@ -307,6 +307,10 @@ class CreditNote(PaymentBase):
             creditnoterefund=None,
         )
 
+    @classmethod
+    def refunded(cls):
+        return cls.objects.exclude(creditnoterefund=None)
+
     @property
     def status(self):
         if self.is_unclaimed:

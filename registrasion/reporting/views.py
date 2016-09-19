@@ -178,19 +178,8 @@ def credit_note_refunds():
     )
 
 
-@report_view("Product status", form_type=forms.ProductAndCategoryForm)
-def product_status(request, form):
-    ''' Summarises the inventory status of the given items, grouping by
-    invoice status. '''
-
-    products = form.cleaned_data["product"]
-    categories = form.cleaned_data["category"]
-
-    items = commerce.ProductItem.objects.filter(
-        Q(product__in=products) | Q(product__category__in=categories),
-    ).select_related("cart", "product")
-
-    items = items.annotate(
+def group_by_cart_status(queryset, order, values):
+    queryset = queryset.annotate(
         is_reserved=Case(
             When(cart__in=commerce.Cart.reserved_carts(), then=Value(True)),
             default=Value(False),
@@ -198,14 +187,8 @@ def product_status(request, form):
         ),
     )
 
-    items = items.order_by(
-        "product__category__order",
-        "product__order",
-    ).values(
-        "product",
-        "product__category__name",
-        "product__name",
-    ).annotate(
+    values = queryset.order_by(*order).values(*values)
+    values = values.annotate(
         total_paid=Sum(Case(
             When(
                 cart__status=commerce.Cart.STATUS_PAID,
@@ -240,6 +223,27 @@ def product_status(request, form):
             ),
             default=Value(0),
         )),
+    )
+
+    return values
+
+
+@report_view("Product status", form_type=forms.ProductAndCategoryForm)
+def product_status(request, form):
+    ''' Summarises the inventory status of the given items, grouping by
+    invoice status. '''
+
+    products = form.cleaned_data["product"]
+    categories = form.cleaned_data["category"]
+
+    items = commerce.ProductItem.objects.filter(
+        Q(product__in=products) | Q(product__category__in=categories),
+    ).select_related("cart", "product")
+
+    items = group_by_cart_status(
+        items,
+        ["product__category__order", "product__order"],
+        ["product", "product__category__name", "product__name"],
     )
 
     headings = [

@@ -1,4 +1,5 @@
 import string
+import sys
 
 from django.utils.crypto import get_random_string
 
@@ -55,3 +56,19 @@ def lazy(function, *args, **kwargs):
         return retval[0]
 
     return evaluate
+
+
+def get_object_from_name(name):
+    ''' Returns the named object.
+
+    Arguments:
+        name (str): A string of form `package.subpackage.etc.module.property`.
+            This function will import `package.subpackage.etc.module` and
+            return `property` from that module.
+
+    '''
+
+    dot = name.rindex(".")
+    mod_name, property_name = name[:dot], name[dot + 1:]
+    __import__(mod_name)
+    return getattr(sys.modules[mod_name], property_name)

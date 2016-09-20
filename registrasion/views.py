@@ -1,4 +1,5 @@
 import sys
+import util
 
 from registrasion import forms
 from registrasion import util
@@ -58,13 +59,6 @@ class GuidedRegistrationSection(_GuidedRegistrationSection):
        form (forms.Form): A form to display.
     '''
     pass
-
-
-def get_object(name):
-    dot = name.rindex(".")
-    mod_name, form_name = name[:dot], name[dot + 1:]
-    __import__(mod_name)
-    return getattr(sys.modules[mod_name], form_name)
 
 
 @login_required
@@ -277,11 +271,11 @@ def edit_profile(request):
 
 # Define the attendee profile form, or get a default.
 try:
-    ProfileForm = get_object(settings.ATTENDEE_PROFILE_FORM)
+    ProfileForm = util.get_object_from_name(settings.ATTENDEE_PROFILE_FORM)
 except:
     class ProfileForm(django_forms.ModelForm):
         class Meta:
-            model = get_object(settings.ATTENDEE_PROFILE_MODEL)
+            model = util.get_object_from_name(settings.ATTENDEE_PROFILE_MODEL)
             exclude = ["attendee"]
 
 

@@ -5,6 +5,7 @@ import datetime
 
 from django.conf import settings
 from django.contrib.auth.decorators import user_passes_test
+from django.contrib.auth.models import User
 from django.core.urlresolvers import reverse
 from django.db import models
 from django.db.models import F, Q
@@ -17,6 +18,8 @@ from registrasion.models import commerce
 from registrasion.models import people
 from registrasion import util
 from registrasion import views
+
+from symposion.schedule import models as schedule_models
 
 from reports import get_all_reports
 from reports import Links
@@ -581,13 +584,14 @@ def attendee_data(request, form, user_id=None):
         AttendeeProfile._meta.get_field(field).verbose_name for field in fields
     ]
 
-    headings = ["User ID", "Name", "Product", "Item Status"] + field_names
+    headings = ["User ID", "Name", "Email", "Product", "Item Status"] + field_names
     data = []
     for item in items:
         profile = by_user[item.cart.user]
         line = [
             item.cart.user.id,
             getattr(profile, name_field),
+            profile.attendee.user.email,
             item.product,
             status_display[item.cart.status],
         ] + [
@@ -599,3 +603,39 @@ def attendee_data(request, form, user_id=None):
         "Attendees by item with profile data", headings, data, link_view=attendee
     ))
     return output
+
+
+@report_view(
+    "Speaker Registration Status",
+    form_type=forms.ProposalKindForm,
+)
+def speaker_registrations(request, form):
+    ''' Shows registration status for speakers with a given proposal kind. '''
+
+    kinds = form.cleaned_data["kind"]
+
+    presentations = schedule_models.Presentation.objects.filter(
+        proposal_base__kind=kinds,
+    ).exclude(
+        cancelled=True,
+    )
+
+    users = User.objects.filter(
+        Q(speaker_profile__presentations__in=presentations) |
+        Q(speaker_profile__copresentations__in=presentations)
+    )
+
+    paid_carts = commerce.Cart.objects.filter(status=commerce.Cart.STATUS_PAID)
+
+    paid_carts = Case(When(cart__in=paid_carts, then=Value(1)), default=Value(0), output_field=models.IntegerField())
+    users = users.annotate(paid_carts=Sum(paid_carts))
+    users=users.order_by("paid_carts")
+
+    return QuerysetReport(
+        "Speaker Registration Status",
+        ["id", "speaker_profile__name", "email", "paid_carts",],
+        users,
+        link_view=attendee,
+    )
+
+    return []

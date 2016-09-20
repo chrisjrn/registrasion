@@ -364,6 +364,12 @@ def credit_notes(request, form):
     )
 
 
+class AttendeeListReport(ListReport):
+
+    def get_link(self, argument):
+        return reverse(self._link_view) + "?user=%d" % int(argument)
+
+
 @report_view("Attendee", form_type=forms.UserIdForm)
 def attendee(request, form, user_id=None):
     ''' Returns a list of all manifested attendees if no attendee is specified,
@@ -484,9 +490,98 @@ def attendee_list(request):
     # Sort by whether they've registered, then ID.
     data.sort(key=lambda a: (-a[3], a[0]))
 
-    class Report(ListReport):
+    return AttendeeListReport("Attendees", headings, data, link_view=attendee)
 
-        def get_link(self, argument):
-            return reverse(self._link_view) + "?user=%d" % int(argument)
 
-    return Report("Attendees", headings, data, link_view=attendee)
+ProfileForm = forms.model_fields_form_factory(AttendeeProfile)
+class ProductCategoryProfileForm(forms.ProductAndCategoryForm, ProfileForm):
+    pass
+
+
+@report_view(
+    "Attendees By Product/Category",
+    form_type=ProductCategoryProfileForm,
+)
+def attendee_data(request, form, user_id=None):
+    ''' Lists attendees for a given product/category selection along with
+    profile data.'''
+
+    status_display = {
+        commerce.Cart.STATUS_ACTIVE: "Unpaid",
+        commerce.Cart.STATUS_PAID: "Paid",
+        commerce.Cart.STATUS_RELEASED: "Refunded",
+    }
+
+    output = []
+
+    products = form.cleaned_data["product"]
+    categories = form.cleaned_data["category"]
+    fields = form.cleaned_data["fields"]
+    name_field = AttendeeProfile.name_field()
+
+    items = commerce.ProductItem.objects.filter(
+        Q(product__in=products) | Q(product__category__in=categories),
+    ).exclude(
+        cart__status=commerce.Cart.STATUS_RELEASED
+    ).select_related(
+        "cart", "product"
+    ).order_by("cart__status")
+
+    # Get all of the relevant attendee profiles in one hit.
+    profiles = AttendeeProfile.objects.filter(
+        attendee__user__cart__productitem__in=items
+    ).select_related("attendee__user")
+    by_user = {}
+    for profile in profiles:
+        by_user[profile.attendee.user] = profile
+
+    for field in fields:
+        field_verbose = AttendeeProfile._meta.get_field(field).verbose_name
+
+        cart = "attendee__user__cart"
+        cart_status = cart + "__status"
+        product = cart + "__productitem__product"
+        product_name = product + "__name"
+        category_name = product + "__category__name"
+
+        p = profiles.order_by(product, field).values(
+            cart_status, product, product_name, category_name, field
+        ).annotate(count=Count("id"))
+        output.append(ListReport(
+            "Grouped by %s" % field_verbose,
+            ["Product", "Status", field_verbose, "count"],
+            [
+                (
+                    "%s - %s" % (i[category_name], i[product_name]),
+                    status_display[i[cart_status]],
+                    i[field],
+                    i["count"] or 0,
+                )
+                for i in p
+            ],
+        ))
+
+    # DO the report for individual attendees
+
+    field_names = [
+        AttendeeProfile._meta.get_field(field).verbose_name for field in fields
+    ]
+
+    headings = ["User ID", "Name", "Product", "Item Status"] + field_names
+    data = []
+    for item in items:
+        profile = by_user[item.cart.user]
+        line = [
+            item.cart.user.id,
+            getattr(profile, name_field),
+            item.product,
+            status_display[item.cart.status],
+        ] + [
+            getattr(profile, field) for field in fields
+        ]
+        data.append(line)
+
+    output.append(AttendeeListReport(
+        "Attendees by item with profile data", headings, data, link_view=attendee
+    ))
+    return output

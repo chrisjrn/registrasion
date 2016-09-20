@@ -45,7 +45,7 @@ reports = [
     url(r"^attendee/?$", rv.attendee, name="attendee"),
     url(r"^attendee/([0-9]*)$", rv.attendee, name="attendee"),
     url(r"^credit_notes/?$", rv.credit_notes, name="credit_notes"),
-    url(r"^items_sold/?$", rv.items_sold, name="items_sold"),
+    url(r"^discount_status/?$", rv.discount_status, name="discount_status"),
     url(
         r"^paid_invoices_by_date/?$",
         rv.paid_invoices_by_date,

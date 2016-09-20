@@ -1,8 +1,16 @@
+from registrasion.models import conditions
 from registrasion.models import inventory
 
 from django import forms
 
-# Staff-facing forms.
+# Reporting forms.
+
+
+class DiscountForm(forms.Form):
+    discount = forms.ModelMultipleChoiceField(
+        queryset=conditions.DiscountBase.objects.all(),
+        required=False,
+    )
 
 
 class ProductAndCategoryForm(forms.Form):

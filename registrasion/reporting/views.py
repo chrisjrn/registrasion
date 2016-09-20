@@ -268,6 +268,40 @@ def product_status(request, form):
     return ListReport("Inventory", headings, data)
 
 
+@report_view("Product status", form_type=forms.DiscountForm)
+def discount_status(request, form):
+    ''' Summarises the usage of a given discount. '''
+
+    discounts = form.cleaned_data["discount"]
+
+
+    items = commerce.DiscountItem.objects.filter(
+        Q(discount__in=discounts),
+    ).select_related("cart", "product", "product__category")
+
+    items = group_by_cart_status(
+        items,
+        ["discount",],
+        ["discount", "discount__description",],
+    )
+
+    headings = [
+        "Discount", "Paid", "Reserved", "Unreserved", "Refunded",
+    ]
+    data = []
+
+    for item in items:
+        data.append([
+            item["discount__description"],
+            item["total_paid"],
+            item["total_reserved"],
+            item["total_unreserved"],
+            item["total_refunded"],
+        ])
+
+    return ListReport("Usage by item", headings, data)
+
+
 @report_view("Paid invoices by date", form_type=forms.ProductAndCategoryForm)
 def paid_invoices_by_date(request, form):
     ''' Shows the number of paid invoices containing given products or

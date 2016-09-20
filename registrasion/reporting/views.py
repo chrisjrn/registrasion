@@ -3,6 +3,7 @@ import forms
 import collections
 import datetime
 
+from django.conf import settings
 from django.contrib.auth.decorators import user_passes_test
 from django.core.urlresolvers import reverse
 from django.db import models
@@ -14,6 +15,7 @@ from django.shortcuts import render
 from registrasion.controllers.item import ItemController
 from registrasion.models import commerce
 from registrasion.models import people
+from registrasion import util
 from registrasion import views
 
 from reports import get_all_reports
@@ -25,6 +27,9 @@ from reports import report_view
 
 def CURRENCY():
     return models.DecimalField(decimal_places=2)
+
+
+AttendeeProfile = util.get_object_from_name(settings.ATTENDEE_PROFILE_MODEL)
 
 
 @user_passes_test(views._staff_only)
@@ -374,6 +379,22 @@ def attendee(request, form, user_id=None):
     name = attendee.attendeeprofilebase.attendee_name()
 
     reports = []
+
+    profile_data = []
+    profile = people.AttendeeProfileBase.objects.get_subclass(
+        attendee=attendee
+    )
+    exclude = set(["attendeeprofilebase_ptr", "id"])
+    for field in profile._meta.get_fields():
+        if field.name in exclude:
+            # Not actually important
+            continue
+        if not hasattr(field, "verbose_name"):
+            continue  # Not a publicly visible field
+        value = getattr(profile, field.name)
+        profile_data.append((field.verbose_name, value))
+
+    reports.append(ListReport("Profile", ["", ""], profile_data))
 
     links = []
     links.append((

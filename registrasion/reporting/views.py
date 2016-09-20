@@ -535,6 +535,7 @@ def attendee_data(request, form, user_id=None):
     for profile in profiles:
         by_user[profile.attendee.user] = profile
 
+    # Group the responses per-field.
     for field in fields:
         field_verbose = AttendeeProfile._meta.get_field(field).verbose_name
 
@@ -544,18 +545,31 @@ def attendee_data(request, form, user_id=None):
         product_name = product + "__name"
         category_name = product + "__category__name"
 
+        status_count = lambda status: Case(When(
+                attendee__user__cart__status=status,
+                then=Value(1),
+            ),
+            default=Value(0),
+            output_field=models.fields.IntegerField(),
+        )
+        paid_count = status_count(commerce.Cart.STATUS_PAID)
+        unpaid_count = status_count(commerce.Cart.STATUS_ACTIVE)
+
         p = profiles.order_by(product, field).values(
-            cart_status, product, product_name, category_name, field
-        ).annotate(count=Count("id"))
+            product, product_name, category_name, field
+        ).annotate(
+            paid_count=Sum(paid_count),
+            unpaid_count=Sum(unpaid_count),
+        )
         output.append(ListReport(
             "Grouped by %s" % field_verbose,
-            ["Product", "Status", field_verbose, "count"],
+            ["Product", field_verbose, "paid", "unpaid"],
             [
                 (
                     "%s - %s" % (i[category_name], i[product_name]),
-                    status_display[i[cart_status]],
                     i[field],
-                    i["count"] or 0,
+                    i["paid_count"] or 0,
+                    i["unpaid_count"] or 0,
                 )
                 for i in p
             ],

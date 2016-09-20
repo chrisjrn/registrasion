@@ -581,13 +581,14 @@ def attendee_data(request, form, user_id=None):
         AttendeeProfile._meta.get_field(field).verbose_name for field in fields
     ]
 
-    headings = ["User ID", "Name", "Product", "Item Status"] + field_names
+    headings = ["User ID", "Name", "Email", "Product", "Item Status"] + field_names
     data = []
     for item in items:
         profile = by_user[item.cart.user]
         line = [
             item.cart.user.id,
             getattr(profile, name_field),
+            profile.attendee.user.email,
             item.product,
             status_display[item.cart.status],
         ] + [

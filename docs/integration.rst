@@ -46,9 +46,13 @@ Because every conference is different, Registrasion lets you define your own att
 .. autoclass :: AttendeeProfileBase
     :members: name_field, invoice_recipient
 
-Once you've subclassed ``AttendeeProfileBase``, you'll need to implement a form that lets attendees fill out their profile.
+You specify how to find that model in your Django ``settings.py`` file::
 
-You specify how to find that form in your Django ``settings.py`` file::
+    ATTENDEE_PROFILE_MODEL = "democon.models.AttendeeProfile"
+
+When Registrasion asks the to edit their profile, a default form will be generated, showing all of the fields on the profile model.
+
+If you want to customise the profile editing form, you need to specify the location of that form in your ``settings.py`` file as well.
 
     ATTENDEE_PROFILE_FORM = "democon.forms.AttendeeProfileForm"
 

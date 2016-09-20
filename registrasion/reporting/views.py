@@ -274,7 +274,6 @@ def discount_status(request, form):
 
     discounts = form.cleaned_data["discount"]
 
-
     items = commerce.DiscountItem.objects.filter(
         Q(discount__in=discounts),
     ).select_related("cart", "product", "product__category")

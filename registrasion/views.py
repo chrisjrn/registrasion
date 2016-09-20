@@ -16,6 +16,7 @@ from registrasion.exceptions import CartValidationError
 
 from collections import namedtuple
 
+from django import forms as django_forms
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import user_passes_test
@@ -59,7 +60,7 @@ class GuidedRegistrationSection(_GuidedRegistrationSection):
     pass
 
 
-def get_form(name):
+def get_object(name):
     dot = name.rindex(".")
     mod_name, form_name = name[:dot], name[dot + 1:]
     __import__(mod_name)
@@ -274,6 +275,16 @@ def edit_profile(request):
     return render(request, "registrasion/profile_form.html", data)
 
 
+# Define the attendee profile form, or get a default.
+try:
+    ProfileForm = get_object(settings.ATTENDEE_PROFILE_FORM)
+except:
+    class ProfileForm(django_forms.ModelForm):
+        class Meta:
+            model = get_object(settings.ATTENDEE_PROFILE_MODEL)
+            exclude = ["attendee"]
+
+
 def _handle_profile(request, prefix):
     ''' Returns a profile form instance, and a boolean which is true if the
     form was handled. '''
@@ -286,8 +297,6 @@ def _handle_profile(request, prefix):
         )
     except ObjectDoesNotExist:
         profile = None
-
-    ProfileForm = get_form(settings.ATTENDEE_PROFILE_FORM)
 
     # Load a pre-entered name from the speaker's profile,
     # if they have one.

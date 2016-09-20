@@ -1,6 +1,8 @@
 from registrasion.models import conditions
 from registrasion.models import inventory
 
+from symposion.proposals import models as proposals_models
+
 from django import forms
 
 # Reporting forms.
@@ -29,6 +31,14 @@ class UserIdForm(forms.Form):
         label="User ID",
         required=False,
     )
+
+
+class ProposalKindForm(forms.Form):
+    kind = forms.ModelMultipleChoiceField(
+        queryset=proposals_models.ProposalKind.objects.all(),
+        required=False,
+    )
+
 
 
 def model_fields_form_factory(model):

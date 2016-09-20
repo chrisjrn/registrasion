@@ -43,9 +43,15 @@ public = [
 reports = [
     url(r"^$", rv.reports_list, name="reports_list"),
     url(r"^attendee/?$", rv.attendee, name="attendee"),
+    url(r"^attendee_data/?$", rv.attendee_data, name="attendee_data"),
     url(r"^attendee/([0-9]*)$", rv.attendee, name="attendee"),
     url(r"^credit_notes/?$", rv.credit_notes, name="credit_notes"),
-    url(r"^items_sold/?$", rv.items_sold, name="items_sold"),
+    url(r"^discount_status/?$", rv.discount_status, name="discount_status"),
+    url(
+        r"^paid_invoices_by_date/?$",
+        rv.paid_invoices_by_date,
+        name="paid_invoices_by_date"
+    ),
     url(r"^product_status/?$", rv.product_status, name="product_status"),
     url(r"^reconciliation/?$", rv.reconciliation, name="reconciliation"),
 ]

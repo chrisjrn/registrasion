@@ -21,4 +21,4 @@ class ForId(object):
         try:
             return cls.for_id(id_)
         except ObjectDoesNotExist:
-            return Http404
+            raise Http404()

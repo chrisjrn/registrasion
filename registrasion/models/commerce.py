@@ -253,7 +253,7 @@ class PaymentBase(models.Model):
     class to handle implementation-specific issues.
 
     Attributes:
-        invoice (inventory.Invoice): The invoice that this payment applies to.
+        invoice (commerce.Invoice): The invoice that this payment applies to.
 
         time (datetime): The time that this payment was generated. Note that
             this will default to the current time when the model is created.

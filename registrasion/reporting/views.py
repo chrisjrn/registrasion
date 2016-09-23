@@ -485,7 +485,8 @@ def attendee_list(request):
     for a in attendees:
         data.append([
             a.user.id,
-            a.attendeeprofilebase.attendee_name(),
+            a.attendeeprofilebase.attendee_name()
+                if hasattr(a, "attendeeprofilebase") else "",
             a.user.email,
             a.has_registered > 0,
         ])

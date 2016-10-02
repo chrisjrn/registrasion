@@ -212,7 +212,7 @@ class SpeakerFlagAdmin(nested_admin.NestedAdmin, EffectsDisplayMixin):
 @admin.register(conditions.GroupMemberFlag)
 class GroupMemberFlagAdmin(admin.ModelAdmin, EffectsDisplayMixin):
 
-    fields = ("description", "group")
+    fields = ("description", "group", "products", "categories")
 
     list_display = ("description", "effects")
 

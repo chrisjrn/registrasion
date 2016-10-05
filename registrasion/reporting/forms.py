@@ -59,6 +59,7 @@ class GroupByForm(forms.Form):
     group_by = forms.ChoiceField(
         label="Group by",
         choices=choices,
+        required=False,
     )
 
 

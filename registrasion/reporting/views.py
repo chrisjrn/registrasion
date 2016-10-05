@@ -12,6 +12,7 @@ from django.db import models
 from django.db.models import F, Q
 from django.db.models import Count, Max, Sum
 from django.db.models import Case, When, Value
+from django.db.models.fields.related import RelatedField
 from django.shortcuts import render
 
 from registrasion.controllers.item import ItemController
@@ -531,7 +532,6 @@ def attendee_data(request, form, user_id=None):
     output = []
 
     by_category = form.cleaned_data["group_by"] == forms.GroupByForm.GROUP_BY_CATEGORY
-    print by_category
 
     products = form.cleaned_data["product"]
     categories = form.cleaned_data["category"]
@@ -574,7 +574,28 @@ def attendee_data(request, form, user_id=None):
 
     # Group the responses per-field.
     for field in fields:
-        field_verbose = AttendeeProfile._meta.get_field(field).verbose_name
+        concrete_field = AttendeeProfile._meta.get_field(field)
+        field_verbose = concrete_field.verbose_name
+
+        # Render the correct values for related fields
+        if isinstance(concrete_field, RelatedField):
+            # Get all of the IDs that will appear
+            all_ids = profiles.order_by(field).values(field)
+            all_ids = [i[field] for i in all_ids if i[field] is not None]
+            # Get all of the concrete objects for those IDs
+            model = concrete_field.related_model
+            all_objects = model.objects.filter(id__in=all_ids)
+            all_objects_by_id = dict((i.id, i) for i in all_objects)
+
+            # Define a function to render those IDs.
+            def display_field(value):
+                if value in all_objects_by_id:
+                    return all_objects_by_id[value]
+                else:
+                    return None
+        else:
+            def display_field(value):
+                return value
 
         status_count = lambda status: Case(When(
                 attendee__user__cart__status=status,
@@ -600,7 +621,7 @@ def attendee_data(request, form, user_id=None):
             [
                 (
                     group_name(group),
-                    group[field],
+                    display_field(group[field]),
                     group["paid_count"] or 0,
                     group["unpaid_count"] or 0,
                 )
@@ -614,6 +635,15 @@ def attendee_data(request, form, user_id=None):
         AttendeeProfile._meta.get_field(field).verbose_name for field in fields
     ]
 
+    def display_field(profile, field):
+        field_type = AttendeeProfile._meta.get_field(field)
+        attr = getattr(profile, field)
+
+        if isinstance(field_type, models.ManyToManyField):
+            return [str(i) for i in attr.all()]
+        else:
+            return attr
+
     headings = ["User ID", "Name", "Email", "Product", "Item Status"] + field_names
     data = []
     for item in items:
@@ -625,7 +655,7 @@ def attendee_data(request, form, user_id=None):
             item.product,
             status_display[item.cart.status],
         ] + [
-            getattr(profile, field) for field in fields
+            display_field(profile, field) for field in fields
         ]
         data.append(line)
 

@@ -2,6 +2,7 @@ import forms
 
 import collections
 import datetime
+import itertools
 
 from django.conf import settings
 from django.contrib.auth.decorators import user_passes_test
@@ -318,21 +319,33 @@ def paid_invoices_by_date(request, form):
     categories = form.cleaned_data["category"]
 
     invoices = commerce.Invoice.objects.filter(
-        Q(lineitem__product__in=products) | Q(lineitem__product__category__in=categories),
+        (
+            Q(lineitem__product__in=products) |
+            Q(lineitem__product__category__in=categories)
+        ),
         status=commerce.Invoice.STATUS_PAID,
     )
 
+    # Invoices with payments will be paid at the time of their latest payment
     payments = commerce.PaymentBase.objects.all()
     payments = payments.filter(
         invoice__in=invoices,
     )
     payments = payments.order_by("invoice")
-    invoice_max_time = payments.values("invoice").annotate(max_time=Max("time"))
+    invoice_max_time = payments.values("invoice").annotate(
+        max_time=Max("time")
+    )
+
+    # Zero-value invoices will have no payments, so they're paid at issue time
+    zero_value_invoices = invoices.filter(value=0)
+
+    times = itertools.chain(
+        (line["max_time"] for line in invoice_max_time),
+        (invoice.issue_time for invoice in zero_value_invoices),
+    )
 
     by_date = collections.defaultdict(int)
-
-    for line in invoice_max_time:
-        time = line["max_time"]
+    for time in times:
         date = datetime.datetime(
             year=time.year, month=time.month, day=time.day
         )

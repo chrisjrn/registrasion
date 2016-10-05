@@ -543,7 +543,7 @@ def attendee_data(request, form, user_id=None):
     ).exclude(
         cart__status=commerce.Cart.STATUS_RELEASED
     ).select_related(
-        "cart", "product"
+        "cart", "cart__user", "product", "product__category", 
     ).order_by("cart__status")
 
     # Get all of the relevant attendee profiles in one hit.

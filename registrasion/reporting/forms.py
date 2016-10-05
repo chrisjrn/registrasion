@@ -24,7 +24,7 @@ class DiscountForm(forms.Form):
 
 class ProductAndCategoryForm(forms.Form):
     product = forms.ModelMultipleChoiceField(
-        queryset=inventory.Product.objects.all(),
+        queryset=inventory.Product.objects.select_related("category"),
         required=False,
     )
     category = forms.ModelMultipleChoiceField(

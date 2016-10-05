@@ -467,7 +467,7 @@ def attendee(request, form, user_id=None):
     payments = commerce.PaymentBase.objects.filter(
         invoice__user=attendee.user,
     ).select_related("invoice")
-    
+
     reports.append(QuerysetReport(
         "Payments",
         ["invoice__id", "id", "reference", "amount"],
@@ -481,10 +481,17 @@ def attendee(request, form, user_id=None):
 def attendee_list(request):
     ''' Returns a list of all attendees. '''
 
-    attendees = people.Attendee.objects.all().select_related(
+    attendees = people.Attendee.objects.select_related(
         "attendeeprofilebase",
         "user",
     )
+
+    profiles = AttendeeProfile.objects.filter(
+        attendee__in=attendees
+    ).select_related(
+        "attendee", "attendee__user",
+    )
+    profiles_by_attendee = dict((i.attendee, i) for i in profiles)
 
     attendees = attendees.annotate(
         has_registered=Count(
@@ -501,8 +508,8 @@ def attendee_list(request):
     for a in attendees:
         data.append([
             a.user.id,
-            a.attendeeprofilebase.attendee_name()
-                if hasattr(a, "attendeeprofilebase") else "",
+            (profiles_by_attendee[a].attendee_name()
+                if a in profiles_by_attendee else ""),
             a.user.email,
             a.has_registered > 0,
         ])

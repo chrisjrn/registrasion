@@ -8,6 +8,13 @@ from django import forms
 # Reporting forms.
 
 
+def mix_form(*a):
+    ''' Creates a new form class out of all the supplied forms '''
+
+    bases = tuple(a)
+    return type("MixForm", bases, {})
+
+
 class DiscountForm(forms.Form):
     discount = forms.ModelMultipleChoiceField(
         queryset=conditions.DiscountBase.objects.all(),
@@ -37,6 +44,21 @@ class ProposalKindForm(forms.Form):
     kind = forms.ModelMultipleChoiceField(
         queryset=proposals_models.ProposalKind.objects.all(),
         required=False,
+    )
+
+
+class GroupByForm(forms.Form):
+    GROUP_BY_CATEGORY = "category"
+    GROUP_BY_PRODUCT = "product"
+
+    choices = (
+        (GROUP_BY_CATEGORY, "Category"),
+        (GROUP_BY_PRODUCT, "Product"),
+    )
+
+    group_by = forms.ChoiceField(
+        label="Group by",
+        choices=choices,
     )
 
 

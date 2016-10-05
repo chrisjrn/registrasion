@@ -511,13 +511,12 @@ def attendee_list(request):
 
 
 ProfileForm = forms.model_fields_form_factory(AttendeeProfile)
-class ProductCategoryProfileForm(forms.ProductAndCategoryForm, ProfileForm):
-    pass
-
 
 @report_view(
     "Attendees By Product/Category",
-    form_type=ProductCategoryProfileForm,
+    form_type=forms.mix_form(
+        forms.ProductAndCategoryForm, ProfileForm, forms.GroupByForm
+    ),
 )
 def attendee_data(request, form, user_id=None):
     ''' Lists attendees for a given product/category selection along with
@@ -530,6 +529,9 @@ def attendee_data(request, form, user_id=None):
     }
 
     output = []
+
+    by_category = form.cleaned_data["group_by"] == forms.GroupByForm.GROUP_BY_CATEGORY
+    print by_category
 
     products = form.cleaned_data["product"]
     categories = form.cleaned_data["category"]
@@ -552,15 +554,27 @@ def attendee_data(request, form, user_id=None):
     for profile in profiles:
         by_user[profile.attendee.user] = profile
 
+    cart = "attendee__user__cart"
+    cart_status = cart + "__status"
+    product = cart + "__productitem__product"
+    product_name = product + "__name"
+    category = product + "__category"
+    category_name = category + "__name"
+
+    if by_category:
+        grouping_fields = (category, category_name)
+        order_by = (category, )
+        first_column = "Category"
+        group_name = lambda i: "%s" % (i[category_name], )
+    else:
+        grouping_fields = (product, product_name, category_name)
+        order_by = (category, )
+        first_column = "Product"
+        group_name = lambda i: "%s - %s" % (i[category_name], i[product_name])
+
     # Group the responses per-field.
     for field in fields:
         field_verbose = AttendeeProfile._meta.get_field(field).verbose_name
-
-        cart = "attendee__user__cart"
-        cart_status = cart + "__status"
-        product = cart + "__productitem__product"
-        product_name = product + "__name"
-        category_name = product + "__category__name"
 
         status_count = lambda status: Case(When(
                 attendee__user__cart__status=status,
@@ -572,23 +586,25 @@ def attendee_data(request, form, user_id=None):
         paid_count = status_count(commerce.Cart.STATUS_PAID)
         unpaid_count = status_count(commerce.Cart.STATUS_ACTIVE)
 
-        p = profiles.order_by(product, field).values(
-            product, product_name, category_name, field
+        groups = profiles.order_by(
+            *(order_by + (field, ))
+        ).values(
+            *(grouping_fields + (field, ))
         ).annotate(
             paid_count=Sum(paid_count),
             unpaid_count=Sum(unpaid_count),
         )
         output.append(ListReport(
             "Grouped by %s" % field_verbose,
-            ["Product", field_verbose, "paid", "unpaid"],
+            [first_column, field_verbose, "paid", "unpaid"],
             [
                 (
-                    "%s - %s" % (i[category_name], i[product_name]),
-                    i[field],
-                    i["paid_count"] or 0,
-                    i["unpaid_count"] or 0,
+                    group_name(group),
+                    group[field],
+                    group["paid_count"] or 0,
+                    group["unpaid_count"] or 0,
                 )
-                for i in p
+                for group in groups
             ],
         ))
 

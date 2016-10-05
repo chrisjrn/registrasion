@@ -690,7 +690,7 @@ def speaker_registrations(request, form):
     kinds = form.cleaned_data["kind"]
 
     presentations = schedule_models.Presentation.objects.filter(
-        proposal_base__kind=kinds,
+        proposal_base__kind__in=kinds,
     ).exclude(
         cancelled=True,
     )
@@ -702,9 +702,13 @@ def speaker_registrations(request, form):
 
     paid_carts = commerce.Cart.objects.filter(status=commerce.Cart.STATUS_PAID)
 
-    paid_carts = Case(When(cart__in=paid_carts, then=Value(1)), default=Value(0), output_field=models.IntegerField())
+    paid_carts = Case(
+        When(cart__in=paid_carts, then=Value(1)),
+        default=Value(0),
+        output_field=models.IntegerField(),
+    )
     users = users.annotate(paid_carts=Sum(paid_carts))
-    users=users.order_by("paid_carts")
+    users = users.order_by("paid_carts")
 
     return QuerysetReport(
         "Speaker Registration Status",

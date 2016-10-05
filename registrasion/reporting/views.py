@@ -543,13 +543,19 @@ def attendee_data(request, form, user_id=None):
     ).exclude(
         cart__status=commerce.Cart.STATUS_RELEASED
     ).select_related(
-        "cart", "cart__user", "product", "product__category", 
+        "cart", "cart__user", "product", "product__category",
     ).order_by("cart__status")
+
+    # Make sure we select all of the related fields
+    related_fields = set(
+        field for field in fields
+        if isinstance(AttendeeProfile._meta.get_field(field), RelatedField)
+    )
 
     # Get all of the relevant attendee profiles in one hit.
     profiles = AttendeeProfile.objects.filter(
         attendee__user__cart__productitem__in=items
-    ).select_related("attendee__user")
+    ).select_related("attendee__user").prefetch_related(*related_fields)
     by_user = {}
     for profile in profiles:
         by_user[profile.attendee.user] = profile
@@ -578,7 +584,7 @@ def attendee_data(request, form, user_id=None):
         field_verbose = concrete_field.verbose_name
 
         # Render the correct values for related fields
-        if isinstance(concrete_field, RelatedField):
+        if field in related_fields:
             # Get all of the IDs that will appear
             all_ids = profiles.order_by(field).values(field)
             all_ids = [i[field] for i in all_ids if i[field] is not None]
@@ -640,7 +646,7 @@ def attendee_data(request, form, user_id=None):
         attr = getattr(profile, field)
 
         if isinstance(field_type, models.ManyToManyField):
-            return [str(i) for i in attr.all()]
+            return [str(i) for i in attr.all()] or ""
         else:
             return attr
 

@@ -454,7 +454,8 @@ def attendee(request, form, user_id=None):
     # Credit Notes
     credit_notes = commerce.CreditNote.objects.filter(
         invoice__user=attendee.user,
-    )
+    ).select_related("invoice", "creditnoteapplication", "creditnoterefund")
+
     reports.append(QuerysetReport(
         "Credit Notes",
         ["id", "status", "value"],
@@ -465,7 +466,8 @@ def attendee(request, form, user_id=None):
     # All payments
     payments = commerce.PaymentBase.objects.filter(
         invoice__user=attendee.user,
-    )
+    ).select_related("invoice")
+    
     reports.append(QuerysetReport(
         "Payments",
         ["invoice__id", "id", "reference", "amount"],

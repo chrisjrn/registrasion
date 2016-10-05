@@ -2,6 +2,7 @@ import forms
 
 import collections
 import datetime
+import itertools
 
 from django.conf import settings
 from django.contrib.auth.decorators import user_passes_test
@@ -11,6 +12,7 @@ from django.db import models
 from django.db.models import F, Q
 from django.db.models import Count, Max, Sum
 from django.db.models import Case, When, Value
+from django.db.models.fields.related import RelatedField
 from django.shortcuts import render
 
 from registrasion.controllers.item import ItemController
@@ -318,21 +320,33 @@ def paid_invoices_by_date(request, form):
     categories = form.cleaned_data["category"]
 
     invoices = commerce.Invoice.objects.filter(
-        Q(lineitem__product__in=products) | Q(lineitem__product__category__in=categories),
+        (
+            Q(lineitem__product__in=products) |
+            Q(lineitem__product__category__in=categories)
+        ),
         status=commerce.Invoice.STATUS_PAID,
     )
 
+    # Invoices with payments will be paid at the time of their latest payment
     payments = commerce.PaymentBase.objects.all()
     payments = payments.filter(
         invoice__in=invoices,
     )
     payments = payments.order_by("invoice")
-    invoice_max_time = payments.values("invoice").annotate(max_time=Max("time"))
+    invoice_max_time = payments.values("invoice").annotate(
+        max_time=Max("time")
+    )
+
+    # Zero-value invoices will have no payments, so they're paid at issue time
+    zero_value_invoices = invoices.filter(value=0)
+
+    times = itertools.chain(
+        (line["max_time"] for line in invoice_max_time),
+        (invoice.issue_time for invoice in zero_value_invoices),
+    )
 
     by_date = collections.defaultdict(int)
-
-    for line in invoice_max_time:
-        time = line["max_time"]
+    for time in times:
         date = datetime.datetime(
             year=time.year, month=time.month, day=time.day
         )
@@ -440,7 +454,8 @@ def attendee(request, form, user_id=None):
     # Credit Notes
     credit_notes = commerce.CreditNote.objects.filter(
         invoice__user=attendee.user,
-    )
+    ).select_related("invoice", "creditnoteapplication", "creditnoterefund")
+
     reports.append(QuerysetReport(
         "Credit Notes",
         ["id", "status", "value"],
@@ -451,7 +466,8 @@ def attendee(request, form, user_id=None):
     # All payments
     payments = commerce.PaymentBase.objects.filter(
         invoice__user=attendee.user,
-    )
+    ).select_related("invoice")
+
     reports.append(QuerysetReport(
         "Payments",
         ["invoice__id", "id", "reference", "amount"],
@@ -465,10 +481,17 @@ def attendee(request, form, user_id=None):
 def attendee_list(request):
     ''' Returns a list of all attendees. '''
 
-    attendees = people.Attendee.objects.all().select_related(
+    attendees = people.Attendee.objects.select_related(
         "attendeeprofilebase",
         "user",
     )
+
+    profiles = AttendeeProfile.objects.filter(
+        attendee__in=attendees
+    ).select_related(
+        "attendee", "attendee__user",
+    )
+    profiles_by_attendee = dict((i.attendee, i) for i in profiles)
 
     attendees = attendees.annotate(
         has_registered=Count(
@@ -485,8 +508,8 @@ def attendee_list(request):
     for a in attendees:
         data.append([
             a.user.id,
-            a.attendeeprofilebase.attendee_name()
-                if hasattr(a, "attendeeprofilebase") else "",
+            (profiles_by_attendee[a].attendee_name()
+                if a in profiles_by_attendee else ""),
             a.user.email,
             a.has_registered > 0,
         ])
@@ -498,13 +521,12 @@ def attendee_list(request):
 
 
 ProfileForm = forms.model_fields_form_factory(AttendeeProfile)
-class ProductCategoryProfileForm(forms.ProductAndCategoryForm, ProfileForm):
-    pass
-
 
 @report_view(
     "Attendees By Product/Category",
-    form_type=ProductCategoryProfileForm,
+    form_type=forms.mix_form(
+        forms.ProductAndCategoryForm, ProfileForm, forms.GroupByForm
+    ),
 )
 def attendee_data(request, form, user_id=None):
     ''' Lists attendees for a given product/category selection along with
@@ -518,6 +540,8 @@ def attendee_data(request, form, user_id=None):
 
     output = []
 
+    by_category = form.cleaned_data["group_by"] == forms.GroupByForm.GROUP_BY_CATEGORY
+
     products = form.cleaned_data["product"]
     categories = form.cleaned_data["category"]
     fields = form.cleaned_data["fields"]
@@ -528,26 +552,65 @@ def attendee_data(request, form, user_id=None):
     ).exclude(
         cart__status=commerce.Cart.STATUS_RELEASED
     ).select_related(
-        "cart", "product"
+        "cart", "cart__user", "product", "product__category",
     ).order_by("cart__status")
+
+    # Make sure we select all of the related fields
+    related_fields = set(
+        field for field in fields
+        if isinstance(AttendeeProfile._meta.get_field(field), RelatedField)
+    )
 
     # Get all of the relevant attendee profiles in one hit.
     profiles = AttendeeProfile.objects.filter(
         attendee__user__cart__productitem__in=items
-    ).select_related("attendee__user")
+    ).select_related("attendee__user").prefetch_related(*related_fields)
     by_user = {}
     for profile in profiles:
         by_user[profile.attendee.user] = profile
 
+    cart = "attendee__user__cart"
+    cart_status = cart + "__status"
+    product = cart + "__productitem__product"
+    product_name = product + "__name"
+    category = product + "__category"
+    category_name = category + "__name"
+
+    if by_category:
+        grouping_fields = (category, category_name)
+        order_by = (category, )
+        first_column = "Category"
+        group_name = lambda i: "%s" % (i[category_name], )
+    else:
+        grouping_fields = (product, product_name, category_name)
+        order_by = (category, )
+        first_column = "Product"
+        group_name = lambda i: "%s - %s" % (i[category_name], i[product_name])
+
     # Group the responses per-field.
     for field in fields:
-        field_verbose = AttendeeProfile._meta.get_field(field).verbose_name
+        concrete_field = AttendeeProfile._meta.get_field(field)
+        field_verbose = concrete_field.verbose_name
 
-        cart = "attendee__user__cart"
-        cart_status = cart + "__status"
-        product = cart + "__productitem__product"
-        product_name = product + "__name"
-        category_name = product + "__category__name"
+        # Render the correct values for related fields
+        if field in related_fields:
+            # Get all of the IDs that will appear
+            all_ids = profiles.order_by(field).values(field)
+            all_ids = [i[field] for i in all_ids if i[field] is not None]
+            # Get all of the concrete objects for those IDs
+            model = concrete_field.related_model
+            all_objects = model.objects.filter(id__in=all_ids)
+            all_objects_by_id = dict((i.id, i) for i in all_objects)
+
+            # Define a function to render those IDs.
+            def display_field(value):
+                if value in all_objects_by_id:
+                    return all_objects_by_id[value]
+                else:
+                    return None
+        else:
+            def display_field(value):
+                return value
 
         status_count = lambda status: Case(When(
                 attendee__user__cart__status=status,
@@ -559,23 +622,25 @@ def attendee_data(request, form, user_id=None):
         paid_count = status_count(commerce.Cart.STATUS_PAID)
         unpaid_count = status_count(commerce.Cart.STATUS_ACTIVE)
 
-        p = profiles.order_by(product, field).values(
-            product, product_name, category_name, field
+        groups = profiles.order_by(
+            *(order_by + (field, ))
+        ).values(
+            *(grouping_fields + (field, ))
         ).annotate(
             paid_count=Sum(paid_count),
             unpaid_count=Sum(unpaid_count),
         )
         output.append(ListReport(
             "Grouped by %s" % field_verbose,
-            ["Product", field_verbose, "paid", "unpaid"],
+            [first_column, field_verbose, "paid", "unpaid"],
             [
                 (
-                    "%s - %s" % (i[category_name], i[product_name]),
-                    i[field],
-                    i["paid_count"] or 0,
-                    i["unpaid_count"] or 0,
+                    group_name(group),
+                    display_field(group[field]),
+                    group["paid_count"] or 0,
+                    group["unpaid_count"] or 0,
                 )
-                for i in p
+                for group in groups
             ],
         ))
 
@@ -584,6 +649,15 @@ def attendee_data(request, form, user_id=None):
     field_names = [
         AttendeeProfile._meta.get_field(field).verbose_name for field in fields
     ]
+
+    def display_field(profile, field):
+        field_type = AttendeeProfile._meta.get_field(field)
+        attr = getattr(profile, field)
+
+        if isinstance(field_type, models.ManyToManyField):
+            return [str(i) for i in attr.all()] or ""
+        else:
+            return attr
 
     headings = ["User ID", "Name", "Email", "Product", "Item Status"] + field_names
     data = []
@@ -596,7 +670,7 @@ def attendee_data(request, form, user_id=None):
             item.product,
             status_display[item.cart.status],
         ] + [
-            getattr(profile, field) for field in fields
+            display_field(profile, field) for field in fields
         ]
         data.append(line)
 
@@ -616,7 +690,7 @@ def speaker_registrations(request, form):
     kinds = form.cleaned_data["kind"]
 
     presentations = schedule_models.Presentation.objects.filter(
-        proposal_base__kind=kinds,
+        proposal_base__kind__in=kinds,
     ).exclude(
         cancelled=True,
     )
@@ -628,9 +702,13 @@ def speaker_registrations(request, form):
 
     paid_carts = commerce.Cart.objects.filter(status=commerce.Cart.STATUS_PAID)
 
-    paid_carts = Case(When(cart__in=paid_carts, then=Value(1)), default=Value(0), output_field=models.IntegerField())
+    paid_carts = Case(
+        When(cart__in=paid_carts, then=Value(1)),
+        default=Value(0),
+        output_field=models.IntegerField(),
+    )
     users = users.annotate(paid_carts=Sum(paid_carts))
-    users=users.order_by("paid_carts")
+    users = users.order_by("paid_carts")
 
     return QuerysetReport(
         "Speaker Registration Status",

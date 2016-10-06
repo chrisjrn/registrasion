@@ -76,7 +76,14 @@ class CartController(object):
         determine whether the cart has reserved the items and discounts it
         holds. '''
 
-        reservations = [datetime.timedelta()]
+        time = timezone.now()
+
+        # Calculate the residual of the _old_ reservation duration
+        # if it's greater than what's in the cart now, keep it.
+        time_elapsed_since_updated = (time - self.cart.time_last_updated)
+        residual = self.cart.reservation_duration - time_elapsed_since_updated
+
+        reservations = [datetime.timedelta(0), residual]
 
         # If we have vouchers, we're entitled to an hour at minimum.
         if len(self.cart.vouchers.all()) >= 1:
@@ -90,7 +97,7 @@ class CartController(object):
         if product_max is not None:
             reservations.append(product_max)
 
-        self.cart.time_last_updated = timezone.now()
+        self.cart.time_last_updated = time
         self.cart.reservation_duration = max(reservations)
 
     def end_batch(self):

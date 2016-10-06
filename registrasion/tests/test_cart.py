@@ -459,3 +459,44 @@ class BasicCartTests(RegistrationCartTestCase):
         cart.add_to_cart(self.PROD_1, 1)
         cart.cart.refresh_from_db()
         self.assertEqual(cart.cart.reservation_duration, new_res)
+
+
+    def test_reservation_duration_removals(self):
+        ''' Reservation duration should update with removals
+        '''
+
+        new_res = self.RESERVATION * 2
+        self.PROD_2.reservation_duration = new_res
+        self.PROD_2.save()
+
+        self.set_time(datetime.datetime(2015, 1, 1, tzinfo=UTC))
+        cart = TestingCartController.for_user(self.USER_1)
+
+        one_third = new_res / 3
+
+        cart.add_to_cart(self.PROD_2, 1)
+        cart.cart.refresh_from_db()
+        self.assertEqual(cart.cart.reservation_duration, new_res)
+
+        # Reservation duration should not decrease if time hasn't decreased
+        cart.set_quantity(self.PROD_2, 0)
+        cart.cart.refresh_from_db()
+        self.assertEqual(cart.cart.reservation_duration, new_res)
+
+        # Adding a new product should not reset the reservation duration below
+        # the old one
+        cart.add_to_cart(self.PROD_1, 1)
+        cart.cart.refresh_from_db()
+        self.assertEqual(cart.cart.reservation_duration, new_res)
+
+        self.add_timedelta(one_third)
+
+        # The old reservation duration is still longer than PROD_1's
+        cart.add_to_cart(self.PROD_1, 1)
+        cart.cart.refresh_from_db()
+        self.assertEqual(cart.cart.reservation_duration, new_res - one_third)
+
+        self.add_timedelta(one_third)
+        cart.add_to_cart(self.PROD_1, 1)
+        cart.cart.refresh_from_db()
+        self.assertEqual(cart.cart.reservation_duration, self.RESERVATION)

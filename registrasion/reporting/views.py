@@ -405,17 +405,26 @@ def attendee(request, form, user_id=None):
     reports = []
 
     profile_data = []
-    profile = people.AttendeeProfileBase.objects.get_subclass(
-        attendee=attendee
-    )
+    try:
+        profile = people.AttendeeProfileBase.objects.get_subclass(
+            attendee=attendee
+        )
+        fields = profile._meta.get_fields()
+    except people.AttendeeProfileBase.DoesNotExist:
+        fields = []
+
     exclude = set(["attendeeprofilebase_ptr", "id"])
-    for field in profile._meta.get_fields():
+    for field in fields:
         if field.name in exclude:
             # Not actually important
             continue
         if not hasattr(field, "verbose_name"):
             continue  # Not a publicly visible field
         value = getattr(profile, field.name)
+
+        if isinstance(field, models.ManyToManyField):
+            value = ", ".join(str(i) for i in value.all())
+
         profile_data.append((field.verbose_name, value))
 
     cart = CartController.for_user(attendee.user)

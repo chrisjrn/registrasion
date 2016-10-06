@@ -423,3 +423,39 @@ class BasicCartTests(RegistrationCartTestCase):
         self.assertEqual(0, count_1)
         self.assertEqual(0, count_2)
         self.assertEqual(1, count_3)
+
+    def test_reservation_duration_forwards(self):
+        ''' Reservation duration should be the maximum of the durations (small)
+        '''
+
+        new_res = self.RESERVATION * 2
+        self.PROD_2.reservation_duration = new_res
+        self.PROD_2.save()
+
+        cart = TestingCartController.for_user(self.USER_1)
+
+        cart.add_to_cart(self.PROD_1, 1)
+        cart.cart.refresh_from_db()
+        self.assertEqual(cart.cart.reservation_duration, self.RESERVATION)
+
+        cart.add_to_cart(self.PROD_2, 1)
+        cart.cart.refresh_from_db()
+        self.assertEqual(cart.cart.reservation_duration, new_res)
+
+    def test_reservation_duration_backwards(self):
+        ''' Reservation duration should be the maximum of the durations (big)
+        '''
+
+        new_res = self.RESERVATION * 2
+        self.PROD_2.reservation_duration = new_res
+        self.PROD_2.save()
+
+        cart = TestingCartController.for_user(self.USER_1)
+
+        cart.add_to_cart(self.PROD_2, 1)
+        cart.cart.refresh_from_db()
+        self.assertEqual(cart.cart.reservation_duration, new_res)
+
+        cart.add_to_cart(self.PROD_1, 1)
+        cart.cart.refresh_from_db()
+        self.assertEqual(cart.cart.reservation_duration, new_res)

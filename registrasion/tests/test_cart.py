@@ -423,3 +423,130 @@ class BasicCartTests(RegistrationCartTestCase):
         self.assertEqual(0, count_1)
         self.assertEqual(0, count_2)
         self.assertEqual(1, count_3)
+
+    def test_reservation_duration_forwards(self):
+        ''' Reservation duration should be the maximum of the durations (small)
+        '''
+
+        new_res = self.RESERVATION * 2
+        self.PROD_2.reservation_duration = new_res
+        self.PROD_2.save()
+
+        cart = TestingCartController.for_user(self.USER_1)
+
+        cart.add_to_cart(self.PROD_1, 1)
+        cart.cart.refresh_from_db()
+        self.assertEqual(cart.cart.reservation_duration, self.RESERVATION)
+
+        cart.add_to_cart(self.PROD_2, 1)
+        cart.cart.refresh_from_db()
+        self.assertEqual(cart.cart.reservation_duration, new_res)
+
+    def test_reservation_duration_backwards(self):
+        ''' Reservation duration should be the maximum of the durations (big)
+        '''
+
+        new_res = self.RESERVATION * 2
+        self.PROD_2.reservation_duration = new_res
+        self.PROD_2.save()
+
+        cart = TestingCartController.for_user(self.USER_1)
+
+        cart.add_to_cart(self.PROD_2, 1)
+        cart.cart.refresh_from_db()
+        self.assertEqual(cart.cart.reservation_duration, new_res)
+
+        cart.add_to_cart(self.PROD_1, 1)
+        cart.cart.refresh_from_db()
+        self.assertEqual(cart.cart.reservation_duration, new_res)
+
+
+    def test_reservation_duration_removals(self):
+        ''' Reservation duration should update with removals
+        '''
+
+        new_res = self.RESERVATION * 2
+        self.PROD_2.reservation_duration = new_res
+        self.PROD_2.save()
+
+        self.set_time(datetime.datetime(2015, 1, 1, tzinfo=UTC))
+        cart = TestingCartController.for_user(self.USER_1)
+
+        one_third = new_res / 3
+
+        cart.add_to_cart(self.PROD_2, 1)
+        cart.cart.refresh_from_db()
+        self.assertEqual(cart.cart.reservation_duration, new_res)
+
+        # Reservation duration should not decrease if time hasn't decreased
+        cart.set_quantity(self.PROD_2, 0)
+        cart.cart.refresh_from_db()
+        self.assertEqual(cart.cart.reservation_duration, new_res)
+
+        # Adding a new product should not reset the reservation duration below
+        # the old one
+        cart.add_to_cart(self.PROD_1, 1)
+        cart.cart.refresh_from_db()
+        self.assertEqual(cart.cart.reservation_duration, new_res)
+
+        self.add_timedelta(one_third)
+
+        # The old reservation duration is still longer than PROD_1's
+        cart.add_to_cart(self.PROD_1, 1)
+        cart.cart.refresh_from_db()
+        self.assertEqual(cart.cart.reservation_duration, new_res - one_third)
+
+        self.add_timedelta(one_third)
+        cart.add_to_cart(self.PROD_1, 1)
+        cart.cart.refresh_from_db()
+        self.assertEqual(cart.cart.reservation_duration, self.RESERVATION)
+
+    def test_reservation_extension_less_than_current(self):
+        ''' Reservation extension should have no effect if it's too small
+        '''
+
+        self.set_time(datetime.datetime(2015, 1, 1, tzinfo=UTC))
+        cart = TestingCartController.for_user(self.USER_1)
+
+        cart.add_to_cart(self.PROD_1, 1)
+        cart.cart.refresh_from_db()
+        self.assertEqual(cart.cart.reservation_duration, self.RESERVATION)
+
+        cart.extend_reservation(datetime.timedelta(minutes=30))
+
+        cart.cart.refresh_from_db()
+        self.assertEqual(cart.cart.reservation_duration, self.RESERVATION)
+
+    def test_reservation_extension(self):
+        ''' Test various reservation extension bits.
+        '''
+
+        self.set_time(datetime.datetime(2015, 1, 1, tzinfo=UTC))
+        cart = TestingCartController.for_user(self.USER_1)
+
+        cart.add_to_cart(self.PROD_1, 1)
+        cart.cart.refresh_from_db()
+        self.assertEqual(cart.cart.reservation_duration, self.RESERVATION)
+
+        hours = datetime.timedelta(hours=1)
+        cart.extend_reservation(24 * hours)
+
+        cart.cart.refresh_from_db()
+        self.assertEqual(cart.cart.reservation_duration, 24 * hours)
+
+        self.add_timedelta(1 * hours)
+
+        # PROD_1's reservation is less than what we've added to the cart
+        cart.add_to_cart(self.PROD_1, 1)
+        cart.cart.refresh_from_db()
+        self.assertEqual(cart.cart.reservation_duration, 23 * hours)
+
+        # Now the extension should only have 59 minutes remaining
+        # so the autoextend behaviour should kick in
+        self.add_timedelta(datetime.timedelta(hours=22, minutes=1))
+        cart.add_to_cart(self.PROD_1, 1)
+        cart.cart.refresh_from_db()
+        self.assertEqual(
+            cart.cart.reservation_duration,
+            self.PROD_1.reservation_duration,
+        )

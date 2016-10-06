@@ -1,3 +1,4 @@
+import datetime
 import sys
 import util
 
@@ -903,3 +904,15 @@ def amend_registration(request, user_id):
     }
 
     return render(request, "registrasion/amend_registration.html", data)
+
+
+@user_passes_test(_staff_only)
+def extend_reservation(request, user_id, days=7):
+    ''' Allows staff to extend the reservation on a given user's cart.
+    '''
+
+    user = User.objects.get(id=int(user_id))
+    cart = CartController.for_user(user)
+    cart.extend_reservation(datetime.timedelta(days=days))
+
+    return redirect(request.META["HTTP_REFERER"])

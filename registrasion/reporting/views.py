@@ -15,6 +15,7 @@ from django.db.models import Case, When, Value
 from django.db.models.fields.related import RelatedField
 from django.shortcuts import render
 
+from registrasion.controllers.cart import CartController
 from registrasion.controllers.item import ItemController
 from registrasion.models import commerce
 from registrasion.models import people
@@ -417,6 +418,10 @@ def attendee(request, form, user_id=None):
         value = getattr(profile, field.name)
         profile_data.append((field.verbose_name, value))
 
+    cart = CartController.for_user(attendee.user)
+    reservation = cart.cart.reservation_duration + cart.cart.time_last_updated
+    profile_data.append(("Current cart reserved until", reservation))
+
     reports.append(ListReport("Profile", ["", ""], profile_data))
 
     links = []
@@ -424,6 +429,11 @@ def attendee(request, form, user_id=None):
         reverse(views.amend_registration, args=[user_id]),
         "Amend current cart",
     ))
+    links.append((
+        reverse(views.extend_reservation, args=[user_id]),
+        "Extend reservation",
+    ))
+
     reports.append(Links("Actions for " + name, links))
 
     # Paid and pending  products

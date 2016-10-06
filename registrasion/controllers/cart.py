@@ -124,6 +124,32 @@ class CartController(object):
         self.cart.revision += 1
         self.cart.save()
 
+    def extend_reservation(self, timedelta):
+        ''' Extends the reservation on this cart by the given timedelta.
+        This can only be done if the current state of the cart is valid (i.e
+        all items and discounts in the cart are still available.)
+
+        Arguments:
+            timedelta (timedelta): The amount of time to extend the cart by.
+                The resulting reservation_duration will be now() + timedelta,
+                unless the requested extension is *LESS* than the current
+                reservation deadline.
+
+        '''
+
+        self.validate_cart()
+        cart = self.cart
+        cart.refresh_from_db()
+
+        elapsed = (timezone.now() - cart.time_last_updated)
+
+        if cart.reservation_duration - elapsed > timedelta:
+            return
+
+        cart.time_last_updated = timezone.now()
+        cart.reservation_duration = timedelta
+        cart.save()
+
     @_modifies_cart
     def set_quantities(self, product_quantities):
         ''' Sets the quantities on each of the products on each of the

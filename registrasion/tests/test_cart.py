@@ -500,3 +500,53 @@ class BasicCartTests(RegistrationCartTestCase):
         cart.add_to_cart(self.PROD_1, 1)
         cart.cart.refresh_from_db()
         self.assertEqual(cart.cart.reservation_duration, self.RESERVATION)
+
+    def test_reservation_extension_less_than_current(self):
+        ''' Reservation extension should have no effect if it's too small
+        '''
+
+        self.set_time(datetime.datetime(2015, 1, 1, tzinfo=UTC))
+        cart = TestingCartController.for_user(self.USER_1)
+
+        cart.add_to_cart(self.PROD_1, 1)
+        cart.cart.refresh_from_db()
+        self.assertEqual(cart.cart.reservation_duration, self.RESERVATION)
+
+        cart.extend_reservation(datetime.timedelta(minutes=30))
+
+        cart.cart.refresh_from_db()
+        self.assertEqual(cart.cart.reservation_duration, self.RESERVATION)
+
+    def test_reservation_extension(self):
+        ''' Test various reservation extension bits.
+        '''
+
+        self.set_time(datetime.datetime(2015, 1, 1, tzinfo=UTC))
+        cart = TestingCartController.for_user(self.USER_1)
+
+        cart.add_to_cart(self.PROD_1, 1)
+        cart.cart.refresh_from_db()
+        self.assertEqual(cart.cart.reservation_duration, self.RESERVATION)
+
+        hours = datetime.timedelta(hours=1)
+        cart.extend_reservation(24 * hours)
+
+        cart.cart.refresh_from_db()
+        self.assertEqual(cart.cart.reservation_duration, 24 * hours)
+
+        self.add_timedelta(1 * hours)
+
+        # PROD_1's reservation is less than what we've added to the cart
+        cart.add_to_cart(self.PROD_1, 1)
+        cart.cart.refresh_from_db()
+        self.assertEqual(cart.cart.reservation_duration, 23 * hours)
+
+        # Now the extension should only have 59 minutes remaining
+        # so the autoextend behaviour should kick in
+        self.add_timedelta(datetime.timedelta(hours=22, minutes=1))
+        cart.add_to_cart(self.PROD_1, 1)
+        cart.cart.refresh_from_db()
+        self.assertEqual(
+            cart.cart.reservation_duration,
+            self.PROD_1.reservation_duration,
+        )

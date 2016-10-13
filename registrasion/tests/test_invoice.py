@@ -168,7 +168,7 @@ class InvoiceTestCase(TestHelperMixin, RegistrationCartTestCase):
 
         self.assertTrue(invoice_1.invoice.is_paid)
 
-    def test_invoice_voids_self_if_cart_is_invalid(self):
+    def test_invoice_voids_self_if_cart_changes(self):
         current_cart = TestingCartController.for_user(self.USER_1)
 
         # Should be able to create an invoice after the product is added
@@ -189,6 +189,31 @@ class InvoiceTestCase(TestHelperMixin, RegistrationCartTestCase):
         # Viewing invoice_2's invoice should *not* show it as void
         invoice_2_new = TestingInvoiceController(invoice_2.invoice)
         self.assertFalse(invoice_2_new.invoice.is_void)
+
+    def test_invoice_voids_self_if_cart_becomes_invalid(self):
+        ''' Invoices should be void if cart becomes invalid over time '''
+
+        self.make_ceiling("Limit ceiling", limit=1)
+        self.set_time(datetime.datetime(
+            year=2015, month=1, day=1, hour=0, minute=0, tzinfo=UTC,
+        ))
+
+        cart1 = TestingCartController.for_user(self.USER_1)
+        cart2 = TestingCartController.for_user(self.USER_2)
+
+        # Create a valid invoice for USER_1
+        cart1.add_to_cart(self.PROD_1, 1)
+        inv1 = TestingInvoiceController.for_cart(cart1.cart)
+
+        # Expire the reservations, and have USER_2 take up PROD_1's ceiling
+        # generate an invoice
+        self.add_timedelta(self.RESERVATION * 2)
+        cart2.add_to_cart(self.PROD_2, 1)
+        inv2 = TestingInvoiceController.for_cart(cart2.cart)
+
+        # Re-get inv1's invoice; it should void itself on loading.
+        inv1 = TestingInvoiceController(inv1.invoice)
+        self.assertTrue(inv1.invoice.is_void)
 
     def test_voiding_invoice_creates_new_invoice(self):
         invoice_1 = self._invoice_containing_prod_1(1)

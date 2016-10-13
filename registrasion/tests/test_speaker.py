@@ -11,8 +11,10 @@ from registrasion.controllers.product import ProductController
 
 from symposion.conference import models as conference_models
 from symposion.proposals import models as proposal_models
-from symposion.speakers import models as speaker_models
 from symposion.reviews.models import promote_proposal
+from symposion.schedule import models as schedule_models
+from symposion.speakers import models as speaker_models
+
 
 from test_cart import RegistrationCartTestCase
 
@@ -207,3 +209,29 @@ class SpeakerTestCase(RegistrationCartTestCase):
             products=[self.PROD_1],
         )
         self.assertNotIn(self.PROD_1, available_1)
+
+    def test_proposal_cancelled_disables_condition(self):
+        self._create_proposals()
+        self._create_flag_for_primary_speaker()
+
+        # USER_1 cannot see PROD_1 until proposal is promoted.
+        available = ProductController.available_products(
+            self.USER_1,
+            products=[self.PROD_1],
+        )
+        self.assertNotIn(self.PROD_1, available)
+
+        # promote proposal_1 so that USER_1 becomes a speaker
+        promote_proposal(self.PROPOSAL_1)
+        presentation = schedule_models.Presentation.objects.get(
+            proposal_base=self.PROPOSAL_1
+        )
+        presentation.cancelled = True
+        presentation.save()
+
+        # USER_1 can *NOT* see PROD_1 because proposal_1 has been cancelled
+        available_after_cancelled = ProductController.available_products(
+            self.USER_1,
+            products=[self.PROD_1],
+        )
+        self.assertNotIn(self.PROD_1, available_after_cancelled)

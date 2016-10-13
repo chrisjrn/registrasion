@@ -331,10 +331,7 @@ class InvoiceController(ForId, object):
     def _mark_refunded(self):
         ''' Marks the invoice as refunded, and updates the attached cart if
         necessary. '''
-        cart = self.invoice.cart
-        if cart:
-            cart.status = commerce.Cart.STATUS_RELEASED
-            cart.save()
+        self._release_cart()
         self.invoice.status = commerce.Invoice.STATUS_REFUNDED
         self.invoice.save()
 
@@ -355,6 +352,12 @@ class InvoiceController(ForId, object):
             return True
 
         return cart.revision == self.invoice.cart_revision
+
+    def _release_cart(self):
+        cart = self.invoice.cart
+        if cart:
+            cart.status = commerce.Cart.STATUS_RELEASED
+            cart.save()
 
     def update_validity(self):
         ''' Voids this invoice if the attached cart is no longer valid because
@@ -381,6 +384,9 @@ class InvoiceController(ForId, object):
             raise ValidationError("Invoices with payments must be refunded.")
         elif self.invoice.is_refunded:
             raise ValidationError("Refunded invoices may not be voided.")
+        if self.invoice.is_paid:
+            self._release_cart()
+
         self._mark_void()
 
     @transaction.atomic

@@ -142,7 +142,7 @@ class InvoiceTestCase(TestHelperMixin, RegistrationCartTestCase):
             self.PROD_1.price * Decimal("0.5"),
             invoice_1.invoice.value)
 
-    def test_zero_value_invoice_is_automatically_paid(self):
+    def _make_zero_value_invoice(self):
         voucher = inventory.Voucher.objects.create(
             recipient="Voucher recipient",
             code="VOUCHER",
@@ -164,9 +164,20 @@ class InvoiceTestCase(TestHelperMixin, RegistrationCartTestCase):
 
         # Should be able to create an invoice after the product is added
         current_cart.add_to_cart(self.PROD_1, 1)
-        invoice_1 = TestingInvoiceController.for_cart(current_cart.cart)
+        return TestingInvoiceController.for_cart(current_cart.cart)
 
+
+    def test_zero_value_invoice_is_automatically_paid(self):
+        invoice_1 = self._make_zero_value_invoice()
         self.assertTrue(invoice_1.invoice.is_paid)
+
+    def test_refunding_zero_value_invoice_releases_cart(self):
+        invoice_1 = self._make_zero_value_invoice()
+        cart = invoice_1.invoice.cart
+        invoice_1.refund()
+
+        cart.refresh_from_db()
+        self.assertEquals(commerce.Cart.STATUS_RELEASED, cart.status)
 
     def test_invoice_voids_self_if_cart_changes(self):
         current_cart = TestingCartController.for_user(self.USER_1)

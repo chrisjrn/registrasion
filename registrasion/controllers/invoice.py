@@ -357,8 +357,18 @@ class InvoiceController(ForId, object):
         return cart.revision == self.invoice.cart_revision
 
     def update_validity(self):
-        ''' Voids this invoice if the cart it is attached to has updated. '''
-        if not self._invoice_matches_cart():
+        ''' Voids this invoice if the attached cart is no longer valid because
+        the cart revision has changed, or the reservations have expired. '''
+
+        is_valid = self._invoice_matches_cart()
+        cart = self.invoice.cart
+        if self.invoice.is_unpaid and is_valid and cart:
+            try:
+                CartController(cart).validate_cart()
+            except ValidationError:
+                is_valid = False
+
+        if not is_valid:
             if self.invoice.total_payments() > 0:
                 # Free up the payments made to this invoice
                 self.refund()

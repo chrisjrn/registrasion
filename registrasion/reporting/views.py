@@ -382,6 +382,21 @@ def credit_notes(request, form):
     )
 
 
+@report_view("Invoices")
+def invoices(request,form):
+    ''' Shows all of the invoices in the system. '''
+
+    invoices = commerce.Invoice.objects.all().order_by("status")
+
+    return QuerysetReport(
+        "Invoices",
+        ["id", "recipient", "value", "get_status_display"],
+        invoices,
+        headings=["id", "Recipient", "Value", "Status"],
+        link_view=views.invoice,
+    )
+
+
 class AttendeeListReport(ListReport):
 
     def get_link(self, argument):

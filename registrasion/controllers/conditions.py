@@ -310,7 +310,12 @@ class SpeakerConditionController(IsMetByFilter, ConditionController):
     @classmethod
     def pre_filter(self, queryset, user):
         ''' Returns all of the items from queryset which are enabled by a user
-        being a presenter or copresenter of a proposal. '''
+        being a presenter or copresenter of a non-cancelled proposal. '''
+
+        # Filter out cancelled proposals
+        queryset = queryset.filter(
+            proposal_kind__proposalbase__presentation__cancelled=False
+        )
 
         u = user
         # User is a presenter

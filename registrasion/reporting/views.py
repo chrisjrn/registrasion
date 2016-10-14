@@ -408,7 +408,7 @@ def attendee(request, form, user_id=None):
     ''' Returns a list of all manifested attendees if no attendee is specified,
     else displays the attendee manifest. '''
 
-    if user_id is None and not form.has_changed():
+    if user_id is None:
         return attendee_list(request)
 
     if form.cleaned_data["user"] is not None:

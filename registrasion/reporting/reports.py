@@ -289,12 +289,12 @@ class ReportView(object):
 
         # Create the HttpResponse object with the appropriate CSV header.
         response = HttpResponse(content_type='text/csv')
-        #response['Content-Disposition'] = 'attachment; filename="somefilename.csv"'
 
         writer = csv.writer(response)
-        writer.writerow(list(report.headings()))
+        encode = lambda i: i.encode("utf8") if isinstance(i, unicode) else i
+        writer.writerow(list(encode(i) for i in report.headings()))
         for row in report.rows():
-            writer.writerow(list(row))
+            writer.writerow(list(encode(i) for i in row))
 
         return response
 

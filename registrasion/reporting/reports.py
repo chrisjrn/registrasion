@@ -198,94 +198,78 @@ def report_view(title, form_type=None):
 
     '''
 
-    # Consolidate form_type so it has format and section
-    bases = [forms.SectionContentTypeForm, form_type]
-    bases = [base for base in bases if base is not None]
-    form_type = forms.mix_form(*bases)
-
     # Create & return view
-
     def _report(view):
-
-        @wraps(view)
-        @user_passes_test(views._staff_only)
-        def inner_view(request, *a, **k):
-            return ReportView(request, view, title, form_type).view(*a, **k)
+        report_view = ReportView(view, title, form_type)
+        report_view = user_passes_test(views._staff_only)(report_view)
+        report_view = wraps(view)(report_view)
 
         # Add this report to the list of reports.
-        _all_report_views.append(inner_view)
+        _all_report_views.append(report_view)
 
-        # Return the callable
-        return inner_view
+        return report_view
+
     return _report
+
 
 class ReportView(object):
 
-    def __init__(self, request, inner_view, title, form_type):
-        self.request = request
+    def __init__(self, inner_view, title, form_type):
+        # Consolidate form_type so it has content type and section
+        bases = [forms.SectionContentTypeForm, form_type]
+        bases = [base for base in bases if base is not None]
+        form_type = forms.mix_form(*bases)
+
         self.inner_view = inner_view
         self.title = title
         self.form_type = form_type
-        self._prepare()
 
-    def view(self, *a, **k):
-        self._prepare_reports(*a, **k)
+    def __call__(self, request, *a, **k):
+        data = ReportViewRequestData(self, request, *a, **k)
+        return self.render(data)
 
-        return self._render()
-
-    def _prepare(self):
+    def get_form(self, request):
 
         # Create a form instance
         if self.form_type is not None:
-            form = self.form_type(self.request.GET)
+            form = self.form_type(request.GET)
 
             # Pre-validate it
             form.is_valid()
         else:
             form = None
 
-        self.form = form
-        self.content_type = form.cleaned_data["content_type"]
-        self.section = form.cleaned_data["section"]
+        return form
 
-        renderers = {
-            "text/csv": self._render_as_csv,
-            "text/html": self._render_as_html,
-            "": self._render_as_html,
-        }
-        self._render = renderers[self.content_type]
-
-    def _prepare_reports(self, *a, **k):
-        reports = self.inner_view(self.request, self.form, *a, **k)
-
-        if isinstance(reports, Report):
-            reports = [reports]
-
-        self.reports = self._wrap_reports(reports)
-
-    def _render(self):
-        ''' Replace with a specialist _render function '''
-
-    def _wrap_reports(self, reports):
+    @classmethod
+    def wrap_reports(cls, reports, content_type):
         reports = [
-            _ReportTemplateWrapper(self.content_type, report)
+            _ReportTemplateWrapper(content_type, report)
             for report in reports
         ]
 
         return reports
 
-    def _render_as_html(self):
+    def render(self, data):
+        renderers = {
+            "text/csv": self._render_as_csv,
+            "text/html": self._render_as_html,
+            "": self._render_as_html,
+        }
+        render = renderers[data.content_type]
+        return render(data)
 
+    def _render_as_html(self, data):
         ctx = {
             "title": self.title,
-            "form": self.form,
-            "reports": self.reports,
+            "form": data.form,
+            "reports": data.reports,
         }
 
-        return render(self.request, "registrasion/report.html", ctx)
+        return render(data.request, "registrasion/report.html", ctx)
 
-    def _render_as_csv(self):
-        report = self.reports[self.section]
+    def _render_as_csv(self, data):
+        report = data.reports[data.section]
 
         # Create the HttpResponse object with the appropriate CSV header.
         response = HttpResponse(content_type='text/csv')
@@ -298,6 +282,31 @@ class ReportView(object):
 
         return response
 
+
+class ReportViewRequestData(object):
+
+    def __init__(self, report_view, request, *a, **k):
+        self.report_view = report_view
+        self.request = request
+
+        # Calculate other data
+        self.form = report_view.get_form(request)
+
+        # Content type and section come from the form
+        self.content_type = self.form.cleaned_data["content_type"]
+        self.section = self.form.cleaned_data["section"]
+
+        # Reports come from calling the inner view
+        reports = report_view.inner_view(request, self.form, *a, **k)
+
+        # Normalise to a list
+        if isinstance(reports, Report):
+            reports = [reports]
+
+        # Wrap them in appropriate format
+        reports = ReportView.wrap_reports(reports, self.content_type)
+
+        self.reports = reports
 
 
 def get_all_reports():

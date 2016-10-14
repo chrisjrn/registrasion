@@ -216,10 +216,6 @@ class ReportView(object):
 
     def __init__(self, inner_view, title, form_type):
         # Consolidate form_type so it has content type and section
-        bases = [forms.SectionContentTypeForm, form_type]
-        bases = [base for base in bases if base is not None]
-        form_type = forms.mix_form(*bases)
-
         self.inner_view = inner_view
         self.title = title
         self.form_type = form_type
@@ -254,7 +250,7 @@ class ReportView(object):
         renderers = {
             "text/csv": self._render_as_csv,
             "text/html": self._render_as_html,
-            "": self._render_as_html,
+            None: self._render_as_html,
         }
         render = renderers[data.content_type]
         return render(data)
@@ -292,9 +288,10 @@ class ReportViewRequestData(object):
         # Calculate other data
         self.form = report_view.get_form(request)
 
-        # Content type and section come from the form
-        self.content_type = self.form.cleaned_data["content_type"]
-        self.section = self.form.cleaned_data["section"]
+        # Content type and section come from request.GET
+        self.content_type = request.GET.get("content_type")
+        self.section = request.GET.get("section")
+        self.section = int(self.section) if self.section else None
 
         # Reports come from calling the inner view
         reports = report_view.inner_view(request, self.form, *a, **k)

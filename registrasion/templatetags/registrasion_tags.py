@@ -80,9 +80,11 @@ def items_purchased(context, category=None):
 @register.assignment_tag(takes_context=True)
 def report_as_csv(context, section):
 
-    query = dict(context.request.GET)
-    query["section"] = section
-    query["content_type"] = "text/csv"
+    old_query = context.request.META["QUERY_STRING"]
+    query = dict([("section", section), ("content_type", "text/csv")])
     querystring = urlencode(query)
+
+    if old_query:
+        querystring = old_query + "&" + querystring
 
     return context.request.path + "?" + querystring

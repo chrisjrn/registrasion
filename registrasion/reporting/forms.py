@@ -81,3 +81,16 @@ def model_fields_form_factory(model):
         )
 
     return ModelFieldsForm
+
+
+class SectionContentTypeForm(forms.Form):
+    section = forms.IntegerField(
+        required=False,
+        min_value=0,
+        widget=forms.HiddenInput(),
+    )
+
+    content_type = forms.CharField(
+        required=False,
+        widget=forms.HiddenInput(),
+    )

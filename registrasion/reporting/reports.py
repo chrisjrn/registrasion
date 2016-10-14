@@ -1,6 +1,10 @@
+import csv
+import forms
+
 from django.contrib.auth.decorators import user_passes_test
 from django.shortcuts import render
 from django.core.urlresolvers import reverse
+from django.http import HttpResponse
 from functools import wraps
 
 from registrasion import views
@@ -195,6 +199,10 @@ def report_view(title, form_type=None):
     '''
 
     # Consolidate form_type so it has format and section
+    bases = [forms.SectionContentTypeForm, form_type]
+    bases = [base for base in bases if base is not None]
+    form_type = forms.mix_form(*bases)
+
     # Create & return view
 
     def _report(view):
@@ -202,7 +210,7 @@ def report_view(title, form_type=None):
         @wraps(view)
         @user_passes_test(views._staff_only)
         def inner_view(request, *a, **k):
-            return ReportView(request, view, title, form_type).render(*a, **k)
+            return ReportView(request, view, title, form_type).view(*a, **k)
 
         # Add this report to the list of reports.
         _all_report_views.append(inner_view)
@@ -213,36 +221,83 @@ def report_view(title, form_type=None):
 
 class ReportView(object):
 
-    def __init__(self, request, view, title, form_type):
+    def __init__(self, request, inner_view, title, form_type):
         self.request = request
-        self.view = view
+        self.inner_view = inner_view
         self.title = title
         self.form_type = form_type
+        self._prepare()
 
-    def render(self, *a, **k):
+    def view(self, *a, **k):
+        self._prepare_reports(*a, **k)
+
+        return self._render()
+
+    def _prepare(self):
+
+        # Create a form instance
         if self.form_type is not None:
             form = self.form_type(self.request.GET)
+
+            # Pre-validate it
             form.is_valid()
         else:
             form = None
 
-        reports = self.view(self.request, form, *a, **k)
+        self.form = form
+        self.content_type = form.cleaned_data["content_type"]
+        self.section = form.cleaned_data["section"]
+
+        renderers = {
+            "text/csv": self._render_as_csv,
+            "text/html": self._render_as_html,
+            "": self._render_as_html,
+        }
+        self._render = renderers[self.content_type]
+
+    def _prepare_reports(self, *a, **k):
+        reports = self.inner_view(self.request, self.form, *a, **k)
 
         if isinstance(reports, Report):
             reports = [reports]
 
+        self.reports = self._wrap_reports(reports)
+
+    def _render(self):
+        ''' Replace with a specialist _render function '''
+
+    def _wrap_reports(self, reports):
         reports = [
-            _ReportTemplateWrapper("text/html", report)
+            _ReportTemplateWrapper(self.content_type, report)
             for report in reports
         ]
 
+        return reports
+
+    def _render_as_html(self):
+
         ctx = {
             "title": self.title,
-            "form": form,
-            "reports": reports,
+            "form": self.form,
+            "reports": self.reports,
         }
 
         return render(self.request, "registrasion/report.html", ctx)
+
+    def _render_as_csv(self):
+        report = self.reports[self.section]
+
+        # Create the HttpResponse object with the appropriate CSV header.
+        response = HttpResponse(content_type='text/csv')
+        #response['Content-Disposition'] = 'attachment; filename="somefilename.csv"'
+
+        writer = csv.writer(response)
+        writer.writerow(list(report.headings()))
+        for row in report.rows():
+            writer.writerow(list(row))
+
+        return response
+
 
 
 def get_all_reports():

@@ -194,19 +194,39 @@ def report_view(title, form_type=None):
 
     '''
 
+    # Consolidate form_type so it has format and section
+    # Create & return view
+
     def _report(view):
 
         @wraps(view)
         @user_passes_test(views._staff_only)
         def inner_view(request, *a, **k):
+            return ReportView(request, view, title, form_type).render(*a, **k)
 
-            if form_type is not None:
-                form = form_type(request.GET)
+        # Add this report to the list of reports.
+        _all_report_views.append(inner_view)
+
+        # Return the callable
+        return inner_view
+    return _report
+
+class ReportView(object):
+
+    def __init__(self, request, view, title, form_type):
+        self.request = request
+        self.view = view
+        self.title = title
+        self.form_type = form_type
+
+    def render(self, *a, **k):
+            if self.form_type is not None:
+                form = self.form_type(self.request.GET)
                 form.is_valid()
             else:
                 form = None
 
-            reports = view(request, form, *a, **k)
+            reports = self.view(self.request, form, *a, **k)
 
             if isinstance(reports, Report):
                 reports = [reports]
@@ -217,19 +237,12 @@ def report_view(title, form_type=None):
             ]
 
             ctx = {
-                "title": title,
+                "title": self.title,
                 "form": form,
                 "reports": reports,
             }
 
-            return render(request, "registrasion/report.html", ctx)
-
-        # Add this report to the list of reports.
-        _all_report_views.append(inner_view)
-
-        # Return the callable
-        return inner_view
-    return _report
+            return render(self.request, "registrasion/report.html", ctx)
 
 
 def get_all_reports():

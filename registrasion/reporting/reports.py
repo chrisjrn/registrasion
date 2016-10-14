@@ -220,29 +220,29 @@ class ReportView(object):
         self.form_type = form_type
 
     def render(self, *a, **k):
-            if self.form_type is not None:
-                form = self.form_type(self.request.GET)
-                form.is_valid()
-            else:
-                form = None
+        if self.form_type is not None:
+            form = self.form_type(self.request.GET)
+            form.is_valid()
+        else:
+            form = None
 
-            reports = self.view(self.request, form, *a, **k)
+        reports = self.view(self.request, form, *a, **k)
 
-            if isinstance(reports, Report):
-                reports = [reports]
+        if isinstance(reports, Report):
+            reports = [reports]
 
-            reports = [
-                _ReportTemplateWrapper("text/html", report)
-                for report in reports
-            ]
+        reports = [
+            _ReportTemplateWrapper("text/html", report)
+            for report in reports
+        ]
 
-            ctx = {
-                "title": self.title,
-                "form": form,
-                "reports": reports,
-            }
+        ctx = {
+            "title": self.title,
+            "form": form,
+            "reports": reports,
+        }
 
-            return render(self.request, "registrasion/report.html", ctx)
+        return render(self.request, "registrasion/report.html", ctx)
 
 
 def get_all_reports():

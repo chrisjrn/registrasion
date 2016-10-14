@@ -4,6 +4,7 @@ from registrasion.controllers.item import ItemController
 
 from django import template
 from django.db.models import Sum
+from urllib import urlencode
 
 register = template.Library()
 
@@ -74,3 +75,14 @@ def items_purchased(context, category=None):
     return ItemController(context.request.user).items_purchased(
         category=category
     )
+
+
+@register.assignment_tag(takes_context=True)
+def report_as_csv(context, section):
+
+    query = dict(context.request.GET)
+    query["section"] = section
+    query["content_type"] = "text/csv"
+    querystring = urlencode(query)
+
+    return context.request.path + "?" + querystring

@@ -293,6 +293,9 @@ class ReportViewRequestData(object):
         self.section = request.GET.get("section")
         self.section = int(self.section) if self.section else None
 
+        if self.content_type is None:
+            self.content_type = "text/html"
+
         # Reports come from calling the inner view
         reports = report_view.inner_view(request, self.form, *a, **k)
 

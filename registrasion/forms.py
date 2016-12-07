@@ -29,7 +29,6 @@ class ApplyCreditNoteForm(forms.Form):
                 "user_id": users[invoice["user_id"]].id,
                 "user_email": users[invoice["user_id"]].email,
             })
-            print invoice
 
 
         key = lambda inv: (0 - (inv["user_id"] == self.user.id), inv["id"])

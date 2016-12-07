@@ -591,6 +591,16 @@ def attendee_data(request, form, user_id=None):
         "cart", "cart__user", "product", "product__category",
     ).order_by("cart__status")
 
+    # Add invoice nag link
+    links = []
+    links.append((
+        reverse(views.nag_unpaid, args=[]) + "?" + request.META["QUERY_STRING"],
+        "Send invoice reminders",
+    ))
+
+    if items.count() > 0:
+        output.append(Links("Actions", links))
+
     # Make sure we select all of the related fields
     related_fields = set(
         field for field in fields

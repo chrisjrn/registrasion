@@ -26,9 +26,11 @@ from django.contrib.auth.models import User
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError
+from django.core.mail import send_mass_mail
 from django.http import Http404
 from django.shortcuts import redirect
 from django.shortcuts import render
+from django.template import Context, Template
 
 
 _GuidedRegistrationSection = namedtuple(
@@ -930,6 +932,22 @@ def nag_unpaid(request):
         category=category,
         product=product,
     )
+
+    if form.is_valid():
+        emails = []
+        for invoice in form.cleaned_data["invoice"]:
+            # datatuple = (subject, message, from_email, recipient_list)
+            from_email = form.cleaned_data["from_email"]
+            subject = form.cleaned_data["subject"]
+            body = Template(form.cleaned_data["body"]).render(
+                Context({
+                    "invoice" : invoice,
+                })
+            )
+            recipient_list = [invoice.user.email]
+            emails.append((subject, body, from_email, recipient_list))
+        send_mass_mail(emails)
+        messages.info(request, "The e-mails have been sent.")
 
     data = {
         "form": form,

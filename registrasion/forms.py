@@ -402,7 +402,9 @@ class InvoiceNagForm(forms.Form):
         widget=forms.CheckboxSelectMultiple,
         queryset=commerce.Invoice.objects.all(),
     )
-    message = forms.CharField(
+    from_email = forms.CharField()
+    subject = forms.CharField()
+    body = forms.CharField(
         widget=forms.Textarea,
     )
 

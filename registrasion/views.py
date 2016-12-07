@@ -931,4 +931,8 @@ def nag_unpaid(request):
         product=product,
     )
 
-    print form.fields['invoice'].queryset
+    data = {
+        "form": form,
+    }
+
+    return render(request, "registrasion/nag_unpaid.html", data)

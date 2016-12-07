@@ -402,6 +402,9 @@ class InvoiceNagForm(forms.Form):
         widget=forms.CheckboxSelectMultiple,
         queryset=commerce.Invoice.objects.all(),
     )
+    message = forms.CharField(
+        widget=forms.Textarea,
+    )
 
     def __init__(self, *a, **k):
         category = k.pop('category', None) or []
@@ -412,8 +415,6 @@ class InvoiceNagForm(forms.Form):
 
         super(InvoiceNagForm, self).__init__(*a, **k)
 
-        print repr(category), repr(product)
-
         qs = commerce.Invoice.objects.filter(
             status=commerce.Invoice.STATUS_UNPAID,
         ).filter(
@@ -421,4 +422,10 @@ class InvoiceNagForm(forms.Form):
             Q(lineitem__product__in=product)
         )
 
+        # Uniqify
+        qs = commerce.Invoice.objects.filter(
+            id__in=qs,
+        )
+
         self.fields['invoice'].queryset = qs
+        self.fields['invoice'].initial = [i.id for i in qs]

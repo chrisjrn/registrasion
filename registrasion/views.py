@@ -26,9 +26,11 @@ from django.contrib.auth.models import User
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError
+from django.core.mail import send_mass_mail
 from django.http import Http404
 from django.shortcuts import redirect
 from django.shortcuts import render
+from django.template import Context, Template
 
 
 _GuidedRegistrationSection = namedtuple(
@@ -916,3 +918,39 @@ def extend_reservation(request, user_id, days=7):
     cart.extend_reservation(datetime.timedelta(days=days))
 
     return redirect(request.META["HTTP_REFERER"])
+
+
+@user_passes_test(_staff_only)
+def nag_unpaid(request):
+    ''' Allows staff to nag users with unpaid invoices. '''
+
+    category = request.GET.getlist("category", [])
+    product  = request.GET.getlist("product", [])
+
+    form = forms.InvoiceNagForm(
+        request.POST or None,
+        category=category,
+        product=product,
+    )
+
+    if form.is_valid():
+        emails = []
+        for invoice in form.cleaned_data["invoice"]:
+            # datatuple = (subject, message, from_email, recipient_list)
+            from_email = form.cleaned_data["from_email"]
+            subject = form.cleaned_data["subject"]
+            body = Template(form.cleaned_data["body"]).render(
+                Context({
+                    "invoice" : invoice,
+                })
+            )
+            recipient_list = [invoice.user.email]
+            emails.append((subject, body, from_email, recipient_list))
+        send_mass_mail(emails)
+        messages.info(request, "The e-mails have been sent.")
+
+    data = {
+        "form": form,
+    }
+
+    return render(request, "registrasion/nag_unpaid.html", data)

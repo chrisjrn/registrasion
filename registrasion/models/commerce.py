@@ -152,7 +152,9 @@ class Invoice(models.Model):
     ]
 
     def __str__(self):
-        return "Invoice #%d" % self.id
+        return "Invoice #%d (to: %s, due: %s, value: %s)" % (
+            self.id, self.user.email, self.due_time, self.value
+        )
 
     def clean(self):
         if self.cart is not None and self.cart_revision is None:

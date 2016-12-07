@@ -213,8 +213,21 @@ def report_view(title, form_type=None):
 
 
 class ReportView(object):
+    ''' View objects that can render report data into HTML or CSV. '''
 
     def __init__(self, inner_view, title, form_type):
+        '''
+
+        Arguments:
+            inner_view: Callable that returns either a Report or a sequence of
+                Report objects.
+
+            title: The title that appears at the top of all of the reports.
+
+            form_type: A Form class that can be used to query the report.
+
+        '''
+
         # Consolidate form_type so it has content type and section
         self.inner_view = inner_view
         self.title = title
@@ -225,6 +238,8 @@ class ReportView(object):
         return self.render(data)
 
     def get_form(self, request):
+
+        ''' Creates an instance of self.form_type using request.GET '''
 
         # Create a form instance
         if self.form_type is not None:
@@ -239,6 +254,10 @@ class ReportView(object):
 
     @classmethod
     def wrap_reports(cls, reports, content_type):
+        ''' Wraps the reports in a _ReportTemplateWrapper for the given
+        content_type -- this allows data to be returned as HTML links, for
+        instance. '''
+
         reports = [
             _ReportTemplateWrapper(content_type, report)
             for report in reports
@@ -247,6 +266,16 @@ class ReportView(object):
         return reports
 
     def render(self, data):
+        ''' Renders the reports based on data.content_type's value.
+
+        Arguments:
+            data (ReportViewRequestData): The report data. data.content_type
+                is used to determine how the reports are rendered.
+
+        Returns:
+            HTTPResponse: The rendered version of the report.
+
+        '''
         renderers = {
             "text/csv": self._render_as_csv,
             "text/html": self._render_as_html,
@@ -280,8 +309,20 @@ class ReportView(object):
 
 
 class ReportViewRequestData(object):
+    '''
+
+    Attributes:
+        form (Form): form based on request
+        reports ([Report, ...]): The reports rendered from the request
+
+    Arguments:
+        report_view (ReportView): The ReportView to call back to.
+        request (HTTPRequest): A django HTTP request
+
+    '''
 
     def __init__(self, report_view, request, *a, **k):
+
         self.report_view = report_view
         self.request = request
 
@@ -292,6 +333,9 @@ class ReportViewRequestData(object):
         self.content_type = request.GET.get("content_type")
         self.section = request.GET.get("section")
         self.section = int(self.section) if self.section else None
+
+        if self.content_type is None:
+            self.content_type = "text/html"
 
         # Reports come from calling the inner view
         reports = report_view.inner_view(request, self.form, *a, **k)

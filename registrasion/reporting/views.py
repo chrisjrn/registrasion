@@ -408,11 +408,13 @@ def attendee(request, form, user_id=None):
     ''' Returns a list of all manifested attendees if no attendee is specified,
     else displays the attendee manifest. '''
 
+    if user_id is None and form.cleaned_data["user"] is not None:
+        user_id = form.cleaned_data["user"]
+
     if user_id is None:
         return attendee_list(request)
 
-    if form.cleaned_data["user"] is not None:
-        user_id = form.cleaned_data["user"]
+    print user_id
 
     attendee = people.Attendee.objects.get(user__id=user_id)
     name = attendee.attendeeprofilebase.attendee_name()
@@ -588,6 +590,16 @@ def attendee_data(request, form, user_id=None):
     ).select_related(
         "cart", "cart__user", "product", "product__category",
     ).order_by("cart__status")
+
+    # Add invoice nag link
+    links = []
+    links.append((
+        reverse(views.nag_unpaid, args=[]) + "?" + request.META["QUERY_STRING"],
+        "Send invoice reminders",
+    ))
+
+    if items.count() > 0:
+        output.append(Links("Actions", links))
 
     # Make sure we select all of the related fields
     related_fields = set(

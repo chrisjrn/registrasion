@@ -4,6 +4,7 @@ from registrasion.models import inventory
 
 from django import forms
 from django.core.exceptions import ValidationError
+from django.db.models import Q
 
 
 class ApplyCreditNoteForm(forms.Form):
@@ -14,21 +15,38 @@ class ApplyCreditNoteForm(forms.Form):
         self.user = user
         super(ApplyCreditNoteForm, self).__init__(*a, **k)
 
-        self.fields["invoice"].choices = self._unpaid_invoices_for_user
+        self.fields["invoice"].choices = self._unpaid_invoices
 
-    def _unpaid_invoices_for_user(self):
+    def _unpaid_invoices(self):
         invoices = commerce.Invoice.objects.filter(
             status=commerce.Invoice.STATUS_UNPAID,
-            user=self.user,
-        )
+        ).select_related("user")
 
+        invoices_annotated = [invoice.__dict__ for invoice in invoices]
+        users = dict((inv.user.id, inv.user) for inv in invoices)
+        for invoice in invoices_annotated:
+            invoice.update({
+                "user_id": users[invoice["user_id"]].id,
+                "user_email": users[invoice["user_id"]].email,
+            })
+            print invoice
+
+
+        key = lambda inv: (0 - (inv["user_id"] == self.user.id), inv["id"])
+        invoices_annotated.sort(key=key)
+
+        template = "Invoice %(id)d - user: %(user_email)s (%(user_id)d) -  $%(value)d"
         return [
-            (invoice.id, "Invoice %(id)d - $%(value)d" % invoice.__dict__)
-            for invoice in invoices
+            (invoice["id"], template % invoice)
+            for invoice in invoices_annotated
         ]
 
     invoice = forms.ChoiceField(
         required=True,
+    )
+    verify = forms.BooleanField(
+        required=True,
+        help_text="Have you verified that this is the correct invoice?",
     )
 
 
@@ -394,3 +412,39 @@ def staff_products_formset_factory(user):
     ''' Creates a formset of StaffProductsForm for the given user. '''
     form_type = staff_products_form_factory(user)
     return forms.formset_factory(form_type)
+
+
+class InvoiceNagForm(forms.Form):
+    invoice = forms.ModelMultipleChoiceField(
+        widget=forms.CheckboxSelectMultiple,
+        queryset=commerce.Invoice.objects.all(),
+    )
+    from_email = forms.CharField()
+    subject = forms.CharField()
+    body = forms.CharField(
+        widget=forms.Textarea,
+    )
+
+    def __init__(self, *a, **k):
+        category = k.pop('category', None) or []
+        product = k.pop('product', None) or []
+
+        category = [int(i) for i in category]
+        product = [int(i) for i in product]
+
+        super(InvoiceNagForm, self).__init__(*a, **k)
+
+        qs = commerce.Invoice.objects.filter(
+            status=commerce.Invoice.STATUS_UNPAID,
+        ).filter(
+            Q(lineitem__product__category__in=category) |
+            Q(lineitem__product__in=product)
+        )
+
+        # Uniqify
+        qs = commerce.Invoice.objects.filter(
+            id__in=qs,
+        )
+
+        self.fields['invoice'].queryset = qs
+        self.fields['invoice'].initial = [i.id for i in qs]

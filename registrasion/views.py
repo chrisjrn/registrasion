@@ -916,3 +916,19 @@ def extend_reservation(request, user_id, days=7):
     cart.extend_reservation(datetime.timedelta(days=days))
 
     return redirect(request.META["HTTP_REFERER"])
+
+
+@user_passes_test(_staff_only)
+def nag_unpaid(request):
+    ''' Allows staff to nag users with unpaid invoices. '''
+
+    category = request.GET.getlist("category", [])
+    product  = request.GET.getlist("product", [])
+
+    form = forms.InvoiceNagForm(
+        request.POST or None,
+        category=category,
+        product=product,
+    )
+
+    print form.fields['invoice'].queryset

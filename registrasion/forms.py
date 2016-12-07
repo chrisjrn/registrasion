@@ -4,6 +4,7 @@ from registrasion.models import inventory
 
 from django import forms
 from django.core.exceptions import ValidationError
+from django.db.models import Q
 
 
 class ApplyCreditNoteForm(forms.Form):
@@ -394,3 +395,30 @@ def staff_products_formset_factory(user):
     ''' Creates a formset of StaffProductsForm for the given user. '''
     form_type = staff_products_form_factory(user)
     return forms.formset_factory(form_type)
+
+
+class InvoiceNagForm(forms.Form):
+    invoice = forms.ModelMultipleChoiceField(
+        widget=forms.CheckboxSelectMultiple,
+        queryset=commerce.Invoice.objects.all(),
+    )
+
+    def __init__(self, *a, **k):
+        category = k.pop('category', None) or []
+        product = k.pop('product', None) or []
+
+        category = [int(i) for i in category]
+        product = [int(i) for i in product]
+
+        super(InvoiceNagForm, self).__init__(*a, **k)
+
+        print repr(category), repr(product)
+
+        qs = commerce.Invoice.objects.filter(
+            status=commerce.Invoice.STATUS_UNPAID,
+        ).filter(
+            Q(lineitem__product__category__in=category) |
+            Q(lineitem__product__in=product)
+        )
+
+        self.fields['invoice'].queryset = qs

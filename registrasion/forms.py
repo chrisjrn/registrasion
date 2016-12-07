@@ -15,21 +15,38 @@ class ApplyCreditNoteForm(forms.Form):
         self.user = user
         super(ApplyCreditNoteForm, self).__init__(*a, **k)
 
-        self.fields["invoice"].choices = self._unpaid_invoices_for_user
+        self.fields["invoice"].choices = self._unpaid_invoices
 
-    def _unpaid_invoices_for_user(self):
+    def _unpaid_invoices(self):
         invoices = commerce.Invoice.objects.filter(
             status=commerce.Invoice.STATUS_UNPAID,
-            user=self.user,
-        )
+        ).select_related("user")
 
+        invoices_annotated = [invoice.__dict__ for invoice in invoices]
+        users = dict((inv.user.id, inv.user) for inv in invoices)
+        for invoice in invoices_annotated:
+            invoice.update({
+                "user_id": users[invoice["user_id"]].id,
+                "user_email": users[invoice["user_id"]].email,
+            })
+            print invoice
+
+
+        key = lambda inv: (0 - (inv["user_id"] == self.user.id), inv["id"])
+        invoices_annotated.sort(key=key)
+
+        template = "Invoice %(id)d - user: %(user_email)s (%(user_id)d) -  $%(value)d"
         return [
-            (invoice.id, "Invoice %(id)d - $%(value)d" % invoice.__dict__)
-            for invoice in invoices
+            (invoice["id"], template % invoice)
+            for invoice in invoices_annotated
         ]
 
     invoice = forms.ChoiceField(
         required=True,
+    )
+    verify = forms.BooleanField(
+        required=True,
+        help_text="Have you verified that this is the correct invoice?",
     )
 
 

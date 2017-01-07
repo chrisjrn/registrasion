@@ -932,7 +932,7 @@ def nag_unpaid(request):
     category = request.GET.getlist("category", [])
     product  = request.GET.getlist("product", [])
 
-    form = forms.InvoiceNagForm(
+    form = forms.InvoiceEmailForm(
         request.POST or None,
         category=category,
         product=product,
@@ -954,7 +954,7 @@ def nag_unpaid(request):
             recipient_list = [invoice.user.email]
             emails.append(Email(subject, body, from_email, recipient_list))
 
-        if form.cleaned_data["action"] == forms.InvoiceNagForm.ACTION_SEND:
+        if form.cleaned_data["action"] == forms.InvoiceEmailForm.ACTION_SEND:
             # Send e-mails *ONLY* if we're sending.
             send_mass_mail(emails)
             messages.info(request, "The e-mails have been sent.")

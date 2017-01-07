@@ -413,7 +413,7 @@ def staff_products_formset_factory(user):
     return forms.formset_factory(form_type)
 
 
-class InvoiceNagForm(forms.Form):
+class InvoiceEmailForm(forms.Form):
 
     ACTION_PREVIEW = 1
     ACTION_SEND = 2

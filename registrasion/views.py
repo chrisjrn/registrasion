@@ -951,6 +951,7 @@ def invoice_mailout(request):
             body = Template(form.cleaned_data["body"]).render(
                 Context({
                     "invoice" : invoice,
+                    "user" : invoice.user,
                 })
             )
             recipient_list = [invoice.user.email]

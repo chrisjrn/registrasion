@@ -446,7 +446,7 @@ class InvoiceEmailForm(forms.Form):
         category = [int(i) for i in category]
         product = [int(i) for i in product]
 
-        super(InvoiceNagForm, self).__init__(*a, **k)
+        super(InvoiceEmailForm, self).__init__(*a, **k)
 
         qs = commerce.Invoice.objects.filter(
             status=commerce.Invoice.STATUS_UNPAID,

@@ -967,4 +967,4 @@ def invoice_mailout(request):
         "emails": emails,
     }
 
-    return render(request, "registrasion/nag_unpaid.html", data)
+    return render(request, "registrasion/invoice_mailout.html", data)

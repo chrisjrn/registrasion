@@ -926,8 +926,8 @@ Email = namedtuple(
 )
 
 @user_passes_test(_staff_only)
-def nag_unpaid(request):
-    ''' Allows staff to nag users with unpaid invoices. '''
+def invoice_mailout(request):
+    ''' Allows staff to send emails to users based on their invoice status. '''
 
     category = request.GET.getlist("category", [])
     product  = request.GET.getlist("product", [])

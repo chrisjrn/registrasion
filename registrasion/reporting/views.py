@@ -593,10 +593,11 @@ def attendee_data(request, form, user_id=None):
 
     # Add invoice nag link
     links = []
-    links.append((
-        reverse(views.nag_unpaid, args=[]) + "?" + request.META["QUERY_STRING"],
-        "Send invoice reminders",
-    ))
+    invoice_mailout = reverse(views.invoice_mailout, args=[]) + "?" + request.META["QUERY_STRING"]
+    links += [
+        (invoice_mailout + "&status=1", "Send invoice reminders",),
+        (invoice_mailout + "&status=2", "Send mail for paid invoices",),
+    ]
 
     if items.count() > 0:
         output.append(Links("Actions", links))

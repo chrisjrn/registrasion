@@ -931,11 +931,13 @@ def nag_unpaid(request):
 
     category = request.GET.getlist("category", [])
     product  = request.GET.getlist("product", [])
+    status  = request.GET.get("status")
 
     form = forms.InvoiceEmailForm(
         request.POST or None,
         category=category,
         product=product,
+        status=status,
     )
 
     emails = []

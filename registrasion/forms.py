@@ -442,6 +442,7 @@ class InvoiceEmailForm(forms.Form):
     def __init__(self, *a, **k):
         category = k.pop('category', None) or []
         product = k.pop('product', None) or []
+        status = int(k.pop('status', None) or 0)
 
         category = [int(i) for i in category]
         product = [int(i) for i in product]
@@ -449,7 +450,7 @@ class InvoiceEmailForm(forms.Form):
         super(InvoiceEmailForm, self).__init__(*a, **k)
 
         qs = commerce.Invoice.objects.filter(
-            status=commerce.Invoice.STATUS_UNPAID,
+            status=status or commerce.Invoice.STATUS_UNPAID,
         ).filter(
             Q(lineitem__product__category__in=category) |
             Q(lineitem__product__in=product)

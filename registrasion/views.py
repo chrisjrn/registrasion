@@ -920,6 +920,11 @@ def extend_reservation(request, user_id, days=7):
     return redirect(request.META["HTTP_REFERER"])
 
 
+Email = namedtuple(
+    "Email",
+    ("subject", "body", "from_email", "recipient_list"),
+)
+
 @user_passes_test(_staff_only)
 def nag_unpaid(request):
     ''' Allows staff to nag users with unpaid invoices. '''
@@ -933,6 +938,8 @@ def nag_unpaid(request):
         product=product,
     )
 
+    emails = []
+
     if form.is_valid():
         emails = []
         for invoice in form.cleaned_data["invoice"]:
@@ -945,12 +952,16 @@ def nag_unpaid(request):
                 })
             )
             recipient_list = [invoice.user.email]
-            emails.append((subject, body, from_email, recipient_list))
-        send_mass_mail(emails)
-        messages.info(request, "The e-mails have been sent.")
+            emails.append(Email(subject, body, from_email, recipient_list))
+
+        if form.cleaned_data["action"] == forms.InvoiceNagForm.ACTION_SEND:
+            # Send e-mails *ONLY* if we're sending.
+            send_mass_mail(emails)
+            messages.info(request, "The e-mails have been sent.")
 
     data = {
         "form": form,
+        "emails": emails,
     }
 
     return render(request, "registrasion/nag_unpaid.html", data)

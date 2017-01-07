@@ -414,6 +414,15 @@ def staff_products_formset_factory(user):
 
 
 class InvoiceNagForm(forms.Form):
+
+    ACTION_PREVIEW = 1
+    ACTION_SEND = 2
+
+    ACTION_CHOICES = (
+        (ACTION_PREVIEW, "Preview"),
+        (ACTION_SEND, "Send emails"),
+    )
+
     invoice = forms.ModelMultipleChoiceField(
         widget=forms.CheckboxSelectMultiple,
         queryset=commerce.Invoice.objects.all(),
@@ -422,6 +431,12 @@ class InvoiceNagForm(forms.Form):
     subject = forms.CharField()
     body = forms.CharField(
         widget=forms.Textarea,
+    )
+    action = forms.TypedChoiceField(
+        widget=forms.RadioSelect,
+        coerce=int,
+        choices=ACTION_CHOICES,
+        initial=ACTION_PREVIEW,
     )
 
     def __init__(self, *a, **k):

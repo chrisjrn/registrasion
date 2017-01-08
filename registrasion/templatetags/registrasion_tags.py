@@ -9,6 +9,15 @@ from urllib import urlencode
 register = template.Library()
 
 
+def user_for_context(context):
+    ''' Returns either context.user or context.request.user if the former is
+    not defined. '''
+    try:
+        return context["user"]
+    except KeyError:
+        return context.request.user
+
+
 @register.assignment_tag(takes_context=True)
 def available_categories(context):
     ''' Gets all of the currently available products.
@@ -18,13 +27,13 @@ def available_categories(context):
             have Products that the current user can reserve.
 
     '''
-    return CategoryController.available_categories(context.request.user)
+    return CategoryController.available_categories(user_for_context(context))
 
 
 @register.assignment_tag(takes_context=True)
 def missing_categories(context):
     ''' Adds the categories that the user does not currently have. '''
-    user = context.request.user
+    user = user_for_context(context)
     categories_available = set(CategoryController.available_categories(user))
     items = ItemController(user).items_pending_or_purchased()
 
@@ -47,7 +56,7 @@ def available_credit(context):
     '''
 
     notes = commerce.CreditNote.unclaimed().filter(
-        invoice__user=context.request.user,
+        invoice__user=user_for_context(context),
     )
     ret = notes.values("amount").aggregate(Sum("amount"))["amount__sum"] or 0
     return 0 - ret
@@ -59,20 +68,29 @@ def invoices(context):
 
     Returns:
         [models.commerce.Invoice, ...]: All of the current user's invoices. '''
-    return commerce.Invoice.objects.filter(user=context.request.user)
+    return commerce.Invoice.objects.filter(user=user_for_context(context))
 
 
 @register.assignment_tag(takes_context=True)
 def items_pending(context):
-    ''' Gets all of the items that the user from this context has reserved.'''
-    return ItemController(context.request.user).items_pending()
+    ''' Gets all of the items that the user from this context has reserved.
+
+    The user will be either `context.user`, and `context.request.user` if
+    the former is not defined.
+    '''
+
+    return ItemController(user_for_context(context)).items_pending()
 
 
 @register.assignment_tag(takes_context=True)
 def items_purchased(context, category=None):
-    ''' Returns the items purchased for this user. '''
+    ''' Returns the items purchased for this user.
 
-    return ItemController(context.request.user).items_purchased(
+    The user will be either `context.user`, and `context.request.user` if
+    the former is not defined.
+    '''
+
+    return ItemController(user_for_context(context)).items_purchased(
         category=category
     )
 

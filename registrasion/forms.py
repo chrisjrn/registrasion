@@ -413,7 +413,16 @@ def staff_products_formset_factory(user):
     return forms.formset_factory(form_type)
 
 
-class InvoiceNagForm(forms.Form):
+class InvoiceEmailForm(forms.Form):
+
+    ACTION_PREVIEW = 1
+    ACTION_SEND = 2
+
+    ACTION_CHOICES = (
+        (ACTION_PREVIEW, "Preview"),
+        (ACTION_SEND, "Send emails"),
+    )
+
     invoice = forms.ModelMultipleChoiceField(
         widget=forms.CheckboxSelectMultiple,
         queryset=commerce.Invoice.objects.all(),
@@ -423,18 +432,26 @@ class InvoiceNagForm(forms.Form):
     body = forms.CharField(
         widget=forms.Textarea,
     )
+    action = forms.TypedChoiceField(
+        widget=forms.RadioSelect,
+        coerce=int,
+        choices=ACTION_CHOICES,
+        initial=ACTION_PREVIEW,
+    )
 
     def __init__(self, *a, **k):
         category = k.pop('category', None) or []
         product = k.pop('product', None) or []
+        status = int(k.pop('status', None) or 0)
 
         category = [int(i) for i in category]
         product = [int(i) for i in product]
 
-        super(InvoiceNagForm, self).__init__(*a, **k)
+        super(InvoiceEmailForm, self).__init__(*a, **k)
+        print status
 
         qs = commerce.Invoice.objects.filter(
-            status=commerce.Invoice.STATUS_UNPAID,
+            status=status or commerce.Invoice.STATUS_UNPAID,
         ).filter(
             Q(lineitem__product__category__in=category) |
             Q(lineitem__product__in=product)

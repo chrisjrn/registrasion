@@ -920,18 +920,27 @@ def extend_reservation(request, user_id, days=7):
     return redirect(request.META["HTTP_REFERER"])
 
 
+Email = namedtuple(
+    "Email",
+    ("subject", "body", "from_email", "recipient_list"),
+)
+
 @user_passes_test(_staff_only)
-def nag_unpaid(request):
-    ''' Allows staff to nag users with unpaid invoices. '''
+def invoice_mailout(request):
+    ''' Allows staff to send emails to users based on their invoice status. '''
 
     category = request.GET.getlist("category", [])
     product  = request.GET.getlist("product", [])
+    status  = request.GET.get("status")
 
-    form = forms.InvoiceNagForm(
+    form = forms.InvoiceEmailForm(
         request.POST or None,
         category=category,
         product=product,
+        status=status,
     )
+
+    emails = []
 
     if form.is_valid():
         emails = []
@@ -942,15 +951,20 @@ def nag_unpaid(request):
             body = Template(form.cleaned_data["body"]).render(
                 Context({
                     "invoice" : invoice,
+                    "user" : invoice.user,
                 })
             )
             recipient_list = [invoice.user.email]
-            emails.append((subject, body, from_email, recipient_list))
-        send_mass_mail(emails)
-        messages.info(request, "The e-mails have been sent.")
+            emails.append(Email(subject, body, from_email, recipient_list))
+
+        if form.cleaned_data["action"] == forms.InvoiceEmailForm.ACTION_SEND:
+            # Send e-mails *ONLY* if we're sending.
+            send_mass_mail(emails)
+            messages.info(request, "The e-mails have been sent.")
 
     data = {
         "form": form,
+        "emails": emails,
     }
 
-    return render(request, "registrasion/nag_unpaid.html", data)
+    return render(request, "registrasion/invoice_mailout.html", data)

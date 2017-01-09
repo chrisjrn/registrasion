@@ -1,6 +1,7 @@
 import datetime
 import sys
 import util
+import zipfile
 
 from registrasion import forms
 from registrasion import util
@@ -983,6 +984,42 @@ def badge(request, user_id):
     response["Content-Type"] = "image/svg+xml"
     response["Content-Disposition"] = 'inline; filename="badge.svg"'
     return response
+
+
+def badges(request):
+    ''' Either displays a form containing a list of users with badges to
+    render, or returns a .zip file containing their badges. '''
+
+    category = request.GET.getlist("category", [])
+    product  = request.GET.getlist("product", [])
+    status  = request.GET.get("status")
+
+    form = forms.InvoicesWithProductAndStatusForm(
+        request.POST or None,
+        category=category,
+        product=product,
+        status=status,
+    )
+
+    if form.is_valid():
+        response = HttpResponse()
+        response["Content-Type"] = "application.zip"
+        response["Content-Disposition"] = 'attachment; filename="badges.zip"'
+
+        z = zipfile.ZipFile(response, "w")
+
+        for invoice in form.cleaned_data["invoice"]:
+            user = invoice.user
+            badge = render_badge(user)
+            z.writestr("badge_%d.svg" % user.id, badge.encode("utf-8"))
+
+        return response
+
+    data = {
+        "form": form,
+    }
+
+    return render(request, "registrasion/badges.html", data)
 
 
 def render_badge(user):

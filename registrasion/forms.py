@@ -442,6 +442,8 @@ class InvoicesWithProductAndStatusForm(forms.Form):
             id__in=qs,
         )
 
+        qs = qs.select_related("user__attendee__attendeeprofilebase")
+
         self.fields['invoice'].queryset = qs
         self.fields['invoice'].initial = [i.id for i in qs]
 

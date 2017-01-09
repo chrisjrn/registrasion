@@ -6,6 +6,7 @@ from django.conf.urls import url
 from .views import (
     amend_registration,
     badge,
+    badges,
     checkout,
     credit_note,
     edit_profile,
@@ -24,6 +25,7 @@ from .views import (
 public = [
     url(r"^amend/([0-9]+)$", amend_registration, name="amend_registration"),
     url(r"^badge/([0-9]+)$", badge, name="badge"),
+    url(r"^badges$", badges, name="badges"),
     url(r"^category/([0-9]+)$", product_category, name="product_category"),
     url(r"^checkout$", checkout, name="checkout"),
     url(r"^checkout/([0-9]+)$", checkout, name="checkout"),

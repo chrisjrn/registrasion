@@ -27,10 +27,10 @@ from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError
 from django.core.mail import send_mass_mail
-from django.http import Http404
+from django.http import Http404, HttpResponse
 from django.shortcuts import redirect
 from django.shortcuts import render
-from django.template import Context, Template
+from django.template import Context, Template, loader
 
 
 _GuidedRegistrationSection = namedtuple(
@@ -980,9 +980,9 @@ def badge(request, user_id):
         "user": User.objects.get(pk=user_id),
     }
 
-    print User.objects.get(pk=user_id)
+    t = loader.get_template('registrasion/badge.svg')
+    response = HttpResponse(t.render(data, request))
 
-    response = render(request, "registrasion/badge.svg", data)
     response["Content-Type"] = "image/svg+xml"
     response["Content-Disposition"] = 'inline; filename="badge.svg"'
     return response

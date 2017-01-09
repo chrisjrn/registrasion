@@ -1,6 +1,7 @@
 import datetime
 import sys
 import util
+import zipfile
 
 from registrasion import forms
 from registrasion import util
@@ -27,10 +28,10 @@ from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError
 from django.core.mail import send_mass_mail
-from django.http import Http404
+from django.http import Http404, HttpResponse
 from django.shortcuts import redirect
 from django.shortcuts import render
-from django.template import Context, Template
+from django.template import Context, Template, loader
 
 
 _GuidedRegistrationSection = namedtuple(
@@ -968,3 +969,65 @@ def invoice_mailout(request):
     }
 
     return render(request, "registrasion/invoice_mailout.html", data)
+
+
+@user_passes_test(_staff_only)
+def badge(request, user_id):
+    ''' Renders a single user's badge (SVG). '''
+
+    user_id = int(user_id)
+    user = User.objects.get(pk=user_id)
+
+    rendered = render_badge(user)
+    response = HttpResponse(rendered)
+
+    response["Content-Type"] = "image/svg+xml"
+    response["Content-Disposition"] = 'inline; filename="badge.svg"'
+    return response
+
+
+def badges(request):
+    ''' Either displays a form containing a list of users with badges to
+    render, or returns a .zip file containing their badges. '''
+
+    category = request.GET.getlist("category", [])
+    product  = request.GET.getlist("product", [])
+    status  = request.GET.get("status")
+
+    form = forms.InvoicesWithProductAndStatusForm(
+        request.POST or None,
+        category=category,
+        product=product,
+        status=status,
+    )
+
+    if form.is_valid():
+        response = HttpResponse()
+        response["Content-Type"] = "application.zip"
+        response["Content-Disposition"] = 'attachment; filename="badges.zip"'
+
+        z = zipfile.ZipFile(response, "w")
+
+        for invoice in form.cleaned_data["invoice"]:
+            user = invoice.user
+            badge = render_badge(user)
+            z.writestr("badge_%d.svg" % user.id, badge.encode("utf-8"))
+
+        return response
+
+    data = {
+        "form": form,
+    }
+
+    return render(request, "registrasion/badges.html", data)
+
+
+def render_badge(user):
+    ''' Renders a single user's badge. '''
+
+    data = {
+        "user": user,
+    }
+
+    t = loader.get_template('registrasion/badge.svg')
+    return t.render(data)

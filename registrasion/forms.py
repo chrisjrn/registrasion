@@ -413,30 +413,10 @@ def staff_products_formset_factory(user):
     return forms.formset_factory(form_type)
 
 
-class InvoiceEmailForm(forms.Form):
-
-    ACTION_PREVIEW = 1
-    ACTION_SEND = 2
-
-    ACTION_CHOICES = (
-        (ACTION_PREVIEW, "Preview"),
-        (ACTION_SEND, "Send emails"),
-    )
-
+class InvoicesWithProductAndStatusForm(forms.Form):
     invoice = forms.ModelMultipleChoiceField(
         widget=forms.CheckboxSelectMultiple,
         queryset=commerce.Invoice.objects.all(),
-    )
-    from_email = forms.CharField()
-    subject = forms.CharField()
-    body = forms.CharField(
-        widget=forms.Textarea,
-    )
-    action = forms.TypedChoiceField(
-        widget=forms.RadioSelect,
-        coerce=int,
-        choices=ACTION_CHOICES,
-        initial=ACTION_PREVIEW,
     )
 
     def __init__(self, *a, **k):
@@ -447,7 +427,7 @@ class InvoiceEmailForm(forms.Form):
         category = [int(i) for i in category]
         product = [int(i) for i in product]
 
-        super(InvoiceEmailForm, self).__init__(*a, **k)
+        super(InvoicesWithProductAndStatusForm, self).__init__(*a, **k)
         print status
 
         qs = commerce.Invoice.objects.filter(
@@ -462,5 +442,30 @@ class InvoiceEmailForm(forms.Form):
             id__in=qs,
         )
 
+        qs = qs.select_related("user__attendee__attendeeprofilebase")
+
         self.fields['invoice'].queryset = qs
         self.fields['invoice'].initial = [i.id for i in qs]
+
+
+class InvoiceEmailForm(InvoicesWithProductAndStatusForm):
+
+    ACTION_PREVIEW = 1
+    ACTION_SEND = 2
+
+    ACTION_CHOICES = (
+        (ACTION_PREVIEW, "Preview"),
+        (ACTION_SEND, "Send emails"),
+    )
+
+    from_email = forms.CharField()
+    subject = forms.CharField()
+    body = forms.CharField(
+        widget=forms.Textarea,
+    )
+    action = forms.TypedChoiceField(
+        widget=forms.RadioSelect,
+        coerce=int,
+        choices=ACTION_CHOICES,
+        initial=ACTION_PREVIEW,
+    )

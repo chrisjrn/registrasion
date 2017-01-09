@@ -96,6 +96,17 @@ def items_purchased(context, category=None):
 
 
 @register.assignment_tag(takes_context=True)
+def total_items_purchased(context, category=None):
+    ''' Returns the number of items purchased for this user (sum of quantities).
+
+    The user will be either `context.user`, and `context.request.user` if
+    the former is not defined.
+    '''
+
+    return sum(i.quantity for i in items_purchased(context, category))
+
+
+@register.assignment_tag(takes_context=True)
 def report_as_csv(context, section):
 
     old_query = context.request.META["QUERY_STRING"]

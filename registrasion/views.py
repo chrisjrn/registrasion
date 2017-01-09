@@ -968,3 +968,21 @@ def invoice_mailout(request):
     }
 
     return render(request, "registrasion/invoice_mailout.html", data)
+
+
+@user_passes_test(_staff_only)
+def badge(request, user_id):
+    ''' Renders a single user's badge (SVG). '''
+
+    user_id = int(user_id)
+
+    data = {
+        "user": User.objects.get(pk=user_id),
+    }
+
+    print User.objects.get(pk=user_id)
+
+    response = render(request, "registrasion/badge.svg", data)
+    response["Content-Type"] = "image/svg+xml"
+    response["Content-Disposition"] = 'inline; filename="badge.svg"'
+    return response

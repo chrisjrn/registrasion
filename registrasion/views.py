@@ -975,14 +975,22 @@ def badge(request, user_id):
     ''' Renders a single user's badge (SVG). '''
 
     user_id = int(user_id)
+    user = User.objects.get(pk=user_id)
 
-    data = {
-        "user": User.objects.get(pk=user_id),
-    }
-
-    t = loader.get_template('registrasion/badge.svg')
-    response = HttpResponse(t.render(data, request))
+    rendered = render_badge(user)
+    response = HttpResponse(rendered)
 
     response["Content-Type"] = "image/svg+xml"
     response["Content-Disposition"] = 'inline; filename="badge.svg"'
     return response
+
+
+def render_badge(user):
+    ''' Renders a single user's badge. '''
+
+    data = {
+        "user": user,
+    }
+
+    t = loader.get_template('registrasion/badge.svg')
+    return t.render(data)

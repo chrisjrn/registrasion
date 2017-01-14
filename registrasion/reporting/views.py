@@ -765,3 +765,88 @@ def speaker_registrations(request, form):
     )
 
     return []
+
+
+@report_view(
+    "Manifest",
+    forms.ProductAndCategoryForm,
+)
+def manifest(request, form):
+    ''' Produces the registration manifest for people with the given product type.'''
+
+    products = form.cleaned_data["product"]
+    categories = form.cleaned_data["category"]
+
+    line_items = (
+        Q(lineitem__product__in=products) |
+        Q(lineitem__product__category__in=categories)
+    )
+
+    invoices = commerce.Invoice.objects.filter(
+        line_items,
+        status=commerce.Invoice.STATUS_PAID,
+    ).select_related(
+        "cart",
+        "user",
+        "user__attendee",
+        "user__attendee__attendeeprofilebase"
+    )
+
+    users = set(i.user for i in invoices)
+
+    carts = commerce.Cart.objects.filter(
+        user__in=users
+    )
+
+    items = commerce.ProductItem.objects.filter(
+        cart__in=carts
+    ).select_related(
+        "product",
+        "product__category",
+        "cart",
+        "cart__user",
+        "cart__user__attendee",
+        "cart__user__attendee__attendeeprofilebase"
+    ).order_by("product__category__order", "product__order")
+
+    users = {}
+
+    for item in items:
+        cart = item.cart
+        if cart.user not in users:
+            users[cart.user] = {"unpaid": [], "paid": [], "refunded": []}
+        items = users[cart.user]
+        if cart.status == commerce.Cart.STATUS_ACTIVE:
+            items["unpaid"].append(item)
+        elif cart.status == commerce.Cart.STATUS_PAID:
+            items["paid"].append(item)
+        elif cart.status == commerce.Cart.STATUS_RELEASED:
+            items["refunded"].append(item)
+
+    users_by_name = list(users.keys())
+    users_by_name.sort(key=(
+        lambda i: i.attendee.attendeeprofilebase.attendee_name().lower()
+    ))
+
+    headings = ["User ID", "Name", "Paid", "Unpaid", "Refunded"]
+
+    def format_items(item_list):
+        strings = [
+            "%d x %s" % (item.quantity, str(item.product)) for item in item_list
+        ]
+        return ", \n".join(strings)
+
+    output = []
+    for user in users_by_name:
+        items = users[user]
+        output.append([
+            user.id,
+            user.attendee.attendeeprofilebase.attendee_name(),
+            format_items(items["paid"]),
+            format_items(items["unpaid"]),
+            format_items(items["refunded"]),
+        ])
+
+    return ListReport("Manifest", headings, output)
+
+    #attendeeprofilebase.attendee_name()

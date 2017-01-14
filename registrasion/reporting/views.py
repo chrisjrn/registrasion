@@ -452,6 +452,10 @@ def attendee(request, form, user_id=None):
 
     links = []
     links.append((
+        reverse(views.badge, args=[user_id]),
+        "View badge",
+    ))
+    links.append((
         reverse(views.amend_registration, args=[user_id]),
         "Amend current cart",
     ))

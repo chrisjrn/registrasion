@@ -386,7 +386,7 @@ def credit_notes(request, form):
 def invoices(request,form):
     ''' Shows all of the invoices in the system. '''
 
-    invoices = commerce.Invoice.objects.all().order_by("status")
+    invoices = commerce.Invoice.objects.all().order_by("status", "id")
 
     return QuerysetReport(
         "Invoices",

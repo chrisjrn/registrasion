@@ -443,9 +443,10 @@ class InvoicesWithProductAndStatusForm(forms.Form):
         )
 
         qs = qs.select_related("user__attendee__attendeeprofilebase")
+        qs = qs.order_by("id")
 
         self.fields['invoice'].queryset = qs
-        self.fields['invoice'].initial = [i.id for i in qs]
+        #self.fields['invoice'].initial = [i.id for i in qs] # UNDO THIS LATER
 
 
 class InvoiceEmailForm(InvoicesWithProductAndStatusForm):

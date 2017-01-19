@@ -312,6 +312,53 @@ def discount_status(request, form):
     return ListReport("Usage by item", headings, data)
 
 
+@report_view("Who ordered specific items", form_type=forms.ProductAndCategoryForm)
+def who_ordered_items(request, form):
+    ''' Shows each attendee that ordered a 
+    specific product or category item '''
+
+    products = form.cleaned_data["product"]
+    categories = form.cleaned_data["category"]
+
+    invoices = commerce.Invoice.objects.filter(
+        (
+            Q(lineitem__product__in=products) |
+            Q(lineitem__product__category__in=categories)
+        ),
+        status=commerce.Invoice.STATUS_PAID,
+    ).select_related(
+        "cart",
+        "user",
+        "user__attendee",
+        "user__attendee__attendeeprofilebase"
+    ).order_by("issue_time")
+
+    headings = [
+        'Invoice', 'Invoice Date', 'Attendee', 'Qty', 'Product', 'Paid'
+    ]
+
+    data = []
+    for invoice in invoices:
+        for item in invoice.cart.productitem_set.all():
+            if item.product in products or item.product.category in categories:
+                output = []
+                output.append(invoice.id)
+                output.append(invoice.issue_time.strftime('%Y-%m-%d %H:%M:%S'))
+                output.append(invoice.user.attendee.attendeeprofilebase.attendee_name())
+                output.append(item.quantity)
+                output.append(item.product)
+                cart = invoice.cart
+                if cart.status == commerce.Cart.STATUS_PAID:
+                    output.append('PAID')
+                elif cart.status == commerce.Cart.STATUS_ACTIVE:
+                    output.append('UNPAID')
+                elif cart.status == commerce.Cart.STATUS_RELEASED:
+                    output.append('REFUNDED')
+                data.append(output)
+
+    return ListReport("Who ordered specific items", headings, data)
+
+
 @report_view("Paid invoices by date", form_type=forms.ProductAndCategoryForm)
 def paid_invoices_by_date(request, form):
     ''' Shows the number of paid invoices containing given products or

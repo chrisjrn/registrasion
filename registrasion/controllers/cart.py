@@ -445,7 +445,7 @@ class CartController(object):
         # Order the products such that the most expensive ones are
         # processed first.
         product_items = self.cart.productitem_set.all().select_related(
-            "product", "product__category", "product__price"
+            "product", "product__category"
         ).order_by("-product__price")
 
         products = [i.product for i in product_items]

@@ -1,6 +1,6 @@
 import datetime
 import sys
-import util
+from registrasion import util
 import zipfile
 
 from registrasion import forms

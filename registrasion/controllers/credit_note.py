@@ -4,7 +4,7 @@ from django.db import transaction
 
 from registrasion.models import commerce
 
-from for_id import ForId
+from registrasion.controllers.for_id import ForId
 
 
 class CreditNoteController(ForId, object):

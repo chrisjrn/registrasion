@@ -1,4 +1,4 @@
-import forms
+from registrasion.reporting import forms
 
 import collections
 import datetime
@@ -24,11 +24,11 @@ from registrasion import views
 
 from symposion.schedule import models as schedule_models
 
-from reports import get_all_reports
-from reports import Links
-from reports import ListReport
-from reports import QuerysetReport
-from reports import report_view
+from registrasion.reporting.reports import get_all_reports
+from registrasion.reporting.reports import Links
+from registrasion.reporting.reports import ListReport
+from registrasion.reporting.reports import QuerysetReport
+from registrasion.reporting.reports import report_view
 
 
 def CURRENCY():
@@ -95,7 +95,7 @@ def items_sold():
         total_quantity=Sum("quantity"),
     )
 
-    print line_items
+    print(line_items)
 
     headings = ["Description", "Quantity", "Price", "Total"]
 
@@ -414,7 +414,7 @@ def attendee(request, form, user_id=None):
     if user_id is None:
         return attendee_list(request)
 
-    print user_id
+    print(user_id)
 
     attendee = people.Attendee.objects.get(user__id=user_id)
     name = attendee.attendeeprofilebase.attendee_name()

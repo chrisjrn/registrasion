@@ -4,7 +4,7 @@ from registrasion.controllers.item import ItemController
 
 from django import template
 from django.db.models import Sum
-from urllib import urlencode
+from urllib.parse import urlencode
 
 register = template.Library()
 

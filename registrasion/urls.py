@@ -1,4 +1,4 @@
-from reporting import views as rv
+from registrasion.reporting import views as rv
 
 from django.conf.urls import include
 from django.conf.urls import url

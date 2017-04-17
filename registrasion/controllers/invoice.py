@@ -11,9 +11,9 @@ from registrasion.models import commerce
 from registrasion.models import conditions
 from registrasion.models import people
 
-from cart import CartController
-from credit_note import CreditNoteController
-from for_id import ForId
+from registrasion.controllers.cart import CartController
+from registrasion.controllers.credit_note import CreditNoteController
+from registrasion.controllers.for_id import ForId
 
 
 class InvoiceController(ForId, object):

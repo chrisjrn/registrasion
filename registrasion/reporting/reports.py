@@ -1,5 +1,5 @@
 import csv
-import forms
+import registrasion.reporting.forms
 
 from django.contrib.auth.decorators import user_passes_test
 from django.shortcuts import render
@@ -178,7 +178,7 @@ class Links(Report):
         return []
 
     def rows(self, content_type):
-        print self._links
+        print(self._links)
         for url, link_text in self._links:
             yield [
                 self._linked_text(content_type, url, link_text)

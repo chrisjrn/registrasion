@@ -7,12 +7,11 @@ from django.core.exceptions import ValidationError
 from registrasion.models import commerce
 from registrasion.models import conditions
 from registrasion.models import inventory
-from controller_helpers import TestingCartController
-from controller_helpers import TestingCreditNoteController
-from controller_helpers import TestingInvoiceController
-from test_helpers import TestHelperMixin
+from registrasion.tests.controller_helpers import TestingCartController
+from registrasion.tests.controller_helpers import TestingInvoiceController
+from registrasion.tests.test_helpers import TestHelperMixin
 
-from test_cart import RegistrationCartTestCase
+from registrasion.tests.test_cart import RegistrationCartTestCase
 
 UTC = pytz.timezone('UTC')
 
@@ -67,7 +66,7 @@ class InvoiceTestCase(TestHelperMixin, RegistrationCartTestCase):
 
     def test_create_invoice_fails_if_cart_invalid(self):
         self.make_ceiling("Limit ceiling", limit=1)
-        self.set_time(datetime.datetime(2015, 01, 01, tzinfo=UTC))
+        self.set_time(datetime.datetime(2015, 1, 1, tzinfo=UTC))
         current_cart = TestingCartController.for_user(self.USER_1)
         current_cart.add_to_cart(self.PROD_1, 1)
 
@@ -166,7 +165,6 @@ class InvoiceTestCase(TestHelperMixin, RegistrationCartTestCase):
         current_cart.add_to_cart(self.PROD_1, 1)
         return TestingInvoiceController.for_cart(current_cart.cart)
 
-
     def test_zero_value_invoice_is_automatically_paid(self):
         invoice_1 = self._make_zero_value_invoice()
         self.assertTrue(invoice_1.invoice.is_paid)
@@ -220,7 +218,7 @@ class InvoiceTestCase(TestHelperMixin, RegistrationCartTestCase):
         # generate an invoice
         self.add_timedelta(self.RESERVATION * 2)
         cart2.add_to_cart(self.PROD_2, 1)
-        inv2 = TestingInvoiceController.for_cart(cart2.cart)
+        TestingInvoiceController.for_cart(cart2.cart)
 
         # Re-get inv1's invoice; it should void itself on loading.
         inv1 = TestingInvoiceController(inv1.invoice)

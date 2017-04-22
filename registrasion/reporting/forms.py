@@ -63,7 +63,6 @@ class GroupByForm(forms.Form):
     )
 
 
-
 def model_fields_form_factory(model):
     ''' Creates a form for specifying fields from a model to display. '''
 

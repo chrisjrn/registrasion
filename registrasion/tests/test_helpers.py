@@ -2,9 +2,10 @@ import datetime
 
 from registrasion.models import commerce
 
-from controller_helpers import TestingCartController
-from controller_helpers import TestingCreditNoteController
-from controller_helpers import TestingInvoiceController
+from registrasion.tests.controller_helpers import TestingCartController
+from registrasion.tests.controller_helpers import TestingCreditNoteController
+from registrasion.tests.controller_helpers import TestingInvoiceController
+
 
 class TestHelperMixin(object):
 
@@ -18,7 +19,7 @@ class TestHelperMixin(object):
         items = [("Item", value)]
         due = datetime.timedelta(hours=1)
         inv = TestingInvoiceController.manual_invoice(self.USER_1, due, items)
-        
+
         return TestingInvoiceController(inv)
 
     def _credit_note_for_invoice(self, invoice):

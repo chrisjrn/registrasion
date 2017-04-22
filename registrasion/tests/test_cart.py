@@ -15,8 +15,8 @@ from registrasion.models import people
 from registrasion.controllers.batch import BatchController
 from registrasion.controllers.product import ProductController
 
-from controller_helpers import TestingCartController
-from patches import MixInPatches
+from registrasion.tests.controller_helpers import TestingCartController
+from registrasion.tests.patches import MixInPatches
 
 UTC = pytz.timezone('UTC')
 
@@ -67,7 +67,7 @@ class RegistrationCartTestCase(MixInPatches, TestCase):
         cls.RESERVATION = datetime.timedelta(hours=1)
 
         cls.categories = []
-        for i in xrange(2):
+        for i in range(2):
             cat = inventory.Category.objects.create(
                 name="Category " + str(i + 1),
                 description="This is a test category",
@@ -81,7 +81,7 @@ class RegistrationCartTestCase(MixInPatches, TestCase):
         cls.CAT_2 = cls.categories[1]
 
         cls.products = []
-        for i in xrange(4):
+        for i in range(4):
             prod = inventory.Product.objects.create(
                 name="Product " + str(i + 1),
                 description="This is a test product.",
@@ -459,7 +459,6 @@ class BasicCartTests(RegistrationCartTestCase):
         cart.add_to_cart(self.PROD_1, 1)
         cart.cart.refresh_from_db()
         self.assertEqual(cart.cart.reservation_duration, new_res)
-
 
     def test_reservation_duration_removals(self):
         ''' Reservation duration should update with removals

@@ -1,16 +1,11 @@
 import pytz
 
 from django.contrib.auth.models import Group
-from django.core.exceptions import ValidationError
 
-from registrasion.models import commerce
 from registrasion.models import conditions
-from registrasion.controllers.category import CategoryController
-from controller_helpers import TestingCartController
-from controller_helpers import TestingInvoiceController
 from registrasion.controllers.product import ProductController
 
-from test_cart import RegistrationCartTestCase
+from registrasion.tests.test_cart import RegistrationCartTestCase
 
 UTC = pytz.timezone('UTC')
 

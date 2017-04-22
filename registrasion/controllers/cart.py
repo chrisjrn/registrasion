@@ -165,7 +165,6 @@ class CartController(object):
 
         product_quantities = list(product_quantities)
 
-
         # n.b need to add have the existing items first so that the new
         # items override the old ones.
         all_product_quantities = dict(itertools.chain(

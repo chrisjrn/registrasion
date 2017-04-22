@@ -1,9 +1,9 @@
 import pytz
 
-from controller_helpers import TestingCartController
-from controller_helpers import TestingInvoiceController
+from registrasion.tests.controller_helpers import TestingCartController
+from registrasion.tests.controller_helpers import TestingInvoiceController
 
-from test_cart import RegistrationCartTestCase
+from registrasion.tests.test_cart import RegistrationCartTestCase
 
 from registrasion.models import commerce
 

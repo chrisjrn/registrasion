@@ -2,7 +2,6 @@ from decimal import Decimal
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import Sum
 from django.utils import timezone
 
 from registrasion.contrib.mail import send_email

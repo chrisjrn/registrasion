@@ -40,7 +40,8 @@ class CreditNoteController(ForId, object):
         paid.
         '''
 
-        from invoice import InvoiceController  # Circular imports bleh.
+        # Circular Import
+        from registrasion.controllers.invoice import InvoiceController
         inv = InvoiceController(invoice)
         inv.validate_allowed_to_pay()
 
@@ -64,7 +65,8 @@ class CreditNoteController(ForId, object):
         a cancellation fee. Must be 0 <= percentage <= 100.
         '''
 
-        from invoice import InvoiceController  # Circular imports bleh.
+        # Circular Import
+        from registrasion.controllers.invoice import InvoiceController
 
         assert(percentage >= 0 and percentage <= 100)
 

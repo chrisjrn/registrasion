@@ -163,8 +163,8 @@ def sales_payment_summary():
     data.append([
         "Credit notes - (claimed credit notes + unclaimed credit notes)",
         all_credit_notes - claimed_credit_notes -
-            refunded_credit_notes - unclaimed_credit_notes,
-    ])
+        refunded_credit_notes - unclaimed_credit_notes
+        ])
 
     return ListReport("Sales and Payments Summary", headings, data)
 
@@ -291,8 +291,8 @@ def discount_status(request, form):
 
     items = group_by_cart_status(
         items,
-        ["discount",],
-        ["discount", "discount__description",],
+        ["discount"],
+        ["discount", "discount__description"],
     )
 
     headings = [
@@ -362,6 +362,7 @@ def paid_invoices_by_date(request, form):
         data,
     )
 
+
 @report_view("Credit notes")
 def credit_notes(request, form):
     ''' Shows all of the credit notes in the system. '''
@@ -375,7 +376,9 @@ def credit_notes(request, form):
 
     return QuerysetReport(
         "Credit Notes",
-        ["id", "invoice__user__attendee__attendeeprofilebase__invoice_recipient", "status", "value"],  # NOQA
+        ["id",
+         "invoice__user__attendee__attendeeprofilebase__invoice_recipient",
+         "status", "value"],
         notes,
         headings=["id", "Owner", "Status", "Value"],
         link_view=views.credit_note,
@@ -383,7 +386,7 @@ def credit_notes(request, form):
 
 
 @report_view("Invoices")
-def invoices(request,form):
+def invoices(request, form):
     ''' Shows all of the invoices in the system. '''
 
     invoices = commerce.Invoice.objects.all().order_by("status", "id")
@@ -562,6 +565,7 @@ def attendee_list(request):
 
 ProfileForm = forms.model_fields_form_factory(AttendeeProfile)
 
+
 @report_view(
     "Attendees By Product/Category",
     form_type=forms.mix_form(
@@ -580,7 +584,8 @@ def attendee_data(request, form, user_id=None):
 
     output = []
 
-    by_category = form.cleaned_data["group_by"] == forms.GroupByForm.GROUP_BY_CATEGORY
+    by_category = (
+        form.cleaned_data["group_by"] == forms.GroupByForm.GROUP_BY_CATEGORY)
 
     products = form.cleaned_data["product"]
     categories = form.cleaned_data["category"]
@@ -597,7 +602,8 @@ def attendee_data(request, form, user_id=None):
 
     # Add invoice nag link
     links = []
-    invoice_mailout = reverse(views.invoice_mailout, args=[]) + "?" + request.META["QUERY_STRING"]
+    invoice_mailout = reverse(views.invoice_mailout, args=[])
+    invoice_mailout += "?" + request.META["QUERY_STRING"]
     links += [
         (invoice_mailout + "&status=1", "Send invoice reminders",),
         (invoice_mailout + "&status=2", "Send mail for paid invoices",),
@@ -621,7 +627,7 @@ def attendee_data(request, form, user_id=None):
         by_user[profile.attendee.user] = profile
 
     cart = "attendee__user__cart"
-    cart_status = cart + "__status"
+    cart_status = cart + "__status"  # noqa
     product = cart + "__productitem__product"
     product_name = product + "__name"
     category = product + "__category"
@@ -631,12 +637,12 @@ def attendee_data(request, form, user_id=None):
         grouping_fields = (category, category_name)
         order_by = (category, )
         first_column = "Category"
-        group_name = lambda i: "%s" % (i[category_name], )
+        group_name = lambda i: "%s" % (i[category_name], )  # noqa
     else:
         grouping_fields = (product, product_name, category_name)
         order_by = (category, )
         first_column = "Product"
-        group_name = lambda i: "%s - %s" % (i[category_name], i[product_name])
+        group_name = lambda i: "%s - %s" % (i[category_name], i[product_name])  # noqa
 
     # Group the responses per-field.
     for field in fields:
@@ -663,7 +669,7 @@ def attendee_data(request, form, user_id=None):
             def display_field(value):
                 return value
 
-        status_count = lambda status: Case(When(
+        status_count = lambda status: Case(When(  # noqa
                 attendee__user__cart__status=status,
                 then=Value(1),
             ),
@@ -710,7 +716,8 @@ def attendee_data(request, form, user_id=None):
         else:
             return attr
 
-    headings = ["User ID", "Name", "Email", "Product", "Item Status"] + field_names
+    headings = ["User ID", "Name", "Email", "Product", "Item Status"]
+    headings.extend(field_names)
     data = []
     for item in items:
         profile = by_user[item.cart.user]
@@ -726,7 +733,8 @@ def attendee_data(request, form, user_id=None):
         data.append(line)
 
     output.append(AttendeeListReport(
-        "Attendees by item with profile data", headings, data, link_view=attendee
+        "Attendees by item with profile data", headings, data,
+        link_view=attendee
     ))
     return output
 
@@ -763,7 +771,7 @@ def speaker_registrations(request, form):
 
     return QuerysetReport(
         "Speaker Registration Status",
-        ["id", "speaker_profile__name", "email", "paid_carts",],
+        ["id", "speaker_profile__name", "email", "paid_carts"],
         users,
         link_view=attendee,
     )
@@ -776,7 +784,10 @@ def speaker_registrations(request, form):
     forms.ProductAndCategoryForm,
 )
 def manifest(request, form):
-    ''' Produces the registration manifest for people with the given product type.'''
+    '''
+    Produces the registration manifest for people with the given product
+    type.
+    '''
 
     products = form.cleaned_data["product"]
     categories = form.cleaned_data["category"]
@@ -835,9 +846,9 @@ def manifest(request, form):
     headings = ["User ID", "Name", "Paid", "Unpaid", "Refunded"]
 
     def format_items(item_list):
-        strings = [
-            "%d x %s" % (item.quantity, str(item.product)) for item in item_list
-        ]
+        strings = []
+        for item in item_list:
+            strings.append('%d x %s' % (item.quantity, str(item.product)))
         return ", \n".join(strings)
 
     output = []
@@ -853,4 +864,4 @@ def manifest(request, form):
 
     return ListReport("Manifest", headings, output)
 
-    #attendeeprofilebase.attendee_name()
+    # attendeeprofilebase.attendee_name()

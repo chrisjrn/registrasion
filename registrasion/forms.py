@@ -3,7 +3,6 @@ from .models import commerce
 from .models import inventory
 
 from django import forms
-from django.core.exceptions import ValidationError
 from django.db.models import Q
 
 
@@ -31,10 +30,11 @@ class ApplyCreditNoteForm(forms.Form):
             })
 
 
-        key = lambda inv: (0 - (inv["user_id"] == self.user.id), inv["id"])
+        key = lambda inv: (0 - (inv["user_id"] == self.user.id), inv["id"])  # noqa
         invoices_annotated.sort(key=key)
 
-        template = "Invoice %(id)d - user: %(user_email)s (%(user_id)d) -  $%(value)d"
+        template = ('Invoice %(id)d - user: %(user_email)s (%(user_id)d) '
+                    '-  $%(value)d')
         return [
             (invoice["id"], template % invoice)
             for invoice in invoices_annotated
@@ -56,6 +56,7 @@ class CancellationFeeForm(forms.Form):
         min_value=0,
         max_value=100,
     )
+
 
 class ManualCreditNoteRefundForm(forms.ModelForm):
 
@@ -407,6 +408,7 @@ def staff_products_form_factory(user):
 
     return StaffProductsForm
 
+
 def staff_products_formset_factory(user):
     ''' Creates a formset of StaffProductsForm for the given user. '''
     form_type = staff_products_form_factory(user)
@@ -446,7 +448,7 @@ class InvoicesWithProductAndStatusForm(forms.Form):
         qs = qs.order_by("id")
 
         self.fields['invoice'].queryset = qs
-        #self.fields['invoice'].initial = [i.id for i in qs] # UNDO THIS LATER
+        # self.fields['invoice'].initial = [i.id for i in qs] # UNDO THIS LATER
 
 
 class InvoiceEmailForm(InvoicesWithProductAndStatusForm):

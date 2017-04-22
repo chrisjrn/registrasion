@@ -1,18 +1,15 @@
 import datetime
 import pytz
 
-from decimal import Decimal
 from django.core.exceptions import ValidationError
 
 from registrasion.models import commerce
-from registrasion.models import conditions
-from registrasion.models import inventory
-from controller_helpers import TestingCartController
-from controller_helpers import TestingCreditNoteController
-from controller_helpers import TestingInvoiceController
-from test_helpers import TestHelperMixin
+from registrasion.tests.controller_helpers import TestingCartController
+from registrasion.tests.controller_helpers import TestingInvoiceController
+from registrasion.tests.test_helpers import TestHelperMixin
 
-from test_cart import RegistrationCartTestCase
+from registrasion.tests.test_cart import RegistrationCartTestCase
+
 
 UTC = pytz.timezone('UTC')
 
@@ -142,7 +139,7 @@ class CreditNoteTestCase(TestHelperMixin, RegistrationCartTestCase):
         invoice.refund()
 
         # There should be one credit note generated out of the invoice.
-        cn = self._credit_note_for_invoice(invoice.invoice)
+        cn = self._credit_note_for_invoice(invoice.invoice)  # noqa
 
         self.assertEquals(1, commerce.CreditNote.unclaimed().count())
 
@@ -324,7 +321,7 @@ class CreditNoteTestCase(TestHelperMixin, RegistrationCartTestCase):
         # will be invalidated. A new invoice should be generated.
         cart.add_to_cart(self.PROD_1, 1)
         invoice = TestingInvoiceController.for_id(invoice.invoice.id)
-        invoice2 = TestingInvoiceController.for_cart(cart.cart)
+        invoice2 = TestingInvoiceController.for_cart(cart.cart)  # noqa
         cn2 = self._credit_note_for_invoice(invoice.invoice)
 
         invoice._refresh()
@@ -387,7 +384,6 @@ class CreditNoteTestCase(TestHelperMixin, RegistrationCartTestCase):
         notes_value = self._generate_multiple_credit_notes()
         invoice = self._manual_invoice(notes_value - 1)
 
-
         self.assertEqual(notes_value - 1, invoice.invoice.total_payments())
         self.assertTrue(invoice.invoice.is_paid)
 
@@ -403,14 +399,14 @@ class CreditNoteTestCase(TestHelperMixin, RegistrationCartTestCase):
         ''' Tests that excess credit notes are untouched if they're not needed
         '''
 
-        notes_value = self._generate_multiple_credit_notes()
+        notes_value = self._generate_multiple_credit_notes()  # noqa
         notes_old = commerce.CreditNote.unclaimed().filter(
             invoice__user=self.USER_1
         )
 
         # Create a manual invoice whose value is smaller than any of the
         # credit notes we created
-        invoice = self._manual_invoice(1)
+        invoice = self._manual_invoice(1)  # noqa
         notes_new = commerce.CreditNote.unclaimed().filter(
             invoice__user=self.USER_1
         )
@@ -422,7 +418,7 @@ class CreditNoteTestCase(TestHelperMixin, RegistrationCartTestCase):
     def test_credit_notes_are_not_applied_if_user_has_multiple_invoices(self):
 
         # Have an invoice pending with no credit notes; no payment will be made
-        invoice1 = self._invoice_containing_prod_1(1)
+        invoice1 = self._invoice_containing_prod_1(1)  # noqa
         # Create some credit notes.
         self._generate_multiple_credit_notes()
 
@@ -435,7 +431,7 @@ class CreditNoteTestCase(TestHelperMixin, RegistrationCartTestCase):
 
     def test_credit_notes_are_applied_even_if_some_notes_are_claimed(self):
 
-        for i in xrange(10):
+        for i in range(10):
             # Generate credit note
             invoice1 = self._manual_invoice(1)
             invoice1.pay("Pay", invoice1.invoice.value)
@@ -467,5 +463,5 @@ class CreditNoteTestCase(TestHelperMixin, RegistrationCartTestCase):
 
     def test_cancellation_fee_is_applied_when_another_invoice_is_unpaid(self):
 
-        extra_invoice = self._manual_invoice(23)
+        extra_invoice = self._manual_invoice(23)  # noqa
         self.test_cancellation_fee_is_applied()

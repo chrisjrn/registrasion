@@ -318,7 +318,7 @@ class CartController(object):
                 errors.append(ve)
 
         if errors:
-            raise(ValidationError(ve))
+            raise(ValidationError(errors))
 
     def _test_required_categories(self):
         ''' Makes sure that the owner of this cart has satisfied all of the

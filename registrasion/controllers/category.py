@@ -9,6 +9,8 @@ from django.db.models import Value
 
 from .batch import BatchController
 
+from operator import attrgetter
+
 
 class AllProducts(object):
     pass
@@ -38,7 +40,7 @@ class CategoryController(object):
             products=products,
         )
 
-        return set(i.category for i in available)
+        return sorted(set(i.category for i in available), key=attrgetter("order"))
 
     @classmethod
     @BatchController.memoise

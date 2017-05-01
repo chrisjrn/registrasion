@@ -243,55 +243,31 @@ class _RadioButtonProductsForm(_ProductsForm):
 
 class _CheckboxProductsForm(_ProductsForm):
     ''' Products entry form that allows users to say yes or no
-    to desired products. '''
-
-    FIELD = "chosen_product"
+    to desired products. Basically, it's a quantity form, but the quantity
+    is either zero or one.'''
 
     @classmethod
     def set_fields(cls, category, products):
-        choices = []
         for product in products:
-            choice_text = "%s -- $%d" % (product.name, product.price)
-            choices.append((product.id, choice_text))
-
-        cls.base_fields[cls.FIELD] = forms.TypedMultipleChoiceField(
-            label=category.name,
-            widget=forms.CheckboxSelectMultiple,
-            choices=choices,
-            empty_value=False,
-            coerce=int,
-        )
+            field = forms.BooleanField(
+                label='%s -- %s' % (product.name, product.price),
+                required=False,
+            )
+            cls.base_fields[cls.field_name(product)] = field
 
     @classmethod
     def initial_data(cls, product_quantities):
         initial = {}
-
         for product, quantity in product_quantities:
-            if quantity > 0:
-                initial[cls.FIELD] = product.id
+            initial[cls.field_name(product)] = bool(quantity)
 
         return initial
 
     def product_quantities(self):
-
-        print 'product_quantities'
-        ours = self.cleaned_data[self.FIELD]
-        choices = self.fields[self.FIELD].choices
-
-        print('ours', ours)
-        print('choices', choices)
-
-        for choice_value in choices:
-            print 'choice_value', choice_value
-            if choice_value == 0:
-                continue
-            yield (
-                choice_value,
-                1 if ours == choice_value else 0,
-            )
-
-    def add_product_error(self, product, error):
-        self.add_error(self.FIELD, error)
+        for name, value in self.cleaned_data.items():
+            if name.startswith(self.PRODUCT_PREFIX):
+                product_id = int(name[len(self.PRODUCT_PREFIX):])
+                yield (product_id, int(value))
 
 
 class _ItemQuantityProductsForm(_ProductsForm):

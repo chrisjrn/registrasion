@@ -85,6 +85,7 @@ def ProductsForm(category, products):
         cat.RENDER_TYPE_QUANTITY: _QuantityBoxProductsForm,
         cat.RENDER_TYPE_RADIO: _RadioButtonProductsForm,
         cat.RENDER_TYPE_ITEM_QUANTITY: _ItemQuantityProductsForm,
+        cat.RENDER_TYPE_CHECKBOX: _CheckboxProductsForm,
     }
 
     # Produce a subclass of _ProductsForm which we can alter the base_fields on
@@ -229,6 +230,59 @@ class _RadioButtonProductsForm(_ProductsForm):
         ours = self.cleaned_data[self.FIELD]
         choices = self.fields[self.FIELD].choices
         for choice_value, choice_display in choices:
+            if choice_value == 0:
+                continue
+            yield (
+                choice_value,
+                1 if ours == choice_value else 0,
+            )
+
+    def add_product_error(self, product, error):
+        self.add_error(self.FIELD, error)
+
+
+class _CheckboxProductsForm(_ProductsForm):
+    ''' Products entry form that allows users to say yes or no
+    to desired products. '''
+
+    FIELD = "chosen_product"
+
+    @classmethod
+    def set_fields(cls, category, products):
+        choices = []
+        for product in products:
+            choice_text = "%s -- $%d" % (product.name, product.price)
+            choices.append((product.id, choice_text))
+
+        cls.base_fields[cls.FIELD] = forms.TypedMultipleChoiceField(
+            label=category.name,
+            widget=forms.CheckboxSelectMultiple,
+            choices=choices,
+            empty_value=False,
+            coerce=int,
+        )
+
+    @classmethod
+    def initial_data(cls, product_quantities):
+        initial = {}
+
+        for product, quantity in product_quantities:
+            if quantity > 0:
+                initial[cls.FIELD] = product.id
+
+        return initial
+
+    def product_quantities(self):
+
+        print 'product_quantities'
+        ours = self.cleaned_data[self.FIELD]
+        choices = self.fields[self.FIELD].choices
+
+        print('ours', ours)
+        print('choices', choices)
+
+        for choice_value in choices:
+            print 'choice_value', choice_value
             if choice_value == 0:
                 continue
             yield (

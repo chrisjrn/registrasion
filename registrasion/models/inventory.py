@@ -42,6 +42,8 @@ class Category(models.Model):
             have a lot of options, from which the user is not going to select
             all of the options.
 
+            ``RENDER_TYPE_CHECKBOX`` shows a checkbox beside each product.
+
         limit_per_user (Optional[int]): This restricts the number of items
             from this Category that each attendee may claim. This extends
             across multiple Invoices.
@@ -63,11 +65,13 @@ class Category(models.Model):
     RENDER_TYPE_RADIO = 1
     RENDER_TYPE_QUANTITY = 2
     RENDER_TYPE_ITEM_QUANTITY = 3
+    RENDER_TYPE_CHECKBOX = 4
 
     CATEGORY_RENDER_TYPES = [
         (RENDER_TYPE_RADIO, _("Radio button")),
         (RENDER_TYPE_QUANTITY, _("Quantity boxes")),
         (RENDER_TYPE_ITEM_QUANTITY, _("Product selector and quantity box")),
+        (RENDER_TYPE_CHECKBOX, _("Checkbox button")),
     ]
 
     name = models.CharField(

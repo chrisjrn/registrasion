@@ -399,6 +399,28 @@ def product_category(request, category_id):
     return render(request, "registrasion/product_category.html", data)
 
 
+def voucher_code(request):
+    ''' A view *just* for entering a voucher form. '''
+
+    VOUCHERS_FORM_PREFIX = "vouchers"
+
+    # Handle the voucher form *before* listing products.
+    # Products can change as vouchers are entered.
+    v = _handle_voucher(request, VOUCHERS_FORM_PREFIX)
+    voucher_form, voucher_handled = v
+
+    if voucher_handled:
+        messages.success(request, "Your voucher code was accepted.")
+        return redirect("dashboard")
+
+    data = {
+        "voucher_form": voucher_form,
+    }
+
+    return render(request, "registrasion/voucher_code.html", data)
+
+
+
 def _handle_products(request, category, products, prefix):
     ''' Handles a products list form in the given request. Returns the
     form instance, the discounts applicable to this form, and whether the

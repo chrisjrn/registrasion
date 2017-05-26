@@ -19,6 +19,7 @@ from .views import (
     product_category,
     refund,
     review,
+    voucher_code,
 )
 
 
@@ -43,6 +44,7 @@ public = [
     url(r"^profile$", edit_profile, name="attendee_edit"),
     url(r"^register$", guided_registration, name="guided_registration"),
     url(r"^review$", review, name="review"),
+    url(r"^voucher$", voucher_code, name="voucher_code"),
     url(r"^register/([0-9]+)$", guided_registration,
         name="guided_registration"),
 ]

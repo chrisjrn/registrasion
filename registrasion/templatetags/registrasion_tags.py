@@ -136,6 +136,11 @@ def sold_out_and_unregistered(context):
     if hasattr(user, "attendee") and user.attendee.completed_registration:
         # This user has completed registration, and so we don't need to answer
         # whether they have sold out yet.
+
+        # TODO: what if a user has got to the review phase?
+        # currently that user will hit the review page, click "Check out and
+        # pay", and that will fail. Probably good enough for now.
+
         return None
 
     ticket_category = settings.TICKET_PRODUCT_CATEGORY

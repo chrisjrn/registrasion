@@ -8,6 +8,7 @@ from .models import inventory
 from .models import people
 from .controllers.batch import BatchController
 from .controllers.cart import CartController
+from .controllers.category import CategoryController
 from .controllers.credit_note import CreditNoteController
 from .controllers.discount import DiscountController
 from .controllers.invoice import InvoiceController
@@ -96,6 +97,15 @@ def guided_registration(request):
 
     if attendee.completed_registration:
         return redirect(review)
+
+    # This view doesn't work if the conference has sold out.
+    ticket_category = inventory.Category.objects.get(
+        id=settings.TICKET_PRODUCT_CATEGORY
+    )
+    available = CategoryController.available_categories(request.user)
+    if ticket_category not in available:
+        messages.error(request, "There are no more tickets available.")
+        return redirect("dashboard")
 
     # Step 1: Fill in a badge and collect a voucher code
     try:

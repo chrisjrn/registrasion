@@ -106,7 +106,6 @@ def guided_registration_2(request, page_number=None):
         attendee = people.Attendee.get_instance(request.user)
 
         if attendee.completed_registration:
-            # TODO: store this somewhere.
             return redirect(review)
 
         # This view doesn't work if the conference has sold out.
@@ -147,13 +146,11 @@ def guided_registration_2(request, page_number=None):
                 request, GUIDED_MODE_EXCLUDE_COMPLETE
             )
 
-        '''
+        if not sections:
             # We've filled in every category
             attendee.completed_registration = True
             attendee.save()
-            return next_step
-        '''
-        # TODO: handle attendee.completed_registration
+            return redirect("review")
 
         if sections and request.method == "POST":
             for section in sections:
@@ -184,22 +181,47 @@ GUIDED_MODE_EXCLUDE_COMPLETE = 4
 def guided_registration_old(request, mode):
     sections = []
 
-    attendee = people.Attendee.get_instance(request.user)
+    SESSION_KEY = "guided_registration"
+    MODE_KEY = "mode"
+    CATS_KEY = "cats"
 
-    # We're selling products
+    attendee = people.Attendee.get_instance(request.user)
 
     # Get the next category
     cats = inventory.Category.objects.order_by("order")  # TODO: default order?
-    if mode == GUIDED_MODE_TICKETS_ONLY:
+
+    # Fun story: If _any_ of the category forms result in an error, but other
+    # new products get enabled with a flag, those new products will appear.
+    # We need to make sure that we only display the products that were valid
+    # in the first place. So we track them in a session, and refresh only if
+    # the page number does not change. Cheap!
+
+    if SESSION_KEY in request.session:
+        session_struct = request.session[SESSION_KEY]
+        old_mode = session_struct[MODE_KEY]
+        old_cats = session_struct[CATS_KEY]
+    else:
+        old_mode = None
+        old_cats = []
+
+    if mode == old_mode:
+        cats = cats.filter(id__in=old_cats)
+    elif mode == GUIDED_MODE_TICKETS_ONLY:
         cats = cats.filter(id=settings.TICKET_PRODUCT_CATEGORY)
     elif mode == GUIDED_MODE_ALL_ADDITIONAL:
         cats = cats.exclude(id=settings.TICKET_PRODUCT_CATEGORY)
     elif mode == GUIDED_MODE_EXCLUDE_COMPLETE:
-        cats = cats.exclude(id__in=attendee.guided_categories_complete.all())
+        cats = cats.exclude(id=settings.TICKET_PRODUCT_CATEGORY)
+        cats = cats.exclude(id__in=old_cats)
+
+    # We update the session key at the end of this method
+    # once we've found all the categories that have available products
 
     all_products = inventory.Product.objects.filter(
         category__in=cats,
     ).select_related("category")
+
+    seen_categories = []
 
     with BatchController.batch(request.user):
         available_products = set(ProductController.available_products(
@@ -232,14 +254,11 @@ def guided_registration_old(request, mode):
             if products:
                 # This product category has items to show.
                 sections.append(section)
+                seen_categories.append(category)
 
-                if request.method == "POST":
-                    # Track if there are errors.
-                    if products_form.errors:
-                        has_errors = True
-
-        if not has_errors:
-            attendee.guided_categories_complete.add(*list(cats))
+    # Update the cache with the newly calculated values
+    cat_ids = [cat.id for cat in seen_categories]
+    request.session[SESSION_KEY] = {MODE_KEY: mode, CATS_KEY: cat_ids}
 
     return sections
 

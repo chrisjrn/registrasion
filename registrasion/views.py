@@ -1,21 +1,20 @@
 import datetime
 import sys
-from registrasion import util
 import zipfile
 
-from registrasion import forms
-from registrasion import util
-from registrasion.models import commerce
-from registrasion.models import inventory
-from registrasion.models import people
-from registrasion.controllers.batch import BatchController
-from registrasion.controllers.cart import CartController
-from registrasion.controllers.credit_note import CreditNoteController
-from registrasion.controllers.discount import DiscountController
-from registrasion.controllers.invoice import InvoiceController
-from registrasion.controllers.item import ItemController
-from registrasion.controllers.product import ProductController
-from registrasion.exceptions import CartValidationError
+from . import forms
+from . import util
+from .models import commerce
+from .models import inventory
+from .models import people
+from .controllers.batch import BatchController
+from .controllers.cart import CartController
+from .controllers.credit_note import CreditNoteController
+from .controllers.discount import DiscountController
+from .controllers.invoice import InvoiceController
+from .controllers.item import ItemController
+from .controllers.product import ProductController
+from .exceptions import CartValidationError
 
 from collections import namedtuple
 

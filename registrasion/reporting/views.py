@@ -1,4 +1,4 @@
-from registrasion.reporting import forms
+from . import forms
 
 import collections
 import datetime
@@ -24,11 +24,11 @@ from registrasion import views
 
 from symposion.schedule import models as schedule_models
 
-from registrasion.reporting.reports import get_all_reports
-from registrasion.reporting.reports import Links
-from registrasion.reporting.reports import ListReport
-from registrasion.reporting.reports import QuerysetReport
-from registrasion.reporting.reports import report_view
+from .reports import get_all_reports
+from .reports import Links
+from .reports import ListReport
+from .reports import QuerysetReport
+from .reports import report_view
 
 
 def CURRENCY():

@@ -1,6 +1,6 @@
-from registrasion.controllers.product import ProductController
-from registrasion.models import commerce
-from registrasion.models import inventory
+from .controllers.product import ProductController
+from .models import commerce
+from .models import inventory
 
 from django import forms
 from django.core.exceptions import ValidationError

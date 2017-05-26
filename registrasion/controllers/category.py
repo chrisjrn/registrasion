@@ -26,7 +26,7 @@ class CategoryController(object):
         products, otherwise it'll do all. '''
 
         # STOPGAP -- this needs to be elsewhere tbqh
-        from registrasion.controllers.product import ProductController
+        from .product import ProductController
 
         if products is AllProducts:
             products = inventory.Product.objects.all().select_related(

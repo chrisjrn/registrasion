@@ -153,10 +153,11 @@ def guided_registration(request):
         request.session[SESSION_KEY] = []
 
         if starting:
-            # Only display the first Category
+            # Only display the ticket category
             title = "Select ticket type"
             current_step = 2
-            cats = [cats[0]]
+            ticket_category = cats.get(id=settings.TICKET_PRODUCT_CATEGORY)
+            cats = [ticket_category]
         else:
             # Set title appropriately for remaining categories
             current_step = 3

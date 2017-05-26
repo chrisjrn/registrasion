@@ -99,8 +99,7 @@ def guided_registration_2(request, page_number=None):
 
     page_number = int(page_number)
 
-    TOTAL_PAGES = 3
-    SESSION_KEY = "guided_registration_categories"  # TODO: get rid of this!
+    TOTAL_PAGES = 4
     next_step = redirect("guided_registration", page_number + 1)
 
     with BatchController.batch(request.user):
@@ -121,6 +120,8 @@ def guided_registration_2(request, page_number=None):
 
         sections = []
 
+        # TODO: figure out the maximum page for the user
+
         # Build up the list of sections
         if page_number == 1:
             # Profile bit
@@ -129,20 +130,39 @@ def guided_registration_2(request, page_number=None):
         elif page_number == 2:
             # Select ticket
             title = "Select ticket type"
-            sections = guided_registration_old(request)
+            sections = guided_registration_old(
+                request, GUIDED_MODE_TICKETS_ONLY
+            )
         elif page_number == 3:
-            # Select ticket
+            # Select additional items
             title = "Additional items"
-            sections = guided_registration_old(request)
+            sections = guided_registration_old(
+                request, GUIDED_MODE_ALL_ADDITIONAL
+            )
+        elif page_number == 4:
+            # Items enabled by things on page 3 -- only shows things
+            # that have not been marked as complete.
+            title = "More additional items"
+            sections = guided_registration_old(
+                request, GUIDED_MODE_EXCLUDE_COMPLETE
+            )
+
+        '''
+            # We've filled in every category
+            attendee.completed_registration = True
+            attendee.save()
+            return next_step
+        '''
+        # TODO: handle attendee.completed_registration
 
         if sections and request.method == "POST":
             for section in sections:
                 if section.form.errors:
                     break
             else:
+                # Saves the completed categories (in case we hit page 4)
                 attendee.save()
-                if SESSION_KEY in request.session:
-                    del request.session[SESSION_KEY]
+
                 # We've successfully processed everything
                 return next_step
 
@@ -154,66 +174,28 @@ def guided_registration_2(request, page_number=None):
     }
     return render(request, "registrasion/guided_registration.html", data)
 
-    return
+
+GUIDED_MODE_TICKETS_ONLY = 2
+GUIDED_MODE_ALL_ADDITIONAL = 3
+GUIDED_MODE_EXCLUDE_COMPLETE = 4
 
 
 @login_required
-def guided_registration_old(request):
-
-    SESSION_KEY = "guided_registration_categories"
-
-    next_step = redirect("guided_registration")
-
+def guided_registration_old(request, mode):
     sections = []
 
     attendee = people.Attendee.get_instance(request.user)
 
-    if attendee.completed_registration:
-        return redirect(review)
-
-    # This view doesn't work if the conference has sold out.
-    ticket_category = inventory.Category.objects.get(
-        id=settings.TICKET_PRODUCT_CATEGORY
-    )
-    available = CategoryController.available_categories(request.user)
-    if ticket_category not in available:
-        messages.error(request, "There are no more tickets available.")
-        return redirect("dashboard")
-
-    # Step 1: Fill in a badge and collect a voucher code
-    try:
-        profile = attendee.attendeeprofilebase
-    except ObjectDoesNotExist:
-        profile = None
-
     # We're selling products
 
-    starting = attendee.guided_categories_complete.count() == 0
-
     # Get the next category
-    cats = inventory.Category.objects
-    if SESSION_KEY in request.session:
-        _cats = request.session[SESSION_KEY]
-        cats = cats.filter(id__in=_cats)
-    else:
-        cats = cats.exclude(
-            id__in=attendee.guided_categories_complete.all(),
-        )
-
-    cats = cats.order_by("order")
-
-    request.session[SESSION_KEY] = []
-
-    if starting:
-        # Only display the ticket category
-        title = "Select ticket type"
-        current_step = 2
-        ticket_category = cats.get(id=settings.TICKET_PRODUCT_CATEGORY)
-        cats = [ticket_category]
-    else:
-        # Set title appropriately for remaining categories
-        current_step = 3
-        title = "Additional items"
+    cats = inventory.Category.objects.order_by("order")  # TODO: default order?
+    if mode == GUIDED_MODE_TICKETS_ONLY:
+        cats = cats.filter(id=settings.TICKET_PRODUCT_CATEGORY)
+    elif mode == GUIDED_MODE_ALL_ADDITIONAL:
+        cats = cats.exclude(id=settings.TICKET_PRODUCT_CATEGORY)
+    elif mode == GUIDED_MODE_EXCLUDE_COMPLETE:
+        cats = cats.exclude(id__in=attendee.guided_categories_complete.all())
 
     all_products = inventory.Product.objects.filter(
         category__in=cats,
@@ -226,10 +208,9 @@ def guided_registration_old(request):
         ))
 
         if len(available_products) == 0:
-            # We've filled in every category
-            attendee.completed_registration = True
-            attendee.save()
-            return next_step
+            return []
+
+        has_errors = False
 
         for category in cats:
             products = [
@@ -251,18 +232,16 @@ def guided_registration_old(request):
             if products:
                 # This product category has items to show.
                 sections.append(section)
-                # Add this to the list of things to show if the form
-                # errors.
-                request.session[SESSION_KEY].append(category.id)
 
-                if request.method == "POST" and not products_form.errors:
-                    # This is only saved if we pass each form with no
-                    # errors, and if the form actually has products.
-                    attendee.guided_categories_complete.add(category)
+                if request.method == "POST":
+                    # Track if there are errors.
+                    if products_form.errors:
+                        has_errors = True
+
+        if not has_errors:
+            attendee.guided_categories_complete.add(*list(cats))
 
     return sections
-
-
 
 
 @login_required

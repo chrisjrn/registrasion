@@ -93,25 +93,59 @@ def guided_registration_2(request, page_number=None):
 
     '''
 
-    if page_number is None:
-        # TODO: Return to the user's last incomplete pages, not _1_
-        return redirect("guided_registration", 1)
+    PAGE_PROFILE = 1
+    PAGE_TICKET = 2
+    PAGE_PRODUCTS = 3
+    PAGE_PRODUCTS_MAX = 4
+    TOTAL_PAGES = 4
+
+    ticket_category = inventory.Category.objects.get(
+        id=settings.TICKET_PRODUCT_CATEGORY
+    )
+    cart = CartController.for_user(request.user)
+
+    attendee = people.Attendee.get_instance(request.user)
+
+    # This guided registration process is only for people who have
+    # not completed registration (and has confusing behaviour if you go
+    # back to it.)
+    if attendee.completed_registration:
+        return redirect(review)
+
+    # Calculate the current maximum page number for this user.
+    has_profile = hasattr(attendee, "attendeeprofilebase")
+    if not has_profile:
+        # If there's no profile, they have to go to the profile page.
+        max_page = PAGE_PROFILE
+        redirect_page = PAGE_PROFILE
+    else:
+        # We have a profile.
+        # Do they have a ticket?
+        products = inventory.Product.objects.filter(
+            productitem__cart=cart.cart
+        )
+        products = products.filter(category=ticket_category)
+
+        if products.count() == 0:
+            # If no ticket, they can only see the profile or ticket page.
+            max_page = PAGE_TICKET
+            redirect_page = PAGE_TICKET
+        else:
+            # If there's a ticket, they should *see* the general products page#
+            # but be able to go to the overflow page if needs be.
+            max_page = PAGE_PRODUCTS_MAX
+            redirect_page = PAGE_PRODUCTS
+
+    if page_number is None or int(page_number) > max_page:
+        return redirect("guided_registration", redirect_page)
 
     page_number = int(page_number)
 
-    TOTAL_PAGES = 4
     next_step = redirect("guided_registration", page_number + 1)
 
     with BatchController.batch(request.user):
-        attendee = people.Attendee.get_instance(request.user)
-
-        if attendee.completed_registration:
-            return redirect(review)
 
         # This view doesn't work if the conference has sold out.
-        ticket_category = inventory.Category.objects.get(
-            id=settings.TICKET_PRODUCT_CATEGORY
-        )
         available = CategoryController.available_categories(request.user)
         if ticket_category not in available:
             messages.error(request, "There are no more tickets available.")
@@ -119,30 +153,28 @@ def guided_registration_2(request, page_number=None):
 
         sections = []
 
-        # TODO: figure out the maximum page for the user
-
         # Build up the list of sections
-        if page_number == 1:
+        if page_number == PAGE_PROFILE:
             # Profile bit
             title = "Attendee information"
             sections = _guided_registration_profile_and_voucher(request)
-        elif page_number == 2:
+        elif page_number == PAGE_TICKET:
             # Select ticket
             title = "Select ticket type"
-            sections = guided_registration_old(
+            sections = _guided_registration_products(
                 request, GUIDED_MODE_TICKETS_ONLY
             )
-        elif page_number == 3:
+        elif page_number == PAGE_PRODUCTS:
             # Select additional items
             title = "Additional items"
-            sections = guided_registration_old(
+            sections = _guided_registration_products(
                 request, GUIDED_MODE_ALL_ADDITIONAL
             )
-        elif page_number == 4:
+        elif page_number == PAGE_PRODUCTS_MAX:
             # Items enabled by things on page 3 -- only shows things
             # that have not been marked as complete.
             title = "More additional items"
-            sections = guided_registration_old(
+            sections = _guided_registration_products(
                 request, GUIDED_MODE_EXCLUDE_COMPLETE
             )
 
@@ -157,9 +189,6 @@ def guided_registration_2(request, page_number=None):
                 if section.form.errors:
                     break
             else:
-                # Saves the completed categories (in case we hit page 4)
-                attendee.save()
-
                 # We've successfully processed everything
                 return next_step
 
@@ -178,7 +207,7 @@ GUIDED_MODE_EXCLUDE_COMPLETE = 4
 
 
 @login_required
-def guided_registration_old(request, mode):
+def _guided_registration_products(request, mode):
     sections = []
 
     SESSION_KEY = "guided_registration"

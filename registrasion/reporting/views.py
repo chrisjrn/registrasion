@@ -342,7 +342,9 @@ def product_line_items(request, form):
                 output = []
                 output.append(invoice.id)
                 output.append(invoice.issue_time.strftime('%Y-%m-%d %H:%M:%S'))
-                output.append(invoice.user.attendee.attendeeprofilebase.attendee_name())
+                output.append(
+                    invoice.user.attendee.attendeeprofilebase.attendee_name()
+                )
                 output.append(item.quantity)
                 output.append(item.product)
                 cart = invoice.cart

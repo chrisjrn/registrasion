@@ -95,8 +95,6 @@ def items_sold():
         total_quantity=Sum("quantity"),
     )
 
-    print(line_items)
-
     headings = ["Description", "Quantity", "Price", "Total"]
 
     data = []
@@ -416,8 +414,6 @@ def attendee(request, form, user_id=None):
 
     if user_id is None:
         return attendee_list(request)
-
-    print(user_id)
 
     attendee = people.Attendee.objects.get(user__id=user_id)
     name = attendee.attendeeprofilebase.attendee_name()

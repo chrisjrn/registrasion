@@ -450,7 +450,6 @@ class InvoicesWithProductAndStatusForm(forms.Form):
         product = [int(i) for i in product]
 
         super(InvoicesWithProductAndStatusForm, self).__init__(*a, **k)
-        print(status)
 
         qs = commerce.Invoice.objects.filter(
             status=status or commerce.Invoice.STATUS_UNPAID,

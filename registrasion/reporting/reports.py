@@ -1,5 +1,4 @@
 import csv
-import forms
 
 from django.contrib.auth.decorators import user_passes_test
 from django.shortcuts import render
@@ -178,7 +177,6 @@ class Links(Report):
         return []
 
     def rows(self, content_type):
-        print self._links
         for url, link_text in self._links:
             yield [
                 self._linked_text(content_type, url, link_text)
@@ -300,7 +298,7 @@ class ReportView(object):
         response = HttpResponse(content_type='text/csv')
 
         writer = csv.writer(response)
-        encode = lambda i: i.encode("utf8") if isinstance(i, unicode) else i
+        encode = lambda i: i.encode("utf8") if isinstance(i, unicode) else i  # NOQA
         writer.writerow(list(encode(i) for i in report.headings()))
         for row in report.rows():
             writer.writerow(list(encode(i) for i in row))

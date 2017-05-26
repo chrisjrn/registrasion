@@ -14,6 +14,7 @@ def read_file(filename):
     except IOError:
         return ''
 
+
 setup(
     name="registrasion",
     author="Christopher Neugebauer",

@@ -3,8 +3,8 @@ import pytz
 
 from django.core.exceptions import ValidationError
 
-from controller_helpers import TestingCartController
-from test_cart import RegistrationCartTestCase
+from registrasion.tests.controller_helpers import TestingCartController
+from registrasion.tests.test_cart import RegistrationCartTestCase
 
 from registrasion.controllers.discount import DiscountController
 from registrasion.controllers.product import ProductController
@@ -47,36 +47,36 @@ class CeilingsTestCases(RegistrationCartTestCase):
     def test_add_to_cart_ceiling_date_range(self):
         self.make_ceiling(
             "date range ceiling",
-            start_time=datetime.datetime(2015, 01, 01, tzinfo=UTC),
-            end_time=datetime.datetime(2015, 02, 01, tzinfo=UTC))
+            start_time=datetime.datetime(2015, 1, 1, tzinfo=UTC),
+            end_time=datetime.datetime(2015, 2, 1, tzinfo=UTC))
 
         current_cart = TestingCartController.for_user(self.USER_1)
 
         # User should not be able to add whilst we're before start_time
-        self.set_time(datetime.datetime(2014, 01, 01, tzinfo=UTC))
+        self.set_time(datetime.datetime(2014, 1, 1, tzinfo=UTC))
         with self.assertRaises(ValidationError):
             current_cart.add_to_cart(self.PROD_1, 1)
 
         # User should be able to add whilst we're during date range
         # On edge of start
-        self.set_time(datetime.datetime(2015, 01, 01, tzinfo=UTC))
+        self.set_time(datetime.datetime(2015, 1, 1, tzinfo=UTC))
         current_cart.add_to_cart(self.PROD_1, 1)
         # In middle
-        self.set_time(datetime.datetime(2015, 01, 15, tzinfo=UTC))
+        self.set_time(datetime.datetime(2015, 1, 15, tzinfo=UTC))
         current_cart.add_to_cart(self.PROD_1, 1)
         # On edge of end
-        self.set_time(datetime.datetime(2015, 02, 01, tzinfo=UTC))
+        self.set_time(datetime.datetime(2015, 2, 1, tzinfo=UTC))
         current_cart.add_to_cart(self.PROD_1, 1)
 
         # User should not be able to add whilst we're after date range
-        self.set_time(datetime.datetime(2014, 01, 01, minute=01, tzinfo=UTC))
+        self.set_time(datetime.datetime(2014, 1, 1, minute=1, tzinfo=UTC))
         with self.assertRaises(ValidationError):
             current_cart.add_to_cart(self.PROD_1, 1)
 
     def test_add_to_cart_ceiling_limit_reserved_carts(self):
         self.make_ceiling("Limit ceiling", limit=1)
 
-        self.set_time(datetime.datetime(2015, 01, 01, tzinfo=UTC))
+        self.set_time(datetime.datetime(2015, 1, 1, tzinfo=UTC))
 
         first_cart = TestingCartController.for_user(self.USER_1)
         second_cart = TestingCartController.for_user(self.USER_2)
@@ -113,7 +113,7 @@ class CeilingsTestCases(RegistrationCartTestCase):
         self.__validation_test()
 
     def __validation_test(self):
-        self.set_time(datetime.datetime(2015, 01, 01, tzinfo=UTC))
+        self.set_time(datetime.datetime(2015, 1, 1, tzinfo=UTC))
 
         first_cart = TestingCartController.for_user(self.USER_1)
         second_cart = TestingCartController.for_user(self.USER_2)
@@ -144,7 +144,7 @@ class CeilingsTestCases(RegistrationCartTestCase):
             "Multi-product limit discount ceiling",
             limit=2,
         )
-        for i in xrange(2):
+        for i in range(2):
             cart = TestingCartController.for_user(self.USER_1)
             cart.add_to_cart(self.PROD_1, 1)
             cart.next_cart()
@@ -162,7 +162,7 @@ class CeilingsTestCases(RegistrationCartTestCase):
         # after second.
         self.make_ceiling("Multi-product limit ceiling", limit=2)
 
-        for i in xrange(2):
+        for i in range(2):
             cart = TestingCartController.for_user(self.USER_1)
             cart.add_to_cart(self.PROD_1, 1)
             cart.next_cart()

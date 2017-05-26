@@ -324,7 +324,6 @@ class CreditNote(PaymentBase):
 
         elif hasattr(self, 'creditnoterefund'):
             reference = self.creditnoterefund.reference
-            print reference
             return "Refunded with reference: %s" % reference
 
         raise ValueError("This should never happen.")

@@ -82,6 +82,7 @@ class IncludedProductDiscountAdmin(admin.ModelAdmin, EffectsDisplayMixin):
         DiscountForCategoryInline,
     ]
 
+
 @admin.register(conditions.SpeakerDiscount)
 class SpeakerDiscountAdmin(admin.ModelAdmin, EffectsDisplayMixin):
 

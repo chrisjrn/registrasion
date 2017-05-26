@@ -1,6 +1,6 @@
 import pytz
 
-from test_cart import RegistrationCartTestCase
+from registrasion.tests.test_cart import RegistrationCartTestCase
 
 from registrasion.controllers.batch import BatchController
 

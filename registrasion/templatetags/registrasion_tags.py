@@ -133,7 +133,7 @@ def sold_out_and_unregistered(context):
     '''
 
     user = user_for_context(context)
-    if user.attendee.completed_registration:
+    if hasattr(user, "attendee") and user.attendee.completed_registration:
         # This user has completed registration, and so we don't need to answer
         # whether they have sold out yet.
         return None

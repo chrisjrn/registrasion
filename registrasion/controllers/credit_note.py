@@ -40,8 +40,8 @@ class CreditNoteController(ForId, object):
         paid.
         '''
 
-        # Circular Import
-        from registrasion.controllers.invoice import InvoiceController
+        # Local import to fix import cycles. Can we do better?
+        from .invoice import InvoiceController
         inv = InvoiceController(invoice)
         inv.validate_allowed_to_pay()
 
@@ -65,8 +65,8 @@ class CreditNoteController(ForId, object):
         a cancellation fee. Must be 0 <= percentage <= 100.
         '''
 
-        # Circular Import
-        from registrasion.controllers.invoice import InvoiceController
+        # Local import to fix import cycles. Can we do better?
+        from .invoice import InvoiceController
 
         assert(percentage >= 0 and percentage <= 100)
 

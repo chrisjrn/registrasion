@@ -299,7 +299,7 @@ class ReportView(object):
         response = HttpResponse(content_type='text/csv')
 
         writer = csv.writer(response)
-        encode = lambda i: i.encode("utf8") if isinstance(i, unicode) else i
+        encode = lambda i: i.encode("utf8") if isinstance(i, unicode) else i  # NOQA
         writer.writerow(list(encode(i) for i in report.headings()))
         for row in report.rows():
             writer.writerow(list(encode(i) for i in row))

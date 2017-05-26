@@ -29,12 +29,13 @@ class ApplyCreditNoteForm(forms.Form):
                 "user_email": users[invoice["user_id"]].email,
             })
 
-
         key = lambda inv: (0 - (inv["user_id"] == self.user.id), inv["id"])  # noqa
         invoices_annotated.sort(key=key)
 
-        template = ('Invoice %(id)d - user: %(user_email)s (%(user_id)d) '
-                    '-  $%(value)d')
+        template = (
+            'Invoice %(id)d - user: %(user_email)s (%(user_id)d) '
+            '-  $%(value)d'
+        )
         return [
             (invoice["id"], template % invoice)
             for invoice in invoices_annotated

@@ -1,5 +1,4 @@
 import datetime
-import sys
 import zipfile
 
 from . import forms

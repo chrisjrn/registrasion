@@ -353,8 +353,8 @@ def paid_invoices_by_date(request, form):
         )
         by_date[date] += 1
 
-    data = [(date, count) for date, count in sorted(by_date.items())]
-    data = [(date.strftime("%Y-%m-%d"), count) for date, count in data]
+    data = [(date_, count) for date_, count in sorted(by_date.items())]
+    data = [(date_.strftime("%Y-%m-%d"), count) for date_, count in data]
 
     return ListReport(
         "Paid Invoices By Date",
@@ -846,9 +846,10 @@ def manifest(request, form):
     headings = ["User ID", "Name", "Paid", "Unpaid", "Refunded"]
 
     def format_items(item_list):
-        strings = []
-        for item in item_list:
-            strings.append('%d x %s' % (item.quantity, str(item.product)))
+        strings = [
+            '%d x %s' % (item.quantity, str(item.product))
+            for item in item_list
+        ]
         return ", \n".join(strings)
 
     output = []

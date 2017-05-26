@@ -16,6 +16,9 @@ def mix_form(*a):
 
 
 class DiscountForm(forms.Form):
+
+    required_css_class = 'label-required'
+
     discount = forms.ModelMultipleChoiceField(
         queryset=conditions.DiscountBase.objects.all(),
         required=False,
@@ -23,6 +26,9 @@ class DiscountForm(forms.Form):
 
 
 class ProductAndCategoryForm(forms.Form):
+
+    required_css_class = 'label-required'
+
     product = forms.ModelMultipleChoiceField(
         queryset=inventory.Product.objects.select_related("category"),
         required=False,
@@ -34,6 +40,9 @@ class ProductAndCategoryForm(forms.Form):
 
 
 class UserIdForm(forms.Form):
+
+    required_css_class = 'label-required'
+
     user = forms.IntegerField(
         label="User ID",
         required=False,
@@ -41,6 +50,9 @@ class UserIdForm(forms.Form):
 
 
 class ProposalKindForm(forms.Form):
+
+    required_css_class = 'label-required'
+
     kind = forms.ModelMultipleChoiceField(
         queryset=proposals_models.ProposalKind.objects.all(),
         required=False,
@@ -48,6 +60,9 @@ class ProposalKindForm(forms.Form):
 
 
 class GroupByForm(forms.Form):
+
+    required_css_class = 'label-required'
+
     GROUP_BY_CATEGORY = "category"
     GROUP_BY_PRODUCT = "product"
 
@@ -61,7 +76,6 @@ class GroupByForm(forms.Form):
         choices=choices,
         required=False,
     )
-
 
 
 def model_fields_form_factory(model):

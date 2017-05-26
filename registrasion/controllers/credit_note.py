@@ -4,7 +4,7 @@ from django.db import transaction
 
 from registrasion.models import commerce
 
-from for_id import ForId
+from .for_id import ForId
 
 
 class CreditNoteController(ForId, object):
@@ -40,7 +40,8 @@ class CreditNoteController(ForId, object):
         paid.
         '''
 
-        from invoice import InvoiceController  # Circular imports bleh.
+        # Local import to fix import cycles. Can we do better?
+        from .invoice import InvoiceController
         inv = InvoiceController(invoice)
         inv.validate_allowed_to_pay()
 
@@ -64,7 +65,8 @@ class CreditNoteController(ForId, object):
         a cancellation fee. Must be 0 <= percentage <= 100.
         '''
 
-        from invoice import InvoiceController  # Circular imports bleh.
+        # Local import to fix import cycles. Can we do better?
+        from .invoice import InvoiceController
 
         assert(percentage >= 0 and percentage <= 100)
 

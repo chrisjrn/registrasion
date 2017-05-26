@@ -8,10 +8,10 @@ from django.db import transaction
 
 from registrasion.models import conditions
 from registrasion.models import inventory
-from controller_helpers import TestingCartController
-from controller_helpers import TestingInvoiceController
+from registrasion.tests.controller_helpers import TestingCartController
+from registrasion.tests.controller_helpers import TestingInvoiceController
 
-from test_cart import RegistrationCartTestCase
+from registrasion.tests.test_cart import RegistrationCartTestCase
 
 UTC = pytz.timezone('UTC')
 
@@ -21,7 +21,7 @@ class VoucherTestCases(RegistrationCartTestCase):
     def test_apply_voucher(self):
         voucher = self.new_voucher()
 
-        self.set_time(datetime.datetime(2015, 01, 01, tzinfo=UTC))
+        self.set_time(datetime.datetime(2015, 1, 1, tzinfo=UTC))
 
         cart_1 = TestingCartController.for_user(self.USER_1)
         cart_1.apply_voucher(voucher.code)

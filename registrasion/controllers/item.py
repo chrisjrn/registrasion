@@ -1,6 +1,7 @@
 ''' NEEDS TESTS '''
 
 import operator
+from functools import reduce
 
 from registrasion.models import commerce
 from registrasion.models import inventory

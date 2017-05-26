@@ -1,21 +1,19 @@
 import datetime
-import sys
-import util
 import zipfile
 
-from registrasion import forms
-from registrasion import util
-from registrasion.models import commerce
-from registrasion.models import inventory
-from registrasion.models import people
-from registrasion.controllers.batch import BatchController
-from registrasion.controllers.cart import CartController
-from registrasion.controllers.credit_note import CreditNoteController
-from registrasion.controllers.discount import DiscountController
-from registrasion.controllers.invoice import InvoiceController
-from registrasion.controllers.item import ItemController
-from registrasion.controllers.product import ProductController
-from registrasion.exceptions import CartValidationError
+from . import forms
+from . import util
+from .models import commerce
+from .models import inventory
+from .models import people
+from .controllers.batch import BatchController
+from .controllers.cart import CartController
+from .controllers.credit_note import CreditNoteController
+from .controllers.discount import DiscountController
+from .controllers.invoice import InvoiceController
+from .controllers.item import ItemController
+from .controllers.product import ProductController
+from .exceptions import CartValidationError
 
 from collections import namedtuple
 
@@ -926,13 +924,14 @@ Email = namedtuple(
     ("subject", "body", "from_email", "recipient_list"),
 )
 
+
 @user_passes_test(_staff_only)
 def invoice_mailout(request):
     ''' Allows staff to send emails to users based on their invoice status. '''
 
     category = request.GET.getlist("category", [])
-    product  = request.GET.getlist("product", [])
-    status  = request.GET.get("status")
+    product = request.GET.getlist("product", [])
+    status = request.GET.get("status")
 
     form = forms.InvoiceEmailForm(
         request.POST or None,
@@ -951,8 +950,8 @@ def invoice_mailout(request):
             subject = form.cleaned_data["subject"]
             body = Template(form.cleaned_data["body"]).render(
                 Context({
-                    "invoice" : invoice,
-                    "user" : invoice.user,
+                    "invoice": invoice,
+                    "user": invoice.user,
                 })
             )
             recipient_list = [invoice.user.email]
@@ -991,8 +990,8 @@ def badges(request):
     render, or returns a .zip file containing their badges. '''
 
     category = request.GET.getlist("category", [])
-    product  = request.GET.getlist("product", [])
-    status  = request.GET.get("status")
+    product = request.GET.getlist("product", [])
+    status = request.GET.get("status")
 
     form = forms.InvoicesWithProductAndStatusForm(
         request.POST or None,

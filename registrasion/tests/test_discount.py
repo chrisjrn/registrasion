@@ -5,9 +5,9 @@ from decimal import Decimal
 from registrasion.models import commerce
 from registrasion.models import conditions
 from registrasion.controllers.discount import DiscountController
-from controller_helpers import TestingCartController
+from registrasion.tests.controller_helpers import TestingCartController
 
-from test_cart import RegistrationCartTestCase
+from registrasion.tests.test_cart import RegistrationCartTestCase
 
 UTC = pytz.timezone('UTC')
 

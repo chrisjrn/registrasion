@@ -165,7 +165,6 @@ class CartController(object):
 
         product_quantities = list(product_quantities)
 
-
         # n.b need to add have the existing items first so that the new
         # items override the old ones.
         all_product_quantities = dict(itertools.chain(
@@ -319,7 +318,7 @@ class CartController(object):
                 errors.append(ve)
 
         if errors:
-            raise(ValidationError(ve))
+            raise(ValidationError(errors))
 
     def _test_required_categories(self):
         ''' Makes sure that the owner of this cart has satisfied all of the
@@ -445,7 +444,7 @@ class CartController(object):
         # Order the products such that the most expensive ones are
         # processed first.
         product_items = self.cart.productitem_set.all().select_related(
-            "product", "product__category", "product__price"
+            "product", "product__category"
         ).order_by("-product__price")
 
         products = [i.product for i in product_items]

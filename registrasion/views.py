@@ -8,6 +8,7 @@ from .models import inventory
 from .models import people
 from .controllers.batch import BatchController
 from .controllers.cart import CartController
+from .controllers.category import CategoryController
 from .controllers.credit_note import CreditNoteController
 from .controllers.discount import DiscountController
 from .controllers.invoice import InvoiceController
@@ -97,6 +98,15 @@ def guided_registration(request):
     if attendee.completed_registration:
         return redirect(review)
 
+    # This view doesn't work if the conference has sold out.
+    ticket_category = inventory.Category.objects.get(
+        id=settings.TICKET_PRODUCT_CATEGORY
+    )
+    available = CategoryController.available_categories(request.user)
+    if ticket_category not in available:
+        messages.error(request, "There are no more tickets available.")
+        return redirect("dashboard")
+
     # Step 1: Fill in a badge and collect a voucher code
     try:
         profile = attendee.attendeeprofilebase
@@ -153,10 +163,11 @@ def guided_registration(request):
         request.session[SESSION_KEY] = []
 
         if starting:
-            # Only display the first Category
+            # Only display the ticket category
             title = "Select ticket type"
             current_step = 2
-            cats = [cats[0]]
+            ticket_category = cats.get(id=settings.TICKET_PRODUCT_CATEGORY)
+            cats = [ticket_category]
         else:
             # Set title appropriately for remaining categories
             current_step = 3
@@ -397,6 +408,28 @@ def product_category(request, category_id):
     }
 
     return render(request, "registrasion/product_category.html", data)
+
+
+def voucher_code(request):
+    ''' A view *just* for entering a voucher form. '''
+
+    VOUCHERS_FORM_PREFIX = "vouchers"
+
+    # Handle the voucher form *before* listing products.
+    # Products can change as vouchers are entered.
+    v = _handle_voucher(request, VOUCHERS_FORM_PREFIX)
+    voucher_form, voucher_handled = v
+
+    if voucher_handled:
+        messages.success(request, "Your voucher code was accepted.")
+        return redirect("dashboard")
+
+    data = {
+        "voucher_form": voucher_form,
+    }
+
+    return render(request, "registrasion/voucher_code.html", data)
+
 
 
 def _handle_products(request, category, products, prefix):

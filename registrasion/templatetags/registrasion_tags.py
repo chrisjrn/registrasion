@@ -3,6 +3,7 @@ from registrasion.controllers.category import CategoryController
 from registrasion.controllers.item import ItemController
 
 from django import template
+from django.conf import settings
 from django.db.models import Sum
 from urllib import urlencode  # TODO: s/urllib/six.moves.urllib/
 
@@ -117,3 +118,27 @@ def report_as_csv(context, section):
         querystring = old_query + "&" + querystring
 
     return context.request.path + "?" + querystring
+
+
+@register.assignment_tag(takes_context=True)
+def sold_out_and_unregistered(context):
+    ''' If the current user is unregistered, returns True if there are no
+    products in the TICKET_PRODUCT_CATEGORY that are available to that user.
+
+    If there *are* products available, the return False.
+
+    If the current user *is* registered, then return None (it's not a
+    pertinent question for people who already have a ticket).
+
+    '''
+
+    user = user_for_context(context)
+    if user.attendee.completed_registration:
+        # This user has completed registration, and so we don't need to answer
+        # whether they have sold out yet.
+        return None
+
+    ticket_category = settings.TICKET_PRODUCT_CATEGORY
+    categories = available_categories(context)
+
+    return ticket_category not in [cat.id for cat in categories]

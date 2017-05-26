@@ -66,16 +66,35 @@ class GuidedRegistrationSection(_GuidedRegistrationSection):
 
 @login_required
 def guided_registration_2(request, page_number=None):
+    ''' Goes through the registration process in order, making sure user sees
+    all valid categories.
 
-    ''' Pages:
-    1) Profile form (and e-mail address?)
-    2) Ticket type
-    3) Remaining products
-    4) Mark registration as complete
+    The user must be logged in to see this view.
+
+    Parameter:
+        page_number:
+            1) Profile form (and e-mail address?)
+            2) Ticket type
+            3) Remaining products
+            4) Mark registration as complete
+
+    Returns:
+        render: Renders ``registrasion/guided_registration.html``,
+            with the following data::
+
+                {
+                    "current_step": int(),  # The current step in the
+                                            # registration
+                    "sections": sections,   # A list of
+                                            # GuidedRegistrationSections
+                    "title": str(),         # The title of the page
+                    "total_steps": int(),   # The total number of steps
+                }
+
     '''
 
     if page_number is None:
-        # Return the user's next page.
+        # TODO: Return to the user's last incomplete pages, not _1_
         return redirect("guided_registration", 1)
 
     page_number = int(page_number)
@@ -88,6 +107,7 @@ def guided_registration_2(request, page_number=None):
         attendee = people.Attendee.get_instance(request.user)
 
         if attendee.completed_registration:
+            # TODO: store this somewhere.
             return redirect(review)
 
         # This view doesn't work if the conference has sold out.
@@ -139,25 +159,6 @@ def guided_registration_2(request, page_number=None):
 
 @login_required
 def guided_registration_old(request):
-    ''' Goes through the registration process in order, making sure user sees
-    all valid categories.
-
-    The user must be logged in to see this view.
-
-    Returns:
-        render: Renders ``registrasion/guided_registration.html``,
-            with the following data::
-
-                {
-                    "current_step": int(),  # The current step in the
-                                            # registration
-                    "sections": sections,   # A list of
-                                            # GuidedRegistrationSections
-                    "title": str(),         # The title of the page
-                    "total_steps": int(),   # The total number of steps
-                }
-
-    '''
 
     SESSION_KEY = "guided_registration_categories"
 

@@ -11,7 +11,7 @@ from .views import (
     credit_note,
     edit_profile,
     extend_reservation,
-    guided_registration,
+    guided_registration_2,
     invoice,
     invoice_access,
     invoice_mailout,
@@ -42,10 +42,10 @@ public = [
         name="invoice_access"),
     url(r"^invoice_mailout$", invoice_mailout, name="invoice_mailout"),
     url(r"^profile$", edit_profile, name="attendee_edit"),
-    url(r"^register$", guided_registration, name="guided_registration"),
     url(r"^review$", review, name="review"),
     url(r"^voucher$", voucher_code, name="voucher_code"),
-    url(r"^register/([0-9]+)$", guided_registration,
+    url(r"^register$", guided_registration_2, name="guided_registration"),
+    url(r"^register/([0-9]+)$", guided_registration_2,
         name="guided_registration"),
 ]
 

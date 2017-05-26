@@ -65,7 +65,80 @@ class GuidedRegistrationSection(_GuidedRegistrationSection):
 
 
 @login_required
-def guided_registration(request):
+def guided_registration_2(request, page_number=None):
+
+    ''' Pages:
+    1) Profile form (and e-mail address?)
+    2) Ticket type
+    3) Remaining products
+    4) Mark registration as complete
+    '''
+
+    if page_number is None:
+        # Return the user's next page.
+        return redirect("guided_registration", 1)
+
+    page_number = int(page_number)
+
+    TOTAL_PAGES = 3
+    SESSION_KEY = "guided_registration_categories"  # TODO: get rid of this!
+    next_step = redirect("guided_registration", page_number + 1)
+
+    with BatchController.batch(request.user):
+        attendee = people.Attendee.get_instance(request.user)
+
+        if attendee.completed_registration:
+            return redirect(review)
+
+        # This view doesn't work if the conference has sold out.
+        ticket_category = inventory.Category.objects.get(
+            id=settings.TICKET_PRODUCT_CATEGORY
+        )
+        available = CategoryController.available_categories(request.user)
+        if ticket_category not in available:
+            messages.error(request, "There are no more tickets available.")
+            return redirect("dashboard")
+
+        sections = []
+
+        # Build up the list of sections
+        if page_number == 1:
+            # Profile bit
+            title = "Attendee information"
+            sections = _guided_registration_profile_and_voucher(request)
+        elif page_number == 2:
+            # Select ticket
+            title = "Select ticket type"
+            sections = guided_registration_old(request)
+        elif page_number == 3:
+            # Select ticket
+            title = "Additional items"
+            sections = guided_registration_old(request)
+
+        if sections and request.method == "POST":
+            for section in sections:
+                if section.form.errors:
+                    break
+            else:
+                attendee.save()
+                if SESSION_KEY in request.session:
+                    del request.session[SESSION_KEY]
+                # We've successfully processed everything
+                return next_step
+
+    data = {
+        "current_step": page_number,
+        "sections": sections,
+        "title": title,
+        "total_steps": 3,
+    }
+    return render(request, "registrasion/guided_registration.html", data)
+
+    return
+
+
+@login_required
+def guided_registration_old(request):
     ''' Goes through the registration process in order, making sure user sees
     all valid categories.
 
@@ -87,7 +160,6 @@ def guided_registration(request):
     '''
 
     SESSION_KEY = "guided_registration_categories"
-    ASK_FOR_PROFILE = 777  # Magic number. Meh.
 
     next_step = redirect("guided_registration")
 
@@ -113,129 +185,101 @@ def guided_registration(request):
     except ObjectDoesNotExist:
         profile = None
 
-    # Figure out if we need to show the profile form and the voucher form
-    show_profile_and_voucher = False
-    if SESSION_KEY not in request.session:
-        if not profile:
-            show_profile_and_voucher = True
+    # We're selling products
+
+    starting = attendee.guided_categories_complete.count() == 0
+
+    # Get the next category
+    cats = inventory.Category.objects
+    if SESSION_KEY in request.session:
+        _cats = request.session[SESSION_KEY]
+        cats = cats.filter(id__in=_cats)
     else:
-        if request.session[SESSION_KEY] == ASK_FOR_PROFILE:
-            show_profile_and_voucher = True
-
-    if show_profile_and_voucher:
-        # Keep asking for the profile until everything passes.
-        request.session[SESSION_KEY] = ASK_FOR_PROFILE
-
-        voucher_form, voucher_handled = _handle_voucher(request, "voucher")
-        profile_form, profile_handled = _handle_profile(request, "profile")
-
-        voucher_section = GuidedRegistrationSection(
-            title="Voucher Code",
-            form=voucher_form,
+        cats = cats.exclude(
+            id__in=attendee.guided_categories_complete.all(),
         )
 
-        profile_section = GuidedRegistrationSection(
-            title="Profile and Personal Information",
-            form=profile_form,
-        )
+    cats = cats.order_by("order")
 
-        title = "Attendee information"
-        current_step = 1
-        sections.append(voucher_section)
-        sections.append(profile_section)
+    request.session[SESSION_KEY] = []
+
+    if starting:
+        # Only display the ticket category
+        title = "Select ticket type"
+        current_step = 2
+        ticket_category = cats.get(id=settings.TICKET_PRODUCT_CATEGORY)
+        cats = [ticket_category]
     else:
-        # We're selling products
+        # Set title appropriately for remaining categories
+        current_step = 3
+        title = "Additional items"
 
-        starting = attendee.guided_categories_complete.count() == 0
+    all_products = inventory.Product.objects.filter(
+        category__in=cats,
+    ).select_related("category")
 
-        # Get the next category
-        cats = inventory.Category.objects
-        if SESSION_KEY in request.session:
-            _cats = request.session[SESSION_KEY]
-            cats = cats.filter(id__in=_cats)
-        else:
-            cats = cats.exclude(
-                id__in=attendee.guided_categories_complete.all(),
-            )
+    with BatchController.batch(request.user):
+        available_products = set(ProductController.available_products(
+            request.user,
+            products=all_products,
+        ))
 
-        cats = cats.order_by("order")
-
-        request.session[SESSION_KEY] = []
-
-        if starting:
-            # Only display the ticket category
-            title = "Select ticket type"
-            current_step = 2
-            ticket_category = cats.get(id=settings.TICKET_PRODUCT_CATEGORY)
-            cats = [ticket_category]
-        else:
-            # Set title appropriately for remaining categories
-            current_step = 3
-            title = "Additional items"
-
-        all_products = inventory.Product.objects.filter(
-            category__in=cats,
-        ).select_related("category")
-
-        with BatchController.batch(request.user):
-            available_products = set(ProductController.available_products(
-                request.user,
-                products=all_products,
-            ))
-
-            if len(available_products) == 0:
-                # We've filled in every category
-                attendee.completed_registration = True
-                attendee.save()
-                return next_step
-
-            for category in cats:
-                products = [
-                    i for i in available_products
-                    if i.category == category
-                ]
-
-                prefix = "category_" + str(category.id)
-                p = _handle_products(request, category, products, prefix)
-                products_form, discounts, products_handled = p
-
-                section = GuidedRegistrationSection(
-                    title=category.name,
-                    description=category.description,
-                    discounts=discounts,
-                    form=products_form,
-                )
-
-                if products:
-                    # This product category has items to show.
-                    sections.append(section)
-                    # Add this to the list of things to show if the form
-                    # errors.
-                    request.session[SESSION_KEY].append(category.id)
-
-                    if request.method == "POST" and not products_form.errors:
-                        # This is only saved if we pass each form with no
-                        # errors, and if the form actually has products.
-                        attendee.guided_categories_complete.add(category)
-
-    if sections and request.method == "POST":
-        for section in sections:
-            if section.form.errors:
-                break
-        else:
+        if len(available_products) == 0:
+            # We've filled in every category
+            attendee.completed_registration = True
             attendee.save()
-            if SESSION_KEY in request.session:
-                del request.session[SESSION_KEY]
-            # We've successfully processed everything
             return next_step
 
-    data = {
-        "current_step": current_step,
-        "sections": sections,
-        "title": title,
-        "total_steps": 3,
-    }
-    return render(request, "registrasion/guided_registration.html", data)
+        for category in cats:
+            products = [
+                i for i in available_products
+                if i.category == category
+            ]
+
+            prefix = "category_" + str(category.id)
+            p = _handle_products(request, category, products, prefix)
+            products_form, discounts, products_handled = p
+
+            section = GuidedRegistrationSection(
+                title=category.name,
+                description=category.description,
+                discounts=discounts,
+                form=products_form,
+            )
+
+            if products:
+                # This product category has items to show.
+                sections.append(section)
+                # Add this to the list of things to show if the form
+                # errors.
+                request.session[SESSION_KEY].append(category.id)
+
+                if request.method == "POST" and not products_form.errors:
+                    # This is only saved if we pass each form with no
+                    # errors, and if the form actually has products.
+                    attendee.guided_categories_complete.add(category)
+
+    return sections
+
+
+
+
+@login_required
+def _guided_registration_profile_and_voucher(request):
+    voucher_form, voucher_handled = _handle_voucher(request, "voucher")
+    profile_form, profile_handled = _handle_profile(request, "profile")
+
+    voucher_section = GuidedRegistrationSection(
+        title="Voucher Code",
+        form=voucher_form,
+    )
+
+    profile_section = GuidedRegistrationSection(
+        title="Profile and Personal Information",
+        form=profile_form,
+    )
+
+    return [voucher_section, profile_section]
 
 
 @login_required

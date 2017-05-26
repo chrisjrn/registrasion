@@ -65,7 +65,7 @@ class GuidedRegistrationSection(_GuidedRegistrationSection):
 
 
 @login_required
-def guided_registration_2(request, page_number=None):
+def guided_registration(request, page_number=None):
     ''' Goes through the registration process in order, making sure user sees
     all valid categories.
 

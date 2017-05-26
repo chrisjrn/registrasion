@@ -310,10 +310,10 @@ def discount_status(request, form):
     return ListReport("Usage by item", headings, data)
 
 
-@report_view("Who ordered specific items", form_type=forms.ProductAndCategoryForm)
-def who_ordered_items(request, form):
-    ''' Shows each attendee that ordered a 
-    specific product or category item '''
+@report_view("Product Line Items By Date & Customer", form_type=forms.ProductAndCategoryForm)
+def product_line_items(request, form):
+    ''' Shows each product line item from invoices, including their date and
+    purchashing customer. '''
 
     products = form.cleaned_data["product"]
     categories = form.cleaned_data["category"]
@@ -332,7 +332,7 @@ def who_ordered_items(request, form):
     ).order_by("issue_time")
 
     headings = [
-        'Invoice', 'Invoice Date', 'Attendee', 'Qty', 'Product', 'Paid'
+        'Invoice', 'Invoice Date', 'Attendee', 'Qty', 'Product', 'Status'
     ]
 
     data = []
@@ -354,7 +354,7 @@ def who_ordered_items(request, form):
                     output.append('REFUNDED')
                 data.append(output)
 
-    return ListReport("Who ordered specific items", headings, data)
+    return ListReport("Line Items", headings, data)
 
 
 @report_view("Paid invoices by date", form_type=forms.ProductAndCategoryForm)

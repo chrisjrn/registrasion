@@ -1,0 +1,17 @@
+{% extends "registrasion/base.html" %}
+{% load registrasion_tags %}
+
+{% block title %}Generate badges zip{% endblock  %}
+{% block heading %}Generate badges zip{% endblock %}
+
+{% block content %}
+
+  <form method="POST">
+    {% csrf_token %}
+    {% include "registrasion/form.html" with form=form %}
+    <br/>
+    <!-- TODO: include themed submit button -->
+    <input type="submit">
+  </form>
+
+{% endblock %}

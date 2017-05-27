@@ -1,0 +1,11 @@
+<p><strong>NOTICE:</strong> The below invoice is automatically generated, and will be voided if you amend your registration before payment, or if discounts or products contained in the invoice become unavailable. The items and discounts are only reserved until the invoice due time.</p>
+
+{% url "invoice_access" invoice.user.attendee.access_code as access_url %}
+{% url "invoice" invoice.id invoice.user.attendee.access_code as invoice_url %}
+
+<p>You can send the following links to your accounts department to pay for your registration:</p>
+
+<ul>
+  <li>{{ current_host|add:access_url|urlize }} &ndash; your most recent invoice</li>
+  <li>{{ current_host|add:invoice_url|urlize }} &ndash; this invoice, even if it becomes void.</li>
+</ul>

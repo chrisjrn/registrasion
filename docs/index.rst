@@ -24,6 +24,7 @@ Contents:
    payments
    for-zookeepr-users
    views
+   templates
 
 
 Indices and tables

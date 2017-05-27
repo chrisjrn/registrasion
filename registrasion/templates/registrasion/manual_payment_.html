@@ -1,0 +1,33 @@
+{% extends "registrasion/base.html" %}
+
+{% block title %}Apply manual payment{% endblock %}
+{% block heading %}Apply manual payment{% endblock %}
+{% block lede %}Enter a reference and the amount of the payment. A refund is a negative
+payment.{% endblock %}
+
+{% block content %}
+
+  <dl>
+    <dt>Invoice ID:</dt>
+    <dd>{{ invoice.id }}</dd>
+    <dt>Recipient</dt>
+    <dd>{{ invoice.recipient }}</dd>  
+  </dl>
+
+  <form method="post" action="">
+    {% csrf_token %}
+
+    {% include "registrasion/form.html" with form=form %}
+
+    <!-- TODO: make this button less bootstrap-dependent -->
+    <div class="form-actions">
+      <input class="btn btn-primary" type="submit" value="Apply payment" />
+      <a class="btn btn-default" href="{% url "invoice" invoice.id %}">Return to invoice</a>
+    </div>
+  </form>
+
+  <h2>Past payments</h2>
+
+  {% include "registrasion/snippets/payment_list.html" with payments=invoice.paymentbase_set.all %}
+
+{% endblock %}

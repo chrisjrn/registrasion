@@ -1,0 +1,59 @@
+{% extends "registrasion/base.html" %}
+
+{% block title %}Conference registrasion{% endblock %}
+{% block heading %}Conference registration{% endblock %}
+{% block lede %}Step {{ current_step }} of {{ total_steps }} &ndash; {{ title }}{% endblock %}
+
+{% block content %}
+
+  <form method="post" action="">
+    {% csrf_token %}
+
+    {% for section in sections %}
+      <div>
+
+        <h2>{{ section.title }}</h2>
+
+        <div>
+          {% if section.description %}
+            <p>{{ section.description|safe }}</p>
+          {% endif %}
+        </div>
+
+        {% if section.discounts %}
+          <div>
+            {% block discounts_intro_outer %}
+              {% block discounts_intro %}
+                <h3>Available discounts</h3>
+                <p>
+                  You must select a product to receive any discounts.<br/>
+                  Applicable discounts will be applied automatically when you check out.
+                </p>
+              {% endblock %}
+            {% endblock %}
+
+            {% include "registrasion/snippets/discounts_list.html" with discounts=section.discounts %}
+          </div>
+        {% endif %}
+
+        {% block products_intro_outer %}
+          {% block products_intro %}
+            <h3>Available selections</h3>
+          {% endblock %}
+        {% endblock %}
+
+        {% include "registrasion/form.html" with form=section.form %}
+      </div>
+    {% endfor %}
+
+    <!-- TODO: make this button less bootstrap-dependent -->
+    <div class="form-actions">
+      {% if current_step > 1 %}
+        <a class="btn btn-default" href="{% url "guided_registration" current_step|add:"-1" %}">Back</a>
+      {% endif %}
+      <input class="btn btn-primary" type="submit" value="Next" />
+    </div>
+  </form>
+
+
+{% endblock %}

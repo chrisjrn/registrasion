@@ -1,0 +1,103 @@
+{% extends "registrasion/base.html" %}
+{% load registrasion_tags %}
+
+{% block title %}Credit Note{% endblock %}
+{% block heading %}Credit Note{% endblock %}
+
+{% block content %}
+
+  {% block credit_note_info_outer %}
+    <div>
+      {% block credit_note_info %}
+        {% with note_user=credit_note.invoice.user %}
+          <dl>
+            <dt>Number</dt><dd> {{ credit_note.id }}</dd>
+            <dt>Attention</dt><dd> {{ credit_note.invoice.recipient }}</dd>
+            <dt>User</dt>
+            <dd> {{ credit_note.invoice.user.email }} ({{ credit_note.invoice.user.id}})</dd>
+            <dt>Value</dt><dd> {{ credit_note.value }}</dd>
+            <dt>Status</dt><dd> {{ credit_note.status }}</dd>
+          </dl>
+        {% endwith %}
+
+        <p>
+            This credit note was generated from funds excess from
+            <a href="{% url "invoice" credit_note.invoice.id %}">
+              invoice {{ credit_note.invoice.id }}</a>.
+        </p>
+      {% endblock %}
+    </div>
+  {% endblock %}
+
+  {% if credit_note.is_unclaimed %}
+    {% block staff_actions %}
+      <form method="post" action="">
+        {% csrf_token %}
+
+        {% block apply_to_invoice_outer %}
+          <div>
+            {% block apply_to_invoice %}
+              <h3>Apply to invoice</h3>
+              <p>You can apply this credit note to an unpaid invoice.</p>
+
+              <p>
+                <strong>This credit note belongs to:</strong> {{ credit_note.invoice.user.email }} ({{ credit_note.invoice.user.id}}).
+                You can apply this credit note to any user's invoice.
+              </p>
+
+              {% include "registrasion/form.html" with form=apply_form %}
+              <!-- TODO: make this button less bootstrap-dependent -->
+              <div class="form-actions">
+                  <input class="btn btn-primary" type="submit" value="Apply to invoice" />
+              </div>
+            {% endblock %}
+          </div>
+        {% endblock %}
+
+        {% block cancellation_fee_outer %}
+          <div>
+            {% block cancellation_fee %}
+              <h3>Generate cancellation fee</h3>
+              <p>You can generate an invoice for a cancellation fee, resulting in an invoice
+                and a new credit note.
+              </p>
+            {% endblock %}
+          </div>
+        {% endblock %}
+
+        {% include "registrasion/form.html" with form=cancellation_fee_form %}
+        <!-- TODO: make this button less bootstrap-dependent -->
+        <div class="form-actions">
+            <input class="btn btn-primary" type="submit" value="Generate fee" />
+        </div>
+
+        {% block refund_actions_outer %}
+          <div>
+            {% block refund_actions %}
+              {% with credit_note_id=credit_note.id %}
+                {% include_if_exists "registrasion/stripe/link_to_refunds.html" %}
+              {% endwith %}
+            {% endblock %}
+          </div>
+        {% endblock %}
+
+        {% block manual_refund_actions_outer %}
+          <div>
+            {% block manual_refund_actions %}
+              <h3>Manual refund</h3>
+              <p>You can mark this credit note as refunded, and handle the refund manually.
+              </p>
+
+              {% include "registrasion/form.html" with form=refund_form %}
+              <!-- TODO: make this button less bootstrap-dependent -->
+              <div class="form-actions">
+                  <input class="btn btn-primary" type="submit" value="Mark as refunded" />
+              </div>
+            {% endblock %}
+          </div>
+        {% endblock %}
+      </form>
+    {% endblock %}
+  {% endif %}
+
+{% endblock %}

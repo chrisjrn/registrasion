@@ -1,0 +1,22 @@
+{% extends "registrasion/base.html" %}
+{% load registrasion_tags %}
+
+{% block title %}Registration reports{% endblock %}
+{% block heading %}Registration reports{% endblock %}
+
+{% block content %}
+
+  <table class="table table-striped">
+    {% for report in reports %}
+      <tr>
+        <td>
+          <a href="{{ report.url }}">{{ report.name }}</a>
+        </td>
+        <td>
+          {{ report.description }}
+        </td>
+      </tr>
+    {% endfor %}
+  </table>
+
+{% endblock %}

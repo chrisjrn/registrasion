@@ -147,3 +147,40 @@ def sold_out_and_unregistered(context):
     categories = available_categories(context)
 
     return ticket_category not in [cat.id for cat in categories]
+
+
+class IncludeNode(template.Node):
+    ''' https://djangosnippets.org/snippets/2058/ '''
+
+
+    def __init__(self, template_name):
+        # template_name as passed in includes quotmarks?
+        # strip them from the start and end
+        self.template_name = template_name[1:-1]
+
+    def render(self, context):
+        try:
+            # Loading the template and rendering it
+            return template.loader.render_to_string(
+                self.template_name, context=context,
+            )
+        except template.TemplateDoesNotExist:
+            return ""
+
+
+@register.tag
+def include_if_exists(parser, token):
+    """Usage: {% include_if_exists "head.html" %}
+
+    This will fail silently if the template doesn't exist. If it does, it will
+    be rendered with the current context.
+
+    From: https://djangosnippets.org/snippets/2058/
+    """
+    try:
+        tag_name, template_name = token.split_contents()
+    except ValueError:
+        raise template.TemplateSyntaxError, \
+            "%r tag requires a single argument" % token.contents.split()[0]
+
+    return IncludeNode(template_name)

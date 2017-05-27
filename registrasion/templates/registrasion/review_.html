@@ -1,0 +1,126 @@
+{% extends "registrasion/base.html" %}
+{% load registrasion_tags %}
+
+{% block title %}Review your selection{% endblock %}
+{% block heading %}Review your selection{% endblock %}
+
+{% block content %}
+
+  {% items_pending as pending %}
+  {% if pending %}
+
+    <div>
+      <h3>Current selection</h3>
+
+      <div>
+        {% block selected_items_intro_outer %}
+          <p>{% block selected_items_intro %}
+              You've selected the following items, which will be in your invoice
+              when you check out:{% endblock %}</p>
+        {% endblock %}
+        {% include "registrasion/snippets/items_list.html" with items=pending %}
+      </div>
+
+      {% items_purchased as purchased %}
+      {% if purchased %}
+        <div>
+          {% block purchased_items_intro_outer %}
+            <p>
+              {% block purchased_items_intro %}
+                You've already paid for the following items:
+              {% endblock %}
+            </p>
+          {% endblock %}
+          {% include "registrasion/snippets/items_list.html" with items=purchased suffix="(PAID)" %}
+        </div>
+      {% endif %}
+    </div>
+
+
+    <div>
+      <h3>Add to your selection</h3>
+
+      {% block add_to_selection_intro_outer %}
+        <p>{% block add_to_selection_intro %}
+          You can add these items now, or you can come back and add them in a
+          later purchase.
+        {% endblock %}</p>
+      {% endblock %}
+
+      {% missing_categories as missing %}
+      {% if missing %}
+        <div>
+          {% block missing_categories_intro_outer %}
+            <p>
+              <strong>
+                {% block missing_categories_intro %}
+                  You have <em>not</em> selected any items from the following
+                  categories. Even if your ticket includes complimentary tickets
+                  to social events, or t-shirts, you must still add them to your
+                  selection.
+                {% endblock %}
+              </strong>
+            </p>
+          {% endblock %}
+
+          {% include "registrasion/snippets/category_list.html" with categories=missing %}
+        </div>
+      {% endif %}
+
+      {% block non_missing_categories_intro_outer %}
+      <p>
+        <strong>
+          {% block non_missing_categories_intro %}
+            You can also change your selection from these categories:
+          {% endblock %}
+        </strong>
+      </p>
+      {% endblock %}
+
+      {% available_categories as available %}
+      {% include "registrasion/snippets/category_list.html" with categories=available exclude=missing %}
+    </div>
+
+    <div>
+      <h3>What next?</h3>
+
+      {% block what_next_intro_outer %}
+        <p>
+          {% block what_next_intro %}
+            You can either check out and pay for your selections, or return to
+            the dashboard.
+          {% endblock %}
+        </p>
+      {% endblock %}
+
+      <!-- TODO: make this button less bootstrap-dependent -->
+      <div class="form-actions">
+        <a class="btn btn-primary" href="{% url "checkout" %}">
+          <i class="fa fa-credit-card"></i> Check out and pay
+        </a>
+        <a class="btn btn-default" href="{% url "dashboard" %}">Return to dashboard</a>
+      </div>
+    </div>
+
+  {% else %}
+
+    <div>
+
+      {% block nothing_to_do_intro_outer %}
+        <p>
+          {% block nothing_to_do_intro %}
+            You have no items that need to be paid.
+          {% endblock %}
+        </p>
+      {% endblock %}
+
+      <!-- TODO: make this button less bootstrap-dependent -->
+      <div class="form-actions">
+        <a class="btn btn-default" href="{% url "dashboard" %}">Return to dashboard</a>
+      </div>
+
+    </div>
+
+  {% endif %}
+
+{% endblock %}

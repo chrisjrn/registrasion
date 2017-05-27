@@ -1,0 +1,16 @@
+{% if payments %}
+  <table class="table table-striped">
+    <tr>
+      <th>Payment time</th>
+      <th>Reference</th>
+      <th>Amount</th>
+    </tr>
+    {% for payment in payments %}
+      <tr>
+        <td>{{payment.time}}</td>
+        <td>{{payment.reference}}</td>
+        <td>{{payment.amount}}</td>
+      </tr>
+    {% endfor %}
+  </table>
+{% endif %}

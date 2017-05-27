@@ -1,0 +1,61 @@
+{% extends "registrasion/base.html" %}
+{% load registrasion_tags %}
+
+{% block title %}Amend registration{% endblock %}
+{% block heading %}Amend registration{% endblock %}
+
+{% block content %}
+
+  <dl>
+    <dt>Attendee name</dt>
+    <dd>{{ user.attendee.attendeeprofilebase.attendee_name }}</dd>
+    <dt>Attendee ID</dt>
+    <dd>{{ user.id }}</dd>
+  </dl>
+
+  <h2>Item summary </h2>
+
+  <h3>Paid Items</h3>
+
+  <p>You cannot remove paid items from someone's registration. You must first
+    cancel the invoice that added those items. You will need to re-add the items
+    from that invoice for the user to have them available again.</p>
+
+  {% include "registrasion/snippets/items_list.html" with items=paid %}
+
+  <h3>Cancelled Items</h3>
+
+  {% if cancelled %}
+    {% include "registrasion/snippets/items_list.html" with items=cancelled %}
+  {% else %}
+    <p>No cancelled items.</p>
+  {% endif %}
+
+  <h3>Amend pending items</h3>
+
+  <form method="POST">
+    {% csrf_token %}
+    {% include "registrasion/form.html" with form=form %}
+    <br/>
+    <!-- TODO: add themeed submit button -->
+    <input type="submit">
+  </form>
+
+  <h3>Generate invoice</h3>
+
+  <!-- TODO: make this button less bootstrap-dependent -->
+  <div>
+    <a class="btn btn-xs btn-default" href="{% url "checkout" user.id %}">Check out cart and view invoice</a>
+  </div>
+
+  <h3>Apply voucher</h3>
+
+  <form method="POST">
+    {% csrf_token %}
+    {% include "registrasion/form.html" with form=voucher_form %}
+    <br/>
+    <!-- TODO: add themeed submit button -->
+    <input type="submit">
+  </form>
+
+{% endblock %}

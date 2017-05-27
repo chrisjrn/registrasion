@@ -1,0 +1,7 @@
+{% if items %}
+  <ul>
+    {% for item in items %}
+      <li>{{ item.quantity }} &times; {{ item.product }} {{ suffix }}</li>
+    {% endfor %}
+  </ul>
+{% endif %}

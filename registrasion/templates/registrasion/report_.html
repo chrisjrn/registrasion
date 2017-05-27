@@ -1,0 +1,46 @@
+{% extends "registrasion/base.html" %}
+{% load registrasion_tags %}
+
+{% block title %}{{ title }}{% endblock %}
+{% block heading %}{{ title }}{% endblock %}
+
+{% block content %}
+
+  {% if form %}
+    <form method="GET">
+      {% include "registrasion/form.html" with form=form %}
+      <br/>
+      <!-- TODO: include themed submit button -->
+      <input type="submit">
+    </form>
+  {% endif %}
+  <hr />
+
+  {% for report in reports %}
+
+    <!-- TODO: make this button less bootstrap-dependent -->
+    <div class="btn-group pull-right">
+      <a class="btn btn-default" href="{% report_as_csv forloop.counter0 %}">View as CSV</a>
+    </div>
+
+    <h3>{{ report.title }}</h3>
+
+    <table class="table table-striped">
+      <tr>
+        {% for heading in report.headings %}
+          <th>{{ heading }}</th>
+        {% endfor %}
+      </tr>
+      {% for line in report.rows %}
+        <tr>
+          {% for item in line %}
+            <td>
+              {{ item|safe }}
+            </td>
+          {% endfor %}
+        </tr>
+      {% endfor %}
+    </table>
+  {% endfor %}
+
+{% endblock %}

@@ -1,0 +1,28 @@
+{% extends "registrasion/base.html" %}
+
+{% block title %}Enter voucher code{% endblock %}
+{% block heading %}Enter voucher code{% endblock %}
+{% block lede %}
+  If you have a voucher code, you can enter it here to get
+  discounts on products, or unlock products that aren't otherwise
+  available.
+{% endblock %}
+
+{% block content %}
+
+  <form method="post" action="">
+    {% csrf_token %}
+
+    <div class="panel panel-primary">
+      <div class="panel-body">
+        {% include "registrasion/form.html" with form=voucher_form %}
+      </div>
+
+      <div class="panel-footer">
+        <input class="btn btn-primary" type="submit" value="Apply voucher code" />
+        <a href="{% url "dashboard" %}" class="btn btn-default">Back to dashboard</a>
+      </div>
+    </div>
+  </form>
+
+{% endblock %}

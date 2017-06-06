@@ -1,0 +1,62 @@
+{% extends "registrasion/base.html" %}
+{% load registrasion_tags %}
+
+{% block title %}{{ title }}{% endblock %}
+{% block heading %}{{ title }}{% endblock %}
+
+{% block content %}
+
+  {% if form %}
+    <div class="panel panel-primary">
+      <form method="GET">
+
+        <div class="panel-body">
+            {% include "registrasion/form.html" with form=form %}
+        </div>
+        <div class="panel-footer">
+          <input class="btn btn-primary" type="submit">
+          <a class="btn btn-default" href="{% url "reports_list" %}">Back to reports list</a>
+        </div>
+
+      </form>
+    </div>
+  {% endif %}
+
+  {% for report in reports %}
+
+    <div class="panel panel-default">
+      <div class="panel-heading">
+
+        <div class="btn-group pull-right">
+          <a class="btn btn-default btn-xs" href="{% report_as_csv forloop.counter0 %}">View as CSV</a>
+        </div>
+
+        <h3 class="panel-title">{{ report.title }}</h3>
+      </div>
+
+      <table class="table table-striped">
+        <tr>
+          {% for heading in report.headings %}
+            <th>{{ heading }}</th>
+          {% endfor %}
+        </tr>
+        {% for line in report.rows %}
+          <tr>
+            {% for item in line %}
+              <td>
+                {{ item|safe }}
+              </td>
+            {% endfor %}
+          </tr>
+        {% endfor %}
+      </table>
+    </div>
+
+  {% endfor %}
+
+  <div class="form-actions">
+    <a class="btn btn-default" href="{% url "reports_list" %}">Back to reports list</a>
+  </div>
+
+
+{% endblock %}

@@ -1,0 +1,135 @@
+{% load i18n %}
+{% load registrasion_tags %}
+
+{% sold_out_and_unregistered as sold_out %}
+
+<div class="panel panel-default">
+  <div class="panel-heading">
+    {% block heading_actions_outer %}
+      <div class="pull-right">
+        {% block heading_actions %}
+          {% if not user.attendee.completed_registration %}
+
+            {% if not sold_out %}
+              <a href="{% url "guided_registration" %}" class="btn btn-xs btn-default">
+                  <i class="fa fa-plus-sign"></i> Register for the conference
+              </a>
+            {% endif %}
+
+          {% else %}
+            <a href="{% url "attendee_edit" %}" class="btn btn-xs btn-default">
+                <i class="fa fa-pencil"></i> Edit your attendee profile
+            </a>
+
+            {% items_pending as pending %}
+            {% if pending %}
+              <a href="{% url "checkout" %}" class="btn btn-xs btn-default">
+                  <i class="fa fa-credit-card"></i> Check out and pay
+              </a>
+            {% endif %}
+
+          {% endif %}
+
+          <a href="{% url "voucher_code" %}" class="btn btn-xs btn-default">
+              <i class="fa fa-heart"></i> Enter a voucher code
+          </a>
+
+          {% if user.is_staff %}
+
+            <a href="{% url "reports_list" %}" class="btn btn-xs btn-default">
+              <i class="fa fa-dashboard"></i> View reports</a>
+
+          {% endif %}
+        {% endblock %}
+      </div>
+    {% endblock %}
+
+    {% block heading_outer %}
+      <h3 class="panel-title">
+        <i class="fa fa-ticket"></i>
+        {% block heading %}
+          {% trans "Registration" %}
+        {% endblock %}
+      </h3>
+    {% endblock %}
+
+  </div>
+
+  {% block panel_content_outer %}
+    <div class="panel-body">
+      {% block panel_content %}
+
+        {% if not user.attendee.completed_registration %}
+
+          {% if not sold_out %}
+            {% block begin_registration_outer %}
+              <p>
+                {% block begin_registration %}
+                  To attend the conference, you must purchase a ticket. <a href="{% url "guided_registration" %}">Use our registration form to purchase your ticket</a>.
+                {% endblock %}
+              </p>
+            {% endblock %}
+          {% else %}
+            {% block sold_out_outer %}
+              <p>
+                {% block sold_out %}
+                  There are no tickets available to the general public. If you have a voucher code, you can <a href="{% url "voucher_code" %}">enter that voucher code</a>, which may unlock tickets for you.
+                {% endblock %}
+              </p>
+            {% endblock %}
+          {% endif %}
+
+        {% else %}
+
+          {% items_pending as pending %}
+          {% if pending %}
+            <h4>Items pending payment</h4>
+            {% include "registrasion/snippets/items_list.html" with items=pending %}
+            <p><a href="{% url "checkout" %}" class="btn btn-xs btn-default">
+                <i class="fa fa-credit-card"></i>
+                Check out and pay for these items.</a></p>
+          {% endif %}
+
+          {% items_purchased as purchased %}
+          {% if purchased %}
+            <h4>Paid items</h4>
+            {% include "registrasion/snippets/items_list.html" with items=purchased %}
+          {% endif %}
+
+          <h4>Add/Update items</h4>
+          {% available_categories as categories %}
+          {% include "registrasion/snippets/category_list.html" with categories=categories %}
+
+          {% invoices as invoices %}
+          {% if invoices %}
+          <h4>Invoices</h4>
+            <ul>
+              {% for invoice in invoices %}
+                {% if not invoice.is_void %}
+                  <li>
+                      <a href="{% url "invoice" invoice.id %}">Invoice {{ invoice.id }}</a>
+                      - ${{ invoice.value }} ({{ invoice.get_status_display }})
+                  </li>
+                {% endif %}
+              {% endfor %}
+            </ul>
+          {% endif %}
+
+          {% available_credit as credit %}
+          {% if credit %}
+            {% block available_credit_outer %}
+              <p>
+                {% block available_credit %}
+                  You have ${{ credit }} leftover from refunded invoices. This credit will be automatically applied to new invoices. Contact the conference organisers to
+                  for a refund to your original payment source.
+                {% endblock %}
+              </p>
+            {% endblock %}
+
+          {% endif %}
+        {% endif %}
+      {% endblock %}
+
+    </div>
+  {% endblock %}
+</div>

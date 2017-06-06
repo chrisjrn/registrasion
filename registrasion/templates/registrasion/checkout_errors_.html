@@ -1,0 +1,35 @@
+{% extends "registrasion/base.html" %}
+{% load registrasion_tags %}
+
+{% block title %}Cannot check out{% endblock %}
+{% block heading %}Oh No!{% endblock %}
+{% block lede %}We can't check out your current selections because of the following errors:{% endblock %}
+
+{% block content %}
+
+  <div class="alert alert-danger">
+    <ul>
+      {% for error in error_list %}
+        <li>{{ error.message }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <div class="panel panel-danger">
+    {% block fix_intro_outer %}
+      <div class="panel-body">
+        {% block fix_intro %}
+          We can automatically try to remove products and vouchers that aren't
+          available anymore, or you can return to the dashboard and try to fix
+          it yourself.
+        {% endblock %}
+      </div>
+    {% endblock %}
+
+    <div class="panel-footer">
+      <a class="btn btn-primary" href="{% url "checkout" %}?fix_errors=true">Try fixing these errors</a>
+      <a class="btn btn-default" href="{% url "dashboard" %}">Return to dashboard</a>
+    </div>
+  </div>
+
+{% endblock %}

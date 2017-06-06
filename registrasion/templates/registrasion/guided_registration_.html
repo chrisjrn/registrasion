@@ -1,0 +1,55 @@
+{% extends "registrasion/base.html" %}
+
+{% block title %}Conference registrasion{% endblock %}
+{% block heading %}Conference registration{% endblock %}
+{% block lede %}Step {{ current_step }} of {{ total_steps }} &ndash; {{ title }}{% endblock %}
+
+{% block content %}
+
+  <form method="post" action="">
+    {% csrf_token %}
+
+    {% for section in sections %}
+      <div class="panel panel-default">
+        <div class="panel-heading">
+          <h3 class="panel-title">{{ section.title }}</h3>
+        </div>
+
+        <div class="panel-body">
+
+          {% if section.description %}
+            <div class="well">
+              {{ section.description|safe }}
+            </div>
+          {% endif %}
+
+          {% if section.discounts %}
+            <div class="panel panel-info">
+              {% include "registrasion/snippets/discounts_list.html" with discounts=section.discounts %}
+              {% block discounts_intro_outer %}
+                <div class="panel-footer">
+                  {% block discounts_intro %}
+                    The best available discounts will be automatically applied
+                    to any selections you make.
+                  {% endblock %}
+                </div>
+              {% endblock %}
+
+            </div>
+          {% endif %}
+
+          {% include "registrasion/form.html" with form=section.form %}
+        </div>
+      </div>
+    {% endfor %}
+
+    <div class="form-actions">
+      {% if current_step > 1 %}
+        <a class="btn btn-default" href="{% url "guided_registration" current_step|add:"-1" %}">Back</a>
+      {% endif %}
+      <input class="btn btn-primary" type="submit" value="Next" />
+    </div>
+  </form>
+
+
+{% endblock %}

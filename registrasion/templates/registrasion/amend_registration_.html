@@ -1,0 +1,81 @@
+{% extends "registrasion/base.html" %}
+{% load registrasion_tags %}
+
+{% block title %}Amend registration{% endblock %}
+{% block heading %}Amend registration{% endblock %}
+
+{% block content %}
+
+  <dl>
+    <dt>Attendee name</dt>
+    <dd>{{ user.attendee.attendeeprofilebase.attendee_name }}</dd>
+    <dt>Attendee ID</dt>
+    <dd>{{ user.id }}</dd>
+  </dl>
+
+  <h2>Item summary</h2>
+
+  <div class="panel panel-default">
+    <div class="panel-heading">
+      <h3 class="panel-title">Paid Items</h3>
+    </div>
+
+    <div class="panel-body">
+      <div class="alert alert-warning">
+        You cannot remove paid items from someone's registration. You must first
+        cancel the invoice that added those items. You will need to re-add the items
+        from that invoice for the user to have them available again.
+      </div>
+    </div>
+
+    {% include "registrasion/snippets/items_list.html" with items=paid ul_class="list-group" li_class="list-group-item" %}
+  </div>
+
+  <div class="panel panel-default">
+    <div class="panel-heading">
+      <h3 class="panel-title">Cancelled Items</h3>
+    </div>
+
+    {% if cancelled %}
+      {% include "registrasion/snippets/items_list.html" with items=cancelled ul_class="list-group" li_class="list-group-item" %}
+    {% else %}
+      <div class="panel-body">No cancelled items.</div>
+    {% endif %}
+  </div>
+
+  <div class="panel panel-default">
+    <div class="panel-heading">
+      <h3 class="panel-title">Amend pending items</h3>
+    </div>
+
+    <form method="POST">
+      <div class="panel-body">
+        {% csrf_token %}
+        {% include "registrasion/form.html" with form=form %}
+      </div>
+
+      <div class="panel-footer">
+        <input class="btn btn-primary" type="submit">
+        <!-- todo: disable the checkout button if the form changes. -->
+        <a class="btn btn-default" href="{% url "checkout" user.id %}">Check out cart and view invoice</a>
+      </div>
+    </form>
+  </div>
+
+  <div class="panel panel-default">
+    <div class="panel-heading">
+      <h3 class="panel-title">Apply voucher</h3>
+    </div>
+
+    <form method="POST">
+      <div class="panel-body">
+        {% csrf_token %}
+        {% include "registrasion/form.html" with form=voucher_form %}
+      </div>
+      <div class="panel-footer">
+        <input class="btn btn-primary" type="submit">
+      </div>
+    </form>
+  </div>
+
+{% endblock %}

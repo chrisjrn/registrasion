@@ -1,0 +1,55 @@
+{% extends "registrasion/base.html" %}
+{% load bootstrap %}
+{% load registrasion_tags %}
+
+{% block content %}
+
+  {% if invoice.is_unpaid %}
+
+    <div class="alert alert-warning">
+    {% with scheme=request.scheme host=request.get_host %}
+      {% with scheme|add:"://"|add:host as current_host %}
+        {% include "registrasion/invoice/unpaid_notice.html" with current_host=current_host %}
+      {% endwith %}
+    {% endwith %}
+    </div>
+
+    <div class="panel panel-default">
+
+      {% block payment_actions_outer %}
+        <div class="panel-footer">
+          {% block payment_actions %}
+
+            {% with invoice_id=invoice.id access_code=invoice.user.attendee.access_code %}
+              {% include_if_exists "registrasion/stripe/link_to_payment.html" %}
+            {% endwith %}
+
+            {% if user.is_staff %}
+              <a class="btn btn-default" href="{% url "manual_payment" invoice.id %}">Apply manual payment</a>
+            {% endif %}
+          {% endblock %}
+          <a class="btn btn-default" href="{% url "dashboard" %}">Return to dashboard</a>
+
+        </div>
+      {% endblock %}
+    </div>
+
+  {% elif invoice.is_paid %}
+
+    {% if user.is_staff %}
+      {% block refund_actions_outer %}
+        <div class="panel-footer">
+          {% block refund_actions %}
+            <a class="btn btn-primary" href="{% url "refund" invoice.id %}">Refund by issuing credit note</a>
+            <a class="btn btn-default" href="{% url "manual_payment" invoice.id %}">Apply manual payment/refund</a>
+            <a class="btn btn-default" href="{% url "dashboard" %}">Return to dashboard</a>
+          {% endblock %}
+        </div>
+      {% endblock %}
+    {% endif %}
+
+  {% endif %}
+
+  {% include "registrasion/invoice/details.html" %}
+
+{% endblock %}

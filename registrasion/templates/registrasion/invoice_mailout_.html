@@ -1,0 +1,32 @@
+{% extends "registrasion/base.html" %}
+{% load registrasion_tags %}
+
+{% block title %}Send reminder e-mails{% endblock %}
+{% block heading %}Send reminder e-mails{% endblock %}
+
+{% block content %}
+
+<form method="POST">
+  {% csrf_token %}
+  {% include "registrasion/form.html" with form=form %}
+  <br/>
+  <!-- TODO: include themed submit button -->
+  <input type="submit">
+</form>
+
+{% if emails %}
+  <h3>Previews</h3>
+
+  {% for email in emails %}
+    <dl>
+      <dt>From</dt><dd>{{ email.from_email }}</dd>
+      <dt>To</dt><dd>{{ email.recipient_list|join:", " }}</dd>
+      <dt>Subject</dt><dd>{{ email.subject }}</dd>
+      <dt>Body</dt><dd><pre>{{ email.body }}</pre></dd>
+    </dl>
+    <hr />
+  {% endfor %}
+
+{% endif %}
+
+{% endblock %}

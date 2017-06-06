@@ -198,7 +198,7 @@ def guided_registration(request, page_number=None):
         "current_step": page_number,
         "sections": sections,
         "title": title,
-        "total_steps": 3,
+        "total_steps": TOTAL_PAGES,
     }
     return render(request, "registrasion/guided_registration.html", data)
 

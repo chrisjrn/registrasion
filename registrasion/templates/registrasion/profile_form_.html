@@ -1,0 +1,25 @@
+{% extends "registrasion/base.html" %}
+
+{% block title %}Your profile{% endblock %}
+{% block heading %}Your profile{% endblock %}
+{% block lede %}
+  These details will appear on your badge, your invoices, and will be used
+  to order catered food at the conference.
+{% endblock %}
+
+{% block content %}
+
+  <form method="post" action="">
+    {% csrf_token %}
+
+    <div>
+      {% include "registrasion/form.html" with form=form %}
+    </div>
+
+    <!-- TODO: make this button less bootstrap-dependent -->
+    <div class="form-actions">
+        <input class="btn btn-primary" type="submit" value="Save" />
+    </div>
+  </form>
+
+{% endblock %}

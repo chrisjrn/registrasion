@@ -146,8 +146,10 @@ def guided_registration(request, page_number=None):
     with BatchController.batch(request.user):
 
         # This view doesn't work if the conference has sold out.
-        available = CategoryController.available_categories(request.user)
-        if ticket_category not in available:
+        available = ProductController.available_products(
+            request.user, category=ticket_category
+        )
+        if not available:
             messages.error(request, "There are no more tickets available.")
             return redirect("dashboard")
 

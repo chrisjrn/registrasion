@@ -45,6 +45,28 @@ class FlagController(object):
         else:
             all_conditions = []
 
+        all_conditions = conditions.FlagBase.objects.filter(
+            id__in=(i.id for i in all_conditions)
+        ).select_subclasses()
+
+        # Prefetch all of the products and categories (Saves a LOT of queries)
+        all_conditions = all_conditions.prefetch_related(
+            "products", "categories"
+        )
+
+        # Now pre-select all of the products attached to those categories
+        all_categories = set(
+            cat for condition in all_conditions
+                for cat in condition.categories.all()
+        )
+        all_category_ids = (i.id for i in all_categories)
+        all_category_products = inventory.Product.objects.filter(
+            category__in=all_category_ids
+        ).select_related("category")
+
+        products_by_category_ = itertools.groupby(all_category_products, lambda prod: prod.category)
+        products_by_category = dict((k.id, list(v)) for (k, v) in products_by_category_)
+
         # All disable-if-false conditions on a product need to be met
         do_not_disable = defaultdict(lambda: True)
         # At least one enable-if-true condition on a product must be met
@@ -64,17 +86,19 @@ class FlagController(object):
             # Get all products covered by this condition, and the products
             # from the categories covered by this condition
 
-            ids = [product.id for product in products]
-
-            # TODO: This is re-evaluated a lot.
-            all_products = inventory.Product.objects.filter(id__in=ids)
-            cond = (
-                Q(flagbase_set=condition) |
-                Q(category__in=condition.categories.all())
+            condition_products = condition.products.all()
+            category_products = (
+                product for cat in condition.categories.all() for product in products_by_category[cat.id]
             )
 
-            all_products = all_products.filter(cond)
-            all_products = all_products.select_related("category")
+            all_products = itertools.chain(
+                condition_products, category_products
+            )
+            all_products = set(all_products)
+
+            # Filter out the products from this condition that
+            # are not part of this query.
+            all_products = set(i for i in all_products if i in products)
 
             if quantities:
                 consumed = sum(quantities[i] for i in all_products)

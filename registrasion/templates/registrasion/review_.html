@@ -9,96 +9,114 @@
   {% items_pending as pending %}
   {% if pending %}
 
-    <div>
-      <h3>Current selection</h3>
-
-      <div>
-        {% block selected_items_intro_outer %}
-          <p>{% block selected_items_intro %}
-              You've selected the following items, which will be in your invoice
-              when you check out:{% endblock %}</p>
-        {% endblock %}
-        {% include "registrasion/snippets/items_list.html" with items=pending %}
+    <div class="panel panel-default">
+      <div class="panel-heading">
+        <h3 class="panel-title">Current selection</h3>
       </div>
 
-      {% items_purchased as purchased %}
-      {% if purchased %}
-        <div>
-          {% block purchased_items_intro_outer %}
-            <p>
-              {% block purchased_items_intro %}
-                You've already paid for the following items:
-              {% endblock %}
-            </p>
+      <div class="panel-body">
+        {% block selected_items_intro_outer %}
+          {% block selected_items_intro %}
+            You've selected the following items, which will be in your invoice
+            when you check out:
           {% endblock %}
-          {% include "registrasion/snippets/items_list.html" with items=purchased suffix="(PAID)" %}
-        </div>
-      {% endif %}
+        {% endblock %}
+      </div>
+
+      {% include "registrasion/snippets/items_list.html" with items=pending ul_class="list-group" li_class="list-group-item" %}
+
     </div>
 
+    {% items_purchased as purchased %}
+    {% if purchased %}
+      <div class="panel panel-default">
+        <div class="panel-heading">
+          <h3 class="panel-title">Already purchased</h3>
+        </div>
+        <div class="panel-body">
+            <div>
+              {% block purchased_items_intro_outer %}
+                <p>
+                  {% block purchased_items_intro %}
+                    You've already paid for the following items:
+                  {% endblock %}
+                </p>
+              {% endblock %}
+              {% include "registrasion/snippets/items_list.html" with items=purchased suffix="(PAID)" ul_class="list-group" li_class="list-group-item" %}
+            </div>
+        </div>
+      </div>
+    {% endif %}
 
-    <div>
-      <h3>Add to your selection</h3>
+    <div class="panel panel-default">
+      <div class="panel-heading">
+        <h3 class="panel-title">Add to your selection</h3>
+      </div>
 
-      {% block add_to_selection_intro_outer %}
-        <p>{% block add_to_selection_intro %}
-          You can add these items now, or you can come back and add them in a
-          later purchase.
-        {% endblock %}</p>
-      {% endblock %}
+      <div class="panel-body">
 
-      {% missing_categories as missing %}
-      {% if missing %}
-        <div>
-          {% block missing_categories_intro_outer %}
-            <p>
-              <strong>
+        {% block add_to_selection_intro_outer %}
+          <p>{% block add_to_selection_intro %}
+            You can add these items now, or you can come back and add them in a
+            later purchase.
+          {% endblock %}</p>
+        {% endblock %}
+
+        {% missing_categories as missing %}
+        {% if missing %}
+          <div class="alert alert-warning">
+            {% block missing_categories_intro_outer %}
+              <p>
                 {% block missing_categories_intro %}
                   You have <em>not</em> selected any items from the following
                   categories. Even if your ticket includes complimentary tickets
                   to social events, or t-shirts, you must still add them to your
                   selection.
                 {% endblock %}
-              </strong>
-            </p>
-          {% endblock %}
+              </p>
+            {% endblock %}
 
-          {% include "registrasion/snippets/category_list.html" with categories=missing %}
-        </div>
-      {% endif %}
+            {% include "registrasion/snippets/category_list.html" with categories=missing %}
+          </div>
+        {% endif %}
 
-      {% block non_missing_categories_intro_outer %}
-      <p>
-        <strong>
-          {% block non_missing_categories_intro %}
-            You can also change your selection from these categories:
-          {% endblock %}
-        </strong>
-      </p>
-      {% endblock %}
+        {% block non_missing_categories_intro_outer %}
+        <p>
+          <strong>
+            {% block non_missing_categories_intro %}
+              You can also change your selection from these categories:
+            {% endblock %}
+          </strong>
+        </p>
+        {% endblock %}
 
-      {% available_categories as available %}
-      {% include "registrasion/snippets/category_list.html" with categories=available exclude=missing %}
+        {% available_categories as available %}
+        {% include "registrasion/snippets/category_list.html" with categories=available exclude=missing %}
+      </div>
     </div>
 
-    <div>
-      <h3>What next?</h3>
+    <div class="panel panel-default">
 
-      {% block what_next_intro_outer %}
-        <p>
-          {% block what_next_intro %}
-            You can either check out and pay for your selections, or return to
-            the dashboard.
-          {% endblock %}
-        </p>
-      {% endblock %}
+      <div class="panel-heading">
+        <h3 class="panel-title">What next?</h3>
+      </div>
 
-      <!-- TODO: make this button less bootstrap-dependent -->
-      <div class="form-actions">
-        <a class="btn btn-primary" href="{% url "checkout" %}">
-          <i class="fa fa-credit-card"></i> Check out and pay
-        </a>
-        <a class="btn btn-default" href="{% url "dashboard" %}">Return to dashboard</a>
+      <div class="panel-body">
+
+        {% block what_next_intro_outer %}
+            {% block what_next_intro %}
+              You can either check out and pay for your selections, or return to
+              the dashboard.
+            {% endblock %}
+          </p>
+        {% endblock %}
+
+        <div class="form-actions">
+          <a class="btn btn-primary" href="{% url "checkout" %}">
+            <i class="fa fa-credit-card"></i> Check out and pay
+          </a>
+          <a class="btn btn-default" href="{% url "dashboard" %}">Return to dashboard</a>
+        </div>
       </div>
     </div>
 
@@ -114,7 +132,6 @@
         </p>
       {% endblock %}
 
-      <!-- TODO: make this button less bootstrap-dependent -->
       <div class="form-actions">
         <a class="btn btn-default" href="{% url "dashboard" %}">Return to dashboard</a>
       </div>

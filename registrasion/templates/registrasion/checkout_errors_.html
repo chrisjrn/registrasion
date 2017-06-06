@@ -7,26 +7,29 @@
 
 {% block content %}
 
-  <ul>
-    {% for error in error_list %}
-      <li>{{ error.message }}</li>
-    {% endfor %}
-  </ul>
+  <div class="alert alert-danger">
+    <ul>
+      {% for error in error_list %}
+        <li>{{ error.message }}</li>
+      {% endfor %}
+    </ul>
+  </div>
 
-  {% block fix_intro_outer %}
-    <p>
-      {% block fix_intro %}
-        We can automatically try to remove products and vouchers that aren't
-        available anymore, or you can return to the dashboard and try to fix
-        it yourself.
-      {% endblock %}
-    </p>
-  {% endblock %}
+  <div class="panel panel-danger">
+    {% block fix_intro_outer %}
+      <div class="panel-body">
+        {% block fix_intro %}
+          We can automatically try to remove products and vouchers that aren't
+          available anymore, or you can return to the dashboard and try to fix
+          it yourself.
+        {% endblock %}
+      </div>
+    {% endblock %}
 
-  <!-- TODO: make this button less bootstrap-dependent -->
-  <div class="form-actions">
-    <a class="btn btn-primary" href="{% url "checkout" %}?fix_errors=true">Try fixing these errors</a>
-    <a class="btn btn-default" href="{% url "dashboard" %}">Return to dashboard</a>
+    <div class="panel-footer">
+      <a class="btn btn-primary" href="{% url "checkout" %}?fix_errors=true">Try fixing these errors</a>
+      <a class="btn btn-default" href="{% url "dashboard" %}">Return to dashboard</a>
+    </div>
   </div>
 
 {% endblock %}

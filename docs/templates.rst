@@ -51,3 +51,28 @@ Using the templates
 * If you want that content to appear in your pages, you must include these blocks in your `registrasion/base.html`.
 
 * `content` may include other blocks, so that you can override default text. Each `view.html` template will document the blocks that you can override.
+
+
+CSS styling
+-----------
+
+The in-built templates do a small amount of layout and styling work, using bootstrap conventions. The following CSS classes are used:
+
+* `panel panel-default`
+* `panel panel-primary`
+* `panel panel-info`
+* `panel-heading`
+* `panel-title`
+* `panel-body`
+* `panel-footer`
+* `form-actions`
+* `btn btn-default`
+* `btn btn-primary`
+* `btn btn-xs btn-default`
+* `alert alert-info`
+* `alert alert-warning`
+* `list-group`
+* `list-group-item`
+* `well`
+* `table`
+* `table table-striped`

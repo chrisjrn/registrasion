@@ -1,86 +1,111 @@
 {% load registrasion_tags %}
 
-<div>
-  {% block heading_outer %}
-    <h2>{% block heading %}Invoice{% endblock %}</h2>
-  {% endblock %}
-  {% block subheading_outer %}
-    <p>{% block subheading %}Subtitle{% endblock %}</p>
-  {% endblock %}
-</div>
+<div class="panel panel-primary">
+  <div class="panel-heading">
+    {% block heading_outer %}
+      <h2>{% block heading %}Invoice{% endblock %}</h2>
+    {% endblock %}
+    {% block subheading_outer %}
+      <div>{% block subheading %}Subtitle{% endblock %}</div>
+    {% endblock %}
+  </div>
 
-<div>
   {% with invoice_user=invoice.cart.user %}
-    <dl>
-      <dt>Number</dt><dd> {{ invoice.id }}</dd>
-      <dt>Status</dt><dd> {{ invoice.get_status_display }}</dd>
-      <dt>Issue date</dt><dd> {{ invoice.issue_time|date:"DATE_FORMAT" }}</dd>
+    <table class="table">
+      <tr><th>Number</th><td> {{ invoice.id }}</td></tr>
+      <tr><th>Status</th><td> {{ invoice.get_status_display }}</td></tr>
+      <tr><th>Issue date</th><td> {{ invoice.issue_time|date:"DATE_FORMAT" }}</td></tr>
 
       {% if not invoice.is_void %}
-        <dt>Due</dt><dd> {{ invoice.due_time|date:"DATETIME_FORMAT"}}</dd>
+        <tr><th>Due</th><td> {{ invoice.due_time|date:"DATETIME_FORMAT"}}</td></tr>
       {% endif %}
 
-      <dt>Recipient</dt><dd> {{ invoice.recipient|linebreaksbr}}</dd>
-    </dl>
+      <tr><th>Recipient</th><td> {{ invoice.recipient|linebreaksbr}}</td></tr>
+    </table>
   {% endwith %}
+
+  <div class="panel-body">
+    {% block invoice_intro_outer %}
+      <div class="alert alert-info">
+        {% block invoice_intro %}
+          This invoice has been issued as a result of an application to attend (conference name).
+        {% endblock %}
+      </div>
+    {% endblock %}
+
+    <div class="panel panel-default">
+      <table class="table table-striped">
+        <tr>
+          <th>Description</th>
+          <th class="text-right">Quantity</th>
+          <th class="text-right">Price/Unit</th>
+          <th class="text-right">Total</th>
+        </tr>
+        {% for line_item in invoice.lineitem_set.all %}
+          <tr>
+            <td>{{ line_item.description }}</td>
+            <td class="text-right">{{ line_item.quantity }}</td>
+            <td class="text-right">${{ line_item.price }}</td>
+            <td class="text-right">${{ line_item.total_price }}</td>
+          </tr>
+        {% endfor %}
+
+        {% block extra_line_items %}
+
+        {% endblock %}
+
+        <tr>
+          <th colspan="3">TOTAL</th>
+          <td class="text-right">${{ invoice.value }}</td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="panel panel-info">
+      <div class="panel-heading">
+        <h3 class="panel-title">Balance</h3>
+      </div>
+      <table class="table table-striped">
+        <tr>
+          <td colspan="3">Total payments:</td>
+          <td class="text-right">${{ invoice.total_payments }}</td>
+        </tr>
+        <tr>
+          <td colspan="3">Balance due:</td>
+          <td class="text-right">${{ invoice.balance_due }}</td>
+        </tr>
+      </table>
+    </div>
+
+    {% if invoice.paymentbase_set.all %}
+      <div class="panel panel-info">
+        <div class="panel-heading">
+          <h4 class="panel-title">Payments received</h4>
+        </div>
+        {% include "registrasion/snippets/payment_list.html" with payments=invoice.paymentbase_set.all %}
+      </div>
+    {% endif %}
+
+    <div class="panel panel-default">
+      {% block contact_info_heading_outer %}
+        <div class="panel-heading">
+          <h3 class="panel-title">
+            {% block contact_info_heading %}
+              Contact Information
+            {% endblock %}
+          </h3>
+        </div>
+      {% endblock %}
+
+      {% block contact_info_outer %}
+        <div class="panel-body">
+          <p>
+            {% block contact_info %}
+              Direct inquiries to (EMAIL ADDRESS)
+            {% endblock %}
+          </p>
+        </div>
+      {% endblock %}
+    </div>
+  </div>
 </div>
-
-{% block invoice_intro_outer %}
-  <div>
-    {% block invoice_intro %}
-      <p>This invoice has been issued as a result of an application to attend (conference name).</p>
-    {% endblock %}
-  </div>
-{% endblock %}
-
-<table class="table table-striped">
-  <tr>
-    <th>Description</th>
-    <th class="text-right">Quantity</th>
-    <th class="text-right">Price/Unit</th>
-    <th class="text-right">Total</th>
-  </tr>
-  {% for line_item in invoice.lineitem_set.all %}
-    <tr>
-      <td>{{ line_item.description }}</td>
-      <td class="text-right">{{ line_item.quantity }}</td>
-      <td class="text-right">${{ line_item.price }}</td>
-      <td class="text-right">${{ line_item.total_price }}</td>
-    </tr>
-  {% endfor %}
-
-  {% block extra_line_items %}
-
-  {% endblock %}
-
-  <tr>
-    <th colspan="3">TOTAL</th>
-    <td class="text-right">${{ invoice.value }}</td>
-  </tr>
-</table>
-
-<h3>Balance</h3>
-<table class="table table-striped">
-  <tr>
-    <td colspan="3">Total payments:</td>
-    <td class="text-right">${{ invoice.total_payments }}</td>
-  </tr>
-  <tr>
-    <td colspan="3">Balance due:</td>
-    <td class="text-right">${{ invoice.balance_due }}</td>
-  </tr>
-</table>
-
-{% if invoice.paymentbase_set.all %}
-  <h4>Payments received</h4>
-  {% include "registrasion/snippets/payment_list.html" with payments=invoice.paymentbase_set.all %}
-{% endif %}
-
-{% block contact_info_outer %}
-  <div>
-    {% block contact_info %}
-      <h3>Contact Information</h3>
-      <p>Direct inquiries to (EMAIL ADDRESS)</p>
-    {% endblock %}
-  </div>
-{% endblock %}

@@ -13,12 +13,15 @@
   <form method="post" action="">
     {% csrf_token %}
 
-    {% include "registrasion/form.html" with form=voucher_form %}
+    <div class="panel panel-primary">
+      <div class="panel-body">
+        {% include "registrasion/form.html" with form=voucher_form %}
+      </div>
 
-    <!-- TODO: make this button less bootstrap-dependent -->
-    <div class="form-actions">
-      <input class="btn btn-primary" type="submit" value="Apply voucher code" />
-      <a href="{% url "dashboard" %}" class="btn btn-default">Back to dashboard</a>
+      <div class="panel-footer">
+        <input class="btn btn-primary" type="submit" value="Apply voucher code" />
+        <a href="{% url "dashboard" %}" class="btn btn-default">Back to dashboard</a>
+      </div>
     </div>
   </form>
 

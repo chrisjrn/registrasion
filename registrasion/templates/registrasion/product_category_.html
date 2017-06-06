@@ -1,8 +1,8 @@
 {% extends "registrasion/base.html" %}
 {% load registrasion_tags %}
 
-{% block title %}Product Category: {{ category.name }}{% endblock %}
-{% block heading %}Product Category: {{ category.name }}{% endblock %}
+{% block title %}Select {{ category.name }} products{% endblock %}
+{% block heading %}Select {{ category.name }} products{% endblock %}
 
 {% block content %}
 
@@ -10,56 +10,68 @@
 
     {% csrf_token %}
 
-    <div>
-      {% include "registrasion/form.html" with form=voucher_form %}
-      <!-- TODO: make this button less bootstrap-dependent -->
-      <div class="form-actions">
-          <input class="btn btn-primary" type="submit" value="Add voucher" />
+    <div class="panel panel-default">
+      <div class="panel-heading">
+        <h3 class="panel-title">Enter voucher code</h3>
+      </div>
+      <div class="panel-body">
+        {% include "registrasion/form.html" with form=voucher_form %}
+        <!-- TODO: make this button less bootstrap-dependent -->
+        <div class="form-actions">
+            <input class="btn btn-primary" type="submit" value="Add voucher" />
+        </div>
       </div>
     </div>
 
-    {% items_purchased category as items %}
-    {% if items %}
-      <div>
-        {% block paid_items_intro_outer %}
-          {% block paid_items_intro %}
-            <h3>Paid items</h3>
-            <p>You have already paid for the following items:</p>
-          {% endblock %}
-        {% endblock %}
-        {% include "registrasion/snippets/items_list.html" with items=items %}
+    <div class="panel panel-primary">
+      <div class="panel-heading">
+        <h3 class="panel-title">{{ category.name }}</h3>
       </div>
-    {% endif %}
 
-    {% if discounts %}
-      <div>
-        {% block discounts_intro_outer %}
-          {% block discounts_intro %}
-            <h3>Available Discounts</h3>
-          {% endblock %}
-        {% endblock %}
-        {% include "registrasion/snippets/discounts_list.html" with discounts=discounts %}
-      </div>
-    {% endif %}
+      <div class="panel-body">
 
-    <div>
-      <div>
         {% block products_intro_outer %}
-          {% block products_intro %}
-            <h3>Available Products</h3>
-            <p>{{ category.description }}</p>
-          {% endblock %}
+          <div class="well">
+            {% block products_intro %}
+              {{ category.description }}
+            {% endblock %}
+          </div>
         {% endblock %}
-      </div>
 
-      <div>
+        {% items_purchased category as items %}
+        {% if items %}
+          <div class="panel panel-info">
+            {% block paid_items_intro_outer %}
+              <div class="panel-heading">
+                {% block paid_items_intro %}
+                  You have already paid for the following items:
+                {% endblock %}
+              </div>
+            {% endblock %}
+            {% include "registrasion/snippets/items_list.html" with items=items ul_class="list-group" li_class="list-group-item" %}
+          </div>
+        {% endif %}
+
+        {% if discounts %}
+          <div class="panel panel-info">
+            {% include "registrasion/snippets/discounts_list.html" with discounts=discounts %}
+            {% block discounts_intro_outer %}
+              <div class="panel-footer">
+                {% block discounts_intro %}
+                  The best available discounts will be automatically applied to any selections you make.
+                {% endblock %}
+              </div>
+            {% endblock %}
+          </div>
+        {% endif %}
+
         {% include "registrasion/form.html" with form=form %}
 
-        <!-- TODO: make this button less bootstrap-dependent -->
-        <div class="form-actions">
-            <input class="btn btn-primary" type="submit" value="Add to cart" />
-            <a href="{% url "dashboard" %}" class="btn btn-default">Return to dashboard</a>
-        </div>
+      </div>
+
+      <div class="panel-footer">
+        <input class="btn btn-primary" type="submit" value="Add to cart" />
+        <a href="{% url "dashboard" %}" class="btn btn-default">Return to dashboard</a>
       </div>
     </div>
 

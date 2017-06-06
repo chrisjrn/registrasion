@@ -1,7 +1,7 @@
-<ul>
+<ul class="{{ ul_class }}">
   {% for category in categories %}
     {% if not category in exclude %}
-      <li><a href="{% url "product_category" category.id %}">{{ category.name }}</a></li>
+      <li class="{{ li_class }}"><a href="{% url "product_category" category.id %}">{{ category.name }}</a></li>
     {% endif %}
   {% endfor %}
 </ul>

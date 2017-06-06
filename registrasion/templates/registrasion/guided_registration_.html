@@ -10,43 +10,39 @@
     {% csrf_token %}
 
     {% for section in sections %}
-      <div>
-
-        <h2>{{ section.title }}</h2>
-
-        <div>
-          {% if section.description %}
-            <p>{{ section.description|safe }}</p>
-          {% endif %}
+      <div class="panel panel-default">
+        <div class="panel-heading">
+          <h3 class="panel-title">{{ section.title }}</h3>
         </div>
 
-        {% if section.discounts %}
-          <div>
-            {% block discounts_intro_outer %}
-              {% block discounts_intro %}
-                <h3>Available discounts</h3>
-                <p>
-                  You must select a product to receive any discounts.<br/>
-                  Applicable discounts will be applied automatically when you check out.
-                </p>
+        <div class="panel-body">
+
+          {% if section.description %}
+            <div class="well">
+              {{ section.description|safe }}
+            </div>
+          {% endif %}
+
+          {% if section.discounts %}
+            <div class="panel panel-info">
+              {% include "registrasion/snippets/discounts_list.html" with discounts=section.discounts %}
+              {% block discounts_intro_outer %}
+                <div class="panel-footer">
+                  {% block discounts_intro %}
+                    The best available discounts will be automatically applied
+                    to any selections you make.
+                  {% endblock %}
+                </div>
               {% endblock %}
-            {% endblock %}
 
-            {% include "registrasion/snippets/discounts_list.html" with discounts=section.discounts %}
-          </div>
-        {% endif %}
+            </div>
+          {% endif %}
 
-        {% block products_intro_outer %}
-          {% block products_intro %}
-            <h3>Available selections</h3>
-          {% endblock %}
-        {% endblock %}
-
-        {% include "registrasion/form.html" with form=section.form %}
+          {% include "registrasion/form.html" with form=section.form %}
+        </div>
       </div>
     {% endfor %}
 
-    <!-- TODO: make this button less bootstrap-dependent -->
     <div class="form-actions">
       {% if current_step > 1 %}
         <a class="btn btn-default" href="{% url "guided_registration" current_step|add:"-1" %}">Back</a>

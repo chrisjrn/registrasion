@@ -7,40 +7,56 @@
 {% block content %}
 
   {% if form %}
-    <form method="GET">
-      {% include "registrasion/form.html" with form=form %}
-      <br/>
-      <!-- TODO: include themed submit button -->
-      <input type="submit">
-    </form>
+    <div class="panel panel-primary">
+      <form method="GET">
+
+        <div class="panel-body">
+            {% include "registrasion/form.html" with form=form %}
+        </div>
+        <div class="panel-footer">
+          <input class="btn btn-primary" type="submit">
+          <a class="btn btn-default" href="{% url "reports_list" %}">Back to reports list</a>
+        </div>
+
+      </form>
+    </div>
   {% endif %}
-  <hr />
 
   {% for report in reports %}
 
-    <!-- TODO: make this button less bootstrap-dependent -->
-    <div class="btn-group pull-right">
-      <a class="btn btn-default" href="{% report_as_csv forloop.counter0 %}">View as CSV</a>
-    </div>
+    <div class="panel panel-default">
+      <div class="panel-heading">
 
-    <h3>{{ report.title }}</h3>
+        <div class="btn-group pull-right">
+          <a class="btn btn-default btn-xs" href="{% report_as_csv forloop.counter0 %}">View as CSV</a>
+        </div>
 
-    <table class="table table-striped">
-      <tr>
-        {% for heading in report.headings %}
-          <th>{{ heading }}</th>
-        {% endfor %}
-      </tr>
-      {% for line in report.rows %}
+        <h3 class="panel-title">{{ report.title }}</h3>
+      </div>
+
+      <table class="table table-striped">
         <tr>
-          {% for item in line %}
-            <td>
-              {{ item|safe }}
-            </td>
+          {% for heading in report.headings %}
+            <th>{{ heading }}</th>
           {% endfor %}
         </tr>
-      {% endfor %}
-    </table>
+        {% for line in report.rows %}
+          <tr>
+            {% for item in line %}
+              <td>
+                {{ item|safe }}
+              </td>
+            {% endfor %}
+          </tr>
+        {% endfor %}
+      </table>
+    </div>
+
   {% endfor %}
+
+  <div class="form-actions">
+    <a class="btn btn-default" href="{% url "reports_list" %}">Back to reports list</a>
+  </div>
+
 
 {% endblock %}

@@ -1,7 +1,7 @@
 {% if items %}
-  <ul>
+  <ul class="{{ ul_class }}">
     {% for item in items %}
-      <li>{{ item.quantity }} &times; {{ item.product }} {{ suffix }}</li>
+      <li class="{{ li_class }}">{{ item.quantity }} &times; {{ item.product }} {{ suffix }}</li>
     {% endfor %}
   </ul>
 {% endif %}

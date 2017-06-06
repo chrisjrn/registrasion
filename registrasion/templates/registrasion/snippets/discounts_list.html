@@ -2,17 +2,21 @@
 
   {% regroup discounts by discount.description as discounts_grouped %}
 
-  <dl>
+  <table class="table">
     {% for discount_type in discounts_grouped %}
-      <dt>{{ discount_type.grouper }}</dt>
-      <dd>
-        <ul>
-          {% for discount in discount_type.list %}
-            <li>{{ discount.quantity }} &times; {{ discount.clause }}</li>
-          {% endfor %}
-        </ul>
-      </dd>
+      <tr>
+        <th rowspan="{{ discount_type.list|length }}">{{ discount_type.grouper }}</th>
+
+        {% for discount in discount_type.list %}
+          {% if not forloop.first %}
+            </tr><tr>
+          {% endif %}
+          <td>
+            {{ discount.quantity }} &times; {{ discount.clause }}
+          </td>
+        {% endfor %}
+    </tr>
     {% endfor %}
-  </dl>
+  </table>
 
 {% endif %}

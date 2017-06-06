@@ -51,7 +51,7 @@ class FlagController(object):
 
         # Prefetch all of the products and categories (Saves a LOT of queries)
         all_conditions = all_conditions.prefetch_related(
-            "products", "categories"
+            "products", "categories", "products__category",
         )
 
         # Now pre-select all of the products attached to those categories

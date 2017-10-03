@@ -102,12 +102,16 @@
 
           {% invoices as invoices %}
           {% if invoices %}
-          <h4>Invoices</h4>
+          <h4>{% block invoices_heading %}Invoices{% endblock %}</h4>
             <ul>
               {% for invoice in invoices %}
                 {% if not invoice.is_void %}
                   <li>
-                      <a href="{% url "invoice" invoice.id %}">Invoice {{ invoice.id }}</a>
+                      <a href="{% url "invoice" invoice.id %}">
+                          {% block invoice_item_prefix %}
+                            Invoice
+                          {% endblock %}
+                          {{ invoice.id }}</a>
                       - ${{ invoice.value }} ({{ invoice.get_status_display }})
                   </li>
                 {% endif %}
@@ -120,7 +124,7 @@
             {% block available_credit_outer %}
               <p>
                 {% block available_credit %}
-                  You have ${{ credit }} leftover from refunded invoices. This credit will be automatically applied to new invoices. Contact the conference organisers to
+                  You have ${{ credit }} leftover from refunded invoices. This credit will be automatically applied to new purchases. Contact the conference organisers to
                   for a refund to your original payment source.
                 {% endblock %}
               </p>

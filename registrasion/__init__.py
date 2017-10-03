@@ -1,3 +1,3 @@
-__version__ = "0.2.0-dev"
+__version__ = "0.2.0-dev-2"
 
 default_app_config = "registrasion.apps.RegistrasionConfig"

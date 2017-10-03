@@ -21,7 +21,8 @@
           {% block payment_actions %}
 
             {% with invoice_id=invoice.id access_code=invoice.user.attendee.access_code %}
-              {% if template_exists "registrasion/stripe/link_to_payment.html" %}
+              {% template_exists "registrasion/stripe/link_to_payment.html" as link_to_payment %}
+              {% if link_to_payment %}
                 {% include "registrasion/stripe/link_to_payment.html" %}
               {% endif %}
             {% endwith %}

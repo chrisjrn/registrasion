@@ -168,6 +168,15 @@ class IncludeNode(template.Node):
             return ""
 
 
+@register.simple_tag
+def template_exists(template_name):
+    try:
+        django.template.loader.get_template(template_name)
+        return True
+    except template.TemplateDoesNotExist:
+        return False
+
+
 @register.tag
 def include_if_exists(parser, token):
     """Usage: {% include_if_exists "head.html" %}

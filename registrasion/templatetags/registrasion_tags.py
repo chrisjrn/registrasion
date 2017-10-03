@@ -171,7 +171,7 @@ class IncludeNode(template.Node):
 @register.simple_tag
 def template_exists(template_name):
     try:
-        django.template.loader.get_template(template_name)
+        template.loader.get_template(template_name)
         return True
     except template.TemplateDoesNotExist:
         return False

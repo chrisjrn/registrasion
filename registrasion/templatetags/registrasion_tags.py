@@ -193,3 +193,9 @@ def include_if_exists(parser, token):
             "%r tag requires a single argument" % token.contents.split()[0]
 
     return IncludeNode(template_name)
+
+
+@register.filter
+def addstr(arg1, arg2):
+    """concatenate arg1 & arg2"""
+    return str(arg1) + str(arg2)

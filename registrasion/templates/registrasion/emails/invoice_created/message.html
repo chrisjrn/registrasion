@@ -1,8 +1,9 @@
 {% load i18n %}
+{% load registrasion_tags %}
 
 {% if invoice.is_unpaid %}
 
-  {% with "http://"|add:current_site as current_host %}
+  {% with "http://"|addstr:current_site as current_host %}
     {% include "registrasion/invoice/unpaid_notice.html" %}
   {% endwith %}
 

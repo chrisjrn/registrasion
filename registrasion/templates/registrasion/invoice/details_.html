@@ -58,6 +58,11 @@
           <th colspan="3">TOTAL</th>
           <td class="text-right">${{ invoice.value }}</td>
         </tr>
+
+        {% block extra_line_items_after_total %}
+
+        {% endblock %}
+
       </table>
     </div>
 

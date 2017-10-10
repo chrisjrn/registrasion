@@ -102,6 +102,9 @@ def ProductsForm(category, products):
     class ProductsForm(RENDER_TYPES[category.render_type]):
         pass
 
+    products = list(products)
+    products.sort(key=lambda prod: prod.order)
+
     ProductsForm.set_fields(category, products)
 
     if category.render_type == inventory.Category.RENDER_TYPE_ITEM_QUANTITY:
